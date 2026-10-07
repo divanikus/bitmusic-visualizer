@@ -90,7 +90,9 @@ if(UNIX AND BITMUSIC_SHARED_GME)
       NO_TRANSLATIONS
       INCLUDE_PLUGINS qoffscreen
       EXCLUDE_PLUGIN_TYPES multimedia imageformats iconengines networkinformation tls
-                           generic styles qmltooling platformthemes
+                           generic styles qmltooling platformthemes egldeviceintegrations
+                           wayland-decoration-client wayland-graphics-integration-client
+                           wayland-shell-integration
       EXCLUDE_PLUGINS qwayland qwayland-egl qvnc qeglfs qlinuxfb)
     install(SCRIPT ${deploy_script} COMPONENT Runtime)
   endif()

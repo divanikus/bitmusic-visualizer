@@ -109,6 +109,7 @@ def main():
     else:
         executable = stage / 'AppRun'
         dependency_env = dict(env, LD_LIBRARY_PATH=str(stage / 'lib'))
+        dependency_errors = []
         for binary in stage.rglob('*'):
             if not binary.is_file() or binary.is_symlink():
                 continue
@@ -117,11 +118,13 @@ def main():
             if elf:
                 result = subprocess.run(['ldd', str(binary)], capture_output=True, text=True, env=dependency_env)
                 if result.returncode or 'not found' in result.stdout:
-                    raise RuntimeError(f'Unresolved ELF dependencies: {binary}\n{result.stdout}')
+                    dependency_errors.append(f'Unresolved ELF dependencies: {binary}\n{result.stdout}{result.stderr}')
                 for line in result.stdout.splitlines():
                     if 'libQt6' in line or 'libgme' in line:
                         if str(stage) not in line:
-                            raise RuntimeError('Library loaded outside relocated package: ' + line)
+                            dependency_errors.append('Library loaded outside relocated package: ' + line)
+        if dependency_errors:
+            raise RuntimeError('\n'.join(dependency_errors))
     subprocess.run([str(executable), '--tap-checks', str(fixtures), '--decoder-only'], env=env, check=True, timeout=120)
     if platform.system() == 'Linux':
         subprocess.run([str(image.resolve()), '--appimage-extract-and-run', '--tap-checks',
