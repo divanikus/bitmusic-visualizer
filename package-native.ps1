@@ -3,6 +3,7 @@ param(
     [string]$CompilerRoot = 'C:\Qt\Tools\mingw1310_64',
     [string]$CMake = 'C:\Qt\Tools\CMake_64\bin\cmake.exe',
     [string]$NinjaRoot = 'C:\Qt\Tools\Ninja',
+    [string]$Python = 'python',
     [string]$OutputPath = ''
 )
 $ErrorActionPreference = 'Stop'
@@ -82,30 +83,10 @@ try {
     foreach ($component in @('gcc','mingw-w64','winpthreads')) {
         Copy-Item -LiteralPath "$CompilerRoot/licenses/$component" -Destination $licenseRoot -Recurse
     }
-    # Include upstream license texts and human-readable copyright/attribution data.
-    foreach ($module in @('qtbase','qtmultimedia','qtdeclarative','qtshadertools')) {
-        Write-Output "Extracting license texts: $module"
-        $moduleLicenses = Join-Path $licenseRoot $module
-        New-Item -ItemType Directory -Path $moduleLicenses -Force | Out-Null
-        # Use Windows bsdtar explicitly: a PATH-provided GNU tar can interpret
-        # an absolute drive-letter archive path as a remote host.
-        & "$env:SystemRoot/System32/tar.exe" -xf "$sourceCache/$module-everywhere-src-6.11.2.tar.xz" -C $moduleLicenses --strip-components 2 "$module-everywhere-src-6.11.2/LICENSES"
-        if ($LASTEXITCODE -ne 0) { throw "Could not extract $module licenses." }
-        Write-Output "Reading SPDX notices: $module"
-        $sbom = Get-Content -LiteralPath "$QtRoot/sbom/$module-6.11.2.spdx.json" -Raw | ConvertFrom-Json
-        $notices = foreach ($item in $sbom.packages) {
-            "Component: $($item.name) $($item.versionInfo)"
-            "License: $($item.licenseConcluded)"
-            $item.copyrightText
-            ''
-        }
-        $notices += foreach ($item in $sbom.hasExtractedLicensingInfos) {
-            "License: $($item.licenseId)"
-            $item.extractedText
-            ''
-        }
-        $notices | Set-Content -LiteralPath "$licenseRoot/$module-NOTICES.txt" -Encoding UTF8
-    }
+    # Windows Server's bundled tar can stall on these .tar.xz source archives.
+    # Share the standard-library reader already used by the Unix packages.
+    & $Python "$PSScriptRoot/packaging/collect-licenses.py" $stageRoot --qt-root $QtRoot --qt-notices-only
+    if ($LASTEXITCODE -ne 0) { throw 'Qt license collection failed.' }
     Copy-Item -LiteralPath "$PSScriptRoot/packaging/README.txt" -Destination $stageRoot
     Copy-Item -LiteralPath "$PSScriptRoot/LICENSE" -Destination $stageRoot
     foreach ($launcher in @('Start-Diagnostics.cmd','Start-Software.cmd','Start-OpenGL.cmd')) {

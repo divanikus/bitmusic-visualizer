@@ -3,13 +3,15 @@
 Use Qt **6.11.2** (Core/Gui/Widgets, Multimedia and Declarative/QuickWidgets),
 CMake 3.24+, Ninja and a C++17 compiler. Qt 6.11's QAudioSink callback API is used;
 older distribution Qt packages will not build this application. Python 3.12+ is
-used by the Unix packaging/check scripts and by the original test-tune generator.
+used by packaging/check scripts and by the original test-tune generator.
 Python is not an application runtime dependency.
 
 ## Windows
 
 Install the Qt MinGW 64-bit kit and its GCC 13.1 toolchain. Defaults below match
 the usual `C:\Qt` layout; script parameters override every tool path.
+Packaging needs Python on PATH, or `package-native.ps1 -Python <path-to-python>`.
+The shared standard-library license collector avoids Windows Server tar stalls.
 
 ```powershell
 ./build-native.ps1 -Deploy

@@ -45,7 +45,15 @@ def collect(destination, qt_root):
             shutil.copy2(path, licenses)
     shutil.copy2(ROOT / 'LICENSE', destination)
     shutil.copy2(ROOT / 'THIRD-PARTY.md', licenses)
+    collect_qt_notices(destination, qt_root)
+
+
+def collect_qt_notices(destination, qt_root):
+    licenses = destination / 'licenses'
+    licenses.mkdir(parents=True, exist_ok=True)
+    cache = ROOT / '.runtime/sources'
     for module in MODULES:
+        print('Collecting Qt license texts and SPDX notices: ' + module, flush=True)
         module_licenses = licenses / module
         module_licenses.mkdir(exist_ok=True)
         with tarfile.open(cache / f'{module}-everywhere-src-6.11.2.tar.xz') as archive:
@@ -72,5 +80,10 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('destination', type=Path)
     parser.add_argument('--qt-root', required=True, type=Path)
+    parser.add_argument('--qt-notices-only', action='store_true',
+                        help='Collect Qt notices from the already verified source cache.')
     args = parser.parse_args()
-    collect(args.destination, args.qt_root)
+    if args.qt_notices_only:
+        collect_qt_notices(args.destination, args.qt_root)
+    else:
+        collect(args.destination, args.qt_root)
