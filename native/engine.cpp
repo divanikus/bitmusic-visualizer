@@ -98,7 +98,7 @@ size_t PcmRing::size() const { return write_.load(std::memory_order_acquire) - r
 bool PcmRing::push(const short *source, size_t count) {
     const auto write = write_.load(std::memory_order_relaxed);
     if (count > Capacity - (write - read_.load(std::memory_order_acquire))) return false;
-    const auto offset = write % Capacity;
+    const auto offset = static_cast<size_t>(write % Capacity);
     const auto first = std::min(count, Capacity - offset);
     std::memcpy(samples_.data() + offset, source, first * sizeof(short));
     std::memcpy(samples_.data(), source + first, (count - first) * sizeof(short));
@@ -108,7 +108,7 @@ bool PcmRing::push(const short *source, size_t count) {
 size_t PcmRing::pop(short *destination, size_t count) {
     const auto read = read_.load(std::memory_order_relaxed);
     count = std::min(count, static_cast<size_t>(write_.load(std::memory_order_acquire) - read));
-    const auto offset = read % Capacity;
+    const auto offset = static_cast<size_t>(read % Capacity);
     const auto first = std::min(count, Capacity - offset);
     std::memcpy(destination, samples_.data() + offset, first * sizeof(short));
     std::memcpy(destination + first, samples_.data(), (count - first) * sizeof(short));

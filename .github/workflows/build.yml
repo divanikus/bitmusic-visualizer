@@ -21,6 +21,8 @@ jobs:
         with:
           version: '6.11.2'
           arch: win64_mingw
+          # aqt 3.3.0 predates Qt 6.11's split Windows compiler repositories.
+          aqtsource: git+https://github.com/miurahr/aqtinstall.git@076e1659807d0b362a3ed684d54c2e9c775eb9c7
           archives: qtbase qtdeclarative
           modules: qtmultimedia qtshadertools
           tools: tools_mingw1310,qt.tools.win64_mingw1310
@@ -65,9 +67,11 @@ jobs:
           - runner: ubuntu-24.04
             label: linux-x64
             qt-arch: linux_gcc_64
+            qt-archives: qtbase qtdeclarative icu
           - runner: macos-15
             label: macos-arm64
             qt-arch: clang_64
+            qt-archives: qtbase qtdeclarative
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 35
     steps:
@@ -83,7 +87,7 @@ jobs:
         with:
           version: '6.11.2'
           arch: ${{ matrix.qt-arch }}
-          archives: qtbase qtdeclarative
+          archives: ${{ matrix.qt-archives }}
           modules: qtmultimedia qtshadertools
           cache: true
       - name: Package
