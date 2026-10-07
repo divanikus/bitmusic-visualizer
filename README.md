@@ -41,9 +41,11 @@ See [Releases](https://github.com/divanikus/bitmusic-visualizer/releases).
 Extract the complete archive and keep its libraries, licenses and source bundle.
 
 - **Windows x64:** run `bitmusic_visualizer.exe`. No installation or Qt SDK is needed.
-- **Linux x64:** the tar.gz targets Ubuntu 24.04 or compatible newer distributions.
-  Run `./BitMusicVisualizer`. System graphics, X11 and audio libraries are required;
-  see [building and packaging](docs/BUILDING.md). XWayland is needed on Wayland desktops.
+- **Linux x64:** download the AppImage, allow execution (`chmod +x *.AppImage`),
+  then run it. It bundles Qt, libgme and ICU; system graphics, X11 and audio libraries
+  remain required. The build baseline is Ubuntu 22.04 / glibc 2.35, with a Fedora
+  compatibility check. Use `--appimage-extract-and-run` if FUSE is unavailable.
+  See [Linux requirements](docs/BUILDING.md). XWayland is needed on Wayland desktops.
 - **macOS Apple Silicon:** open `BitMusicVisualizer.app`. Builds are not notarized
   or signed with an Apple Developer ID. Permit the application in Privacy & Security
   only if you trust its source. Intel Mac binaries are not currently provided.

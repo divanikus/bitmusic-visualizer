@@ -36,17 +36,35 @@ cmake -S . -B build/native -G Ninja -DCMAKE_BUILD_TYPE=Release \
   -DCMAKE_PREFIX_PATH="$QT_ROOT_DIR" -DBITMUSIC_SHARED_GME=ON
 cmake --build build/native --parallel 3
 python3 packaging/package-unix.py --qt-root "$QT_ROOT_DIR"
-python3 packaging/test-unix.py dist/BitMusicVisualizer-0.6.0-linux-x64.tar.gz
+python3 packaging/test-unix.py dist/BitMusicVisualizer-0.6.0-linux-x64.AppImage
 # On Apple Silicon use the generated -macos-arm64.zip instead.
 ```
 
-The Linux tar.gz bundles Qt, libgme and the Qt kit's ICU 73.2; libc, libstdc++, graphics/X11 and audio
-libraries come from the operating system. The initial baseline is Ubuntu 24.04
-x64, using X11 or XWayland. Typical Ubuntu runtime packages include `libgl1`,
-`libegl1`, `libpulse0`, `libasound2t64`, `libxcb-cursor0`, `libxkbcommon-x11-0`,
+The Linux AppImage bundles Qt, libgme and the Qt kit's ICU 73.2; libc, libstdc++, graphics/X11 and audio
+libraries come from the operating system. It builds on Ubuntu 22.04 x64 (glibc
+2.35), using X11 or XWayland, and is checked in a Fedora 43 container without an
+SDK or FUSE. This does not promise compatibility with every Linux distribution.
+Typical Ubuntu runtime packages include `libgl1`, `libegl1`, `libpulse0`,
+`libasound2` (or `libasound2t64` on newer systems), `libxcb-cursor0`, `libxkbcommon-x11-0`,
 `libxcb-icccm4`, `libxcb-keysyms1`, `libxcb-shape0` and `libxcb-xinerama0`.
 The build job installs development equivalents. Use system PulseAudio or
 PipeWire's PulseAudio compatibility service. Native Wayland packaging is deferred.
+
+The AppDir contains AppRun, the desktop entry, icon, replaceable libraries,
+licenses and corresponding sources. `packaging/appimage-inputs.json` pins
+appimagetool 1.9.1 and type2-runtime 20251108 by SHA256 and stable release URL.
+Packaging does not use mutable continuous downloads. The statically linked
+runtime needs no separately installed libfuse2. For hosts without FUSE access:
+
+```sh
+chmod +x BitMusicVisualizer-0.6.0-linux-x64.AppImage
+./BitMusicVisualizer-0.6.0-linux-x64.AppImage --appimage-extract-and-run
+```
+
+`--appimage-extract` exposes the bundle as `squashfs-root/`, including all sources
+and notices. Run `squashfs-root/AppRun` after replacing compatible libraries;
+the application does not prevent modifications. Settings still use XDG paths,
+not the read-only AppImage mount. No desktop integration or update daemon is installed.
 
 The macOS target is Apple Silicon, macOS 13+. Qt libraries, the Cocoa platform
 plugin and libgme are inside the .app. A local ad-hoc signature permits ARM64
@@ -56,7 +74,9 @@ needed after downloading. Test real playback and GPU/Retina behavior on a Mac.
 
 `test-unix.py` extracts to a new path, checks the complete SHA256 manifest, rejects
 music/settings and escaping symlinks, audits dynamic dependencies and runs the
-decoder/tap suite without needing an audio device. This is **not** a physical
+decoder/tap suite without needing an audio device. On Linux it also executes the
+actual relocated AppImage with `--appimage-extract-and-run`, verifies the runtime
+header/SquashFS payload and pinned runtime-library sources. This is **not** a physical
 audio/GPU/desktop test. Both Unix platforms need that manual validation before
 their first release is described as tested.
 

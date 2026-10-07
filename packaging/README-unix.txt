@@ -1,9 +1,13 @@
 Bit Music Visualizer 0.6.0
 
-Linux x64: extract the whole tar.gz, then run ./BitMusicVisualizer.
-Built for Ubuntu 24.04 or compatible newer systems. Requires system X11/XWayland,
+Linux x64: make the AppImage executable, then run it.
+Build baseline: Ubuntu 22.04 / glibc 2.35; requires system X11/XWayland,
 OpenGL/EGL drivers, PulseAudio (or PipeWire's PulseAudio compatibility) and the
 standard C/C++ runtimes. No root access or installation is required.
+If FUSE is unavailable, use ./BitMusicVisualizer-0.6.0-linux-x64.AppImage --appimage-extract-and-run
+To inspect licenses/sources or replace libraries, use --appimage-extract, then
+run squashfs-root/AppRun. The image includes Qt/libgme/ICU and an AppImage runtime;
+it does not bundle the operating system or graphics drivers.
 
 macOS Apple Silicon: extract the ZIP and open BitMusicVisualizer.app.
 This build has only an ad-hoc signature; it is not Apple-notarized. If Gatekeeper

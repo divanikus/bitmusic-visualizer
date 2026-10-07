@@ -64,7 +64,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - runner: ubuntu-24.04
+          - runner: ubuntu-22.04
             label: linux-x64
             qt-arch: linux_gcc_64
             qt-archives: qtbase qtdeclarative icu
@@ -95,9 +95,18 @@ jobs:
       - name: Verify relocated package and decoder
         shell: bash
         run: |
-          for package in dist/*.tar.gz dist/*.zip; do
+          for package in dist/*.AppImage dist/*.zip; do
             if [ -f "$package" ]; then python3 packaging/test-unix.py "$package"; fi
           done
+      - name: Check AppImage on Fedora without an SDK or FUSE
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          docker run --rm -v "$PWD:/work" -w /work fedora:43 bash -c '
+            set -e
+            dnf -y install python3 binutils glibc-langpack-en libglvnd-glx libglvnd-egl libglvnd-opengl pulseaudio-libs alsa-lib libX11 libxcb libxkbcommon-x11 xcb-util-cursor xcb-util-wm xcb-util-keysyms xcb-util-renderutil xcb-util-image fontconfig dbus-libs
+            python3 packaging/test-unix.py dist/*.AppImage
+          '
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: ${{ matrix.label }}

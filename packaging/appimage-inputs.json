@@ -1,0 +1,17 @@
+{
+  "tools": [
+    {"file":"appimagetool-1.9.1-x86_64.AppImage","url":"https://github.com/AppImage/appimagetool/releases/download/1.9.1/appimagetool-x86_64.AppImage","sha256":"ed4ce84f0d9caff66f50bcca6ff6f35aae54ce8135408b3fa33abfc3cb384eb0"},
+    {"file":"runtime-20251108-x86_64","url":"https://github.com/AppImage/type2-runtime/releases/download/20251108/runtime-x86_64","sha256":"2fca8b443c92510f1483a883f60061ad09b46b978b2631c807cd873a47ec260d"}
+  ],
+  "sources": [
+    {"file":"type2-runtime-20251108.tar.gz","url":"https://codeload.github.com/AppImage/type2-runtime/tar.gz/dd6cebedcbddde9c82f89b011e8e1d40b6e43868","sha256":"f5fec23be76e50e2445ed2d018bac49b367490fc483c62c4637e99ec705d27ba"},
+    {"file":"fuse-3.15.0.tar.xz","url":"https://github.com/libfuse/libfuse/releases/download/fuse-3.15.0/fuse-3.15.0.tar.xz","sha256":"70589cfd5e1cff7ccd6ac91c86c01be340b227285c5e200baa284e401eea2ca0"},
+    {"file":"squashfuse-0.5.2.tar.gz","url":"https://github.com/vasi/squashfuse/archive/0.5.2.tar.gz","sha256":"db0238c5981dabbd80ee09ae15387f390091668ca060a7bc38047912491443d3"}
+  ],
+  "notices": [
+    {"file":"musl-COPYRIGHT","url":"https://git.musl-libc.org/cgit/musl/plain/COPYRIGHT?h=v1.2.5","sha256":"f9bc4423732350eb0b3f7ed7e91d530298476f8fec0c6c427a1c04ade22655af"},
+    {"file":"zstd-LICENSE","url":"https://raw.githubusercontent.com/facebook/zstd/v1.5.6/LICENSE","sha256":"7055266497633c9025b777c78eb7235af13922117480ed5c674677adc381c9d8"},
+    {"file":"zlib-LICENSE","url":"https://raw.githubusercontent.com/madler/zlib/v1.3.1/LICENSE","sha256":"845efc77857d485d91fb3e0b884aaa929368c717ae8186b66fe1ed2495753243"},
+    {"file":"mimalloc-LICENSE","url":"https://raw.githubusercontent.com/microsoft/mimalloc/v2.1.7/LICENSE","sha256":"19c99805e7a44a34b297a75d1edea9985e300066dfc024d5c99d4236d4573b5d"}
+  ]
+}

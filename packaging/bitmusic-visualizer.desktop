@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Bit Music Visualizer
+Comment=Chiptune player and channel oscilloscope
+Exec=AppRun %F
+Icon=bitmusic-visualizer
+Terminal=false
+Categories=AudioVideo;Audio;Player;

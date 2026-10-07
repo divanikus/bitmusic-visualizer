@@ -1,4 +1,4 @@
-"""Build a Linux tar.gz or Apple Silicon app ZIP with replaceable libraries."""
+"""Build a Linux AppImage or Apple Silicon app ZIP with replaceable libraries."""
 import argparse
 import hashlib
 import os
@@ -8,8 +8,8 @@ import re
 import shutil
 import subprocess
 import sys
-import tarfile
 import tempfile
+import appimage
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -31,7 +31,7 @@ def main():
     version = re.search(r'project\(BitMusicVisualizer VERSION ([0-9.]+)', (ROOT / 'CMakeLists.txt').read_text())[1]
     label = 'linux-x64' if system == 'Linux' else 'macos-arm64'
     name = f'BitMusicVisualizer-{version}-{label}'
-    extension = '.tar.gz' if system == 'Linux' else '.zip'
+    extension = '.AppImage' if system == 'Linux' else '.zip'
     output = ROOT / 'dist' / (name + extension)
     if output.exists():
         raise RuntimeError(f'Refusing to overwrite {output}')
@@ -61,10 +61,9 @@ def main():
         # ARM64 requires code signatures. Ad-hoc signing is local and uses no identity.
         run('codesign', '--force', '--deep', '--sign', '-', app)
         run('codesign', '--verify', '--deep', '--strict', app)
-    else:
-        shutil.copy2(ROOT / 'packaging/BitMusicVisualizer', stage)
-        (stage / 'BitMusicVisualizer').chmod(0o755)
     run(sys.executable, ROOT / 'packaging/collect-licenses.py', stage, '--qt-root', qt)
+    if system == 'Linux':
+        appimage_tool, appimage_runtime = appimage.prepare(stage)
     shutil.copy2(ROOT / 'packaging/README-unix.txt', stage / 'README.txt')
     shutil.copy2(ROOT / 'packaging/THEMES.txt', stage / 'THEMES.txt')
     revision = subprocess.check_output(['git', '-C', str(ROOT), 'rev-parse', 'HEAD'], text=True).strip()
@@ -79,8 +78,7 @@ def main():
     if system == 'Darwin':
         run('ditto', '-c', '-k', '--keepParent', stage, output)
     else:
-        with tarfile.open(output, 'w:gz') as archive:
-            archive.add(stage, arcname='BitMusicVisualizer')
+        appimage.package(stage, output, appimage_tool, appimage_runtime)
     Path(str(output) + '.sha256').write_text(hashlib.sha256(output.read_bytes()).hexdigest() + '  ' + output.name + '\n')
     print(f'Package: {output}')
 

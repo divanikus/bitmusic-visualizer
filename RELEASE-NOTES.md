@@ -12,7 +12,9 @@ First public source snapshot of the native chiptune player and oscilloscope.
 
 Archives include Qt/libgme libraries, licenses and corresponding source.
 Music is not included. Windows EXE is unsigned; macOS uses an ad-hoc signature
-and is not notarized. Linux targets Ubuntu 24.04-compatible x64 environments.
+and is not notarized. Linux uses a single AppImage, with an Ubuntu 22.04 / glibc
+2.35 build baseline. It includes Qt/libgme/ICU; system graphics/X11/audio/C++
+libraries remain required. Without FUSE, use --appimage-extract-and-run.
 
 Known limits: not all VGM chips are supported; Mega Drive PSG is a combined group;
 SPC voice cards exclude shared echo (included in Full mix); cold seeks can take

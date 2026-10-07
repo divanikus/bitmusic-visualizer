@@ -11,6 +11,7 @@ LICENSE does not relicense dependencies or modified upstream code.
 | Game Music Emu | 0.6.5 + local patches | LGPL-2.1-or-later; replaceable shared library |
 | zlib | 1.3.2 | zlib license; static |
 | ICU (Linux Qt runtime) | 73.2 | Unicode/ICU permissive licenses; shared |
+| AppImage type-2 runtime (Linux) | 20251108 | MIT runtime; static libfuse LGPL-2.1, other permissive runtime components |
 | MinGW GCC runtimes (Windows) | 13.1.0 | GPL-3.0 with GCC Runtime Library Exception 3.1 |
 | MinGW-w64 / winpthreads (Windows) | Qt toolchain distribution | Upstream permissive notices |
 
@@ -23,6 +24,15 @@ The Linux Qt kit requires ICU 73.2, which is included as shared libraries rather
 than relying on a distribution's different ICU ABI. Its complete upstream license
 and embedded third-party notices are in [LICENSES/ICU-73.2.txt](LICENSES/ICU-73.2.txt).
 Source: [ICU release-73-2](https://github.com/unicode-org/icu/tree/release-73-2).
+
+Linux AppImages add the official type2-runtime, with musl, libfuse, squashfuse,
+zstd, zlib and mimalloc. Runtime/dependency notices are in `licenses/appimage/`.
+The complete pinned runtime source, its libfuse patch/build scripts, libfuse 3.15.0
+and squashfuse 0.5.2 sources are in `third-party-sources/appimage/`. See the pinned
+[input list](packaging/appimage-inputs.json) and
+[runtime source](https://github.com/AppImage/type2-runtime/tree/dd6cebedcbddde9c82f89b011e8e1d40b6e43868).
+The runtime is a separate executable launcher; it does not change the application's
+MIT license. appimagetool 1.9.1 is a build tool and is not shipped in the player.
 
 The selected YM2612 core is **Nuked OPN2** (LGPL-2.1-or-later). The backend also
 contains third-party emulation code, including emu2413 with its upstream notices.
@@ -56,7 +66,7 @@ Every binary archive includes:
 Keep these files together when redistributing a binary. Default development
 builds may use static libgme; use the packaging scripts for release artifacts.
 Linux uses the operating system's C/C++ runtime, graphics, X11 and audio libraries;
-these system libraries are not redistributed by the tar.gz. macOS system
+these system libraries are not redistributed by the AppImage. macOS system
 frameworks are likewise not bundled.
 
 ## Sources

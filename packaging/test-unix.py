@@ -6,8 +6,8 @@ from pathlib import Path
 import platform
 import subprocess
 import sys
-import tarfile
 import tempfile
+import json
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
@@ -23,10 +23,18 @@ def main():
     test = Path(tempfile.mkdtemp(prefix='portable space-', dir=output))
     if platform.system() == 'Darwin':
         subprocess.run(['ditto', '-x', '-k', str(args.archive.resolve()), str(test)], check=True)
+        stage = test / 'BitMusicVisualizer'
     else:
-        with tarfile.open(args.archive) as archive:
-            archive.extractall(test, filter='data')
-    stage = test / 'BitMusicVisualizer'
+        # Exercise the actual runtime from a relocated path containing spaces.
+        import shutil
+        image = test / args.archive.name
+        shutil.copy2(args.archive, image)
+        image.chmod(0o755)
+        if image.read_bytes()[8:11] != b'AI\x02':
+            raise RuntimeError('Not a type-2 AppImage.')
+        subprocess.run([str(image.resolve()), '--appimage-extract'], cwd=test,
+                       stdout=subprocess.DEVNULL, check=True, timeout=120)
+        stage = test / 'squashfs-root'
     forbidden = {'.nsf', '.nsfe', '.vgm', '.vgz', '.spc', '.ay', '.gbs', '.sid', '.wav', '.pdb', '.obj'}
     for path in stage.rglob('*'):
         if path.is_symlink() and not path.resolve().is_relative_to(stage.resolve()):
@@ -49,6 +57,23 @@ def main():
     for required in ('LICENSE', 'licenses/THIRD-PARTY.md', 'third-party-sources/sources.json'):
         if required not in listed:
             raise RuntimeError('Missing notices: ' + required)
+    if platform.system() == 'Linux':
+        for required in ('AppRun', 'bitmusic-visualizer.desktop', 'bitmusic-visualizer.png',
+                         'third-party-sources/appimage/appimage-inputs.json'):
+            if required not in listed:
+                raise RuntimeError('Missing AppImage content: ' + required)
+        inputs = json.loads((stage / 'third-party-sources/appimage/appimage-inputs.json').read_text())
+        offset = int(subprocess.check_output([str(image.resolve()), '--appimage-offset'], text=True))
+        if not 0 < offset < image.stat().st_size:
+            raise RuntimeError('Invalid AppImage payload offset.')
+        with image.open('rb') as data:
+            data.seek(offset)
+            if data.read(4) != b'hsqs':
+                raise RuntimeError('Missing SquashFS payload.')
+        for item in inputs['sources']:
+            source = stage / 'third-party-sources/appimage' / item['file']
+            if hashlib.sha256(source.read_bytes()).hexdigest() != item['sha256']:
+                raise RuntimeError('AppImage source checksum mismatch.')
     fixtures = test / 'fixtures'
     make_fixtures(fixtures)
     env = dict(os.environ)
@@ -82,7 +107,7 @@ def main():
                 if dependency.startswith('/') and not dependency.startswith(('/System/Library/', '/usr/lib/')):
                     raise RuntimeError('Nonportable Mach-O dependency: ' + dependency)
     else:
-        executable = stage / 'BitMusicVisualizer'
+        executable = stage / 'AppRun'
         dependency_env = dict(env, LD_LIBRARY_PATH=str(stage / 'lib'))
         for binary in stage.rglob('*'):
             if not binary.is_file() or binary.is_symlink():
@@ -98,6 +123,10 @@ def main():
                         if str(stage) not in line:
                             raise RuntimeError('Library loaded outside relocated package: ' + line)
     subprocess.run([str(executable), '--tap-checks', str(fixtures), '--decoder-only'], env=env, check=True, timeout=120)
+    if platform.system() == 'Linux':
+        subprocess.run([str(image.resolve()), '--appimage-extract-and-run', '--tap-checks',
+                        str(fixtures.resolve()), '--decoder-only'], env=env, check=True, timeout=180)
+        print('Type-2 AppImage runtime and extract-and-run without FUSE PASS.')
     print((fixtures / 'tap-checks.txt').read_text())
     print('Relocated package, manifest, dependency and decoder checks PASS.')
     print('Physical audio output, GPU drivers and desktop interaction still need manual testing.')

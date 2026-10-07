@@ -42,6 +42,20 @@ Official deployment guidance: https://doc.qt.io/qt-6/windows-deployment.html
 
 ## Linux and macOS packages
 
+Linux is distributed as an AppImage. Extract it with
+`./BitMusicVisualizer-0.6.0-linux-x64.AppImage --appimage-extract`; the paths below
+are relative to `squashfs-root/`. Modified bundles can run directly through AppRun
+or be repackaged with appimagetool. No signature check restricts replacements.
+
+The independent AppImage runtime is also replaceable. Its source and libfuse patch
+are in `third-party-sources/appimage/type2-runtime-20251108.tar.gz`, alongside the
+exact libfuse and squashfuse archives pinned by its build scripts. Follow that
+archive's BUILD.md and scripts/docker/build-with-docker.sh to build a modified
+runtime, then pass `--runtime-file <modified-runtime>` to appimagetool when packing
+the extracted AppDir. This is upstream rebuild guidance, not a claim that this
+project separately rebuilt the supplied official runtime. The source/input hashes
+and full notices accompany the AppImage.
+
 The same standalone libgme CMake project builds a shared .so on Linux or .dylib on
 macOS. Use the package architecture (Linux x64 / macOS arm64) and a compatible C++
 runtime. On macOS add `-DCMAKE_OSX_ARCHITECTURES=arm64` and
