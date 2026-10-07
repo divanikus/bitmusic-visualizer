@@ -88,6 +88,7 @@ if(UNIX AND BITMUSIC_SHARED_GME)
     install(TARGETS gme_shared LIBRARY DESTINATION lib COMPONENT Runtime)
     qt_generate_deploy_app_script(TARGET bitmusic_visualizer OUTPUT_SCRIPT deploy_script
       NO_TRANSLATIONS
+      INCLUDE_PLUGINS qoffscreen
       EXCLUDE_PLUGIN_TYPES multimedia imageformats iconengines networkinformation tls
                            generic styles qmltooling platformthemes
       EXCLUDE_PLUGINS qwayland qwayland-egl qvnc qeglfs qlinuxfb)

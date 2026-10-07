@@ -74,6 +74,10 @@ def main():
             if result.returncode != 0:
                 raise RuntimeError('Cannot inspect Mach-O binary: ' + str(binary))
             for line in result.stdout.splitlines()[1:]:
+                # Universal Qt binaries repeat an unindented absolute filename
+                # header for each architecture; only indented lines are imports.
+                if not line.startswith('\t'):
+                    continue
                 dependency = line.strip().split(' (', 1)[0]
                 if dependency.startswith('/') and not dependency.startswith(('/System/Library/', '/usr/lib/')):
                     raise RuntimeError('Nonportable Mach-O dependency: ' + dependency)

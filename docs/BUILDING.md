@@ -38,7 +38,7 @@ python3 packaging/test-unix.py dist/BitMusicVisualizer-0.6.0-linux-x64.tar.gz
 # On Apple Silicon use the generated -macos-arm64.zip instead.
 ```
 
-The Linux tar.gz bundles Qt and libgme; libc, libstdc++, graphics/X11 and audio
+The Linux tar.gz bundles Qt, libgme and the Qt kit's ICU 73.2; libc, libstdc++, graphics/X11 and audio
 libraries come from the operating system. The initial baseline is Ubuntu 24.04
 x64, using X11 or XWayland. Typical Ubuntu runtime packages include `libgl1`,
 `libegl1`, `libpulse0`, `libasound2t64`, `libxcb-cursor0`, `libxkbcommon-x11-0`,
@@ -77,6 +77,10 @@ produces Windows x64, Linux x64 and macOS arm64 archives and adjacent SHA256 fil
 Actions are pinned to commits; the workflow has read-only repository permission
 and does not publish releases. Download artifacts from the Actions run for the
 exact commit being released. Retain the third-party source/notices inside them.
+
+The Windows job pins an upstream aqtinstall revision that understands Qt 6.11's
+separate MinGW/compiler repository folders; released aqtinstall 3.3.0 selects a
+nonexistent path for that SDK. Linux explicitly installs the kit's ICU archive.
 
 Before publishing v0.6.0:
 

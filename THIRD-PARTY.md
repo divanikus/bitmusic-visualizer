@@ -10,6 +10,7 @@ LICENSE does not relicense dependencies or modified upstream code.
 | Qt Shader Tools | 6.11.2 | Build dependency; upstream license terms, source included to rebuild Qt Quick |
 | Game Music Emu | 0.6.5 + local patches | LGPL-2.1-or-later; replaceable shared library |
 | zlib | 1.3.2 | zlib license; static |
+| ICU (Linux Qt runtime) | 73.2 | Unicode/ICU permissive licenses; shared |
 | MinGW GCC runtimes (Windows) | 13.1.0 | GPL-3.0 with GCC Runtime Library Exception 3.1 |
 | MinGW-w64 / winpthreads (Windows) | Qt toolchain distribution | Upstream permissive notices |
 
@@ -17,6 +18,11 @@ Qt embeds additional third-party components. Packages include the relevant Qt
 LICENSES directories and copyright/license information from each installed
 module's SPDX SBOM. Qt Shader Tools contains tools with Qt's GPL exception; these
 tools are not linked into the player. No GPL-only Qt application module is used.
+
+The Linux Qt kit requires ICU 73.2, which is included as shared libraries rather
+than relying on a distribution's different ICU ABI. Its complete upstream license
+and embedded third-party notices are in [LICENSES/ICU-73.2.txt](LICENSES/ICU-73.2.txt).
+Source: [ICU release-73-2](https://github.com/unicode-org/icu/tree/release-73-2).
 
 The selected YM2612 core is **Nuked OPN2** (LGPL-2.1-or-later). The backend also
 contains third-party emulation code, including emu2413 with its upstream notices.
