@@ -78,15 +78,20 @@ try {
     Copy-Item -Path "$PSScriptRoot/LICENSES/*" -Destination $licenseRoot
     Copy-Item -LiteralPath "$buildRoot/_deps/gme-src/license.txt" -Destination "$licenseRoot/libgme-LGPL-2.1.txt"
     Copy-Item -LiteralPath "$buildRoot/_deps/zlib-src/LICENSE" -Destination "$licenseRoot/zlib.txt"
+    Write-Output 'Collecting compiler runtime licenses.'
     foreach ($component in @('gcc','mingw-w64','winpthreads')) {
         Copy-Item -LiteralPath "$CompilerRoot/licenses/$component" -Destination $licenseRoot -Recurse
     }
     # Include upstream license texts and human-readable copyright/attribution data.
     foreach ($module in @('qtbase','qtmultimedia','qtdeclarative','qtshadertools')) {
+        Write-Output "Extracting license texts: $module"
         $moduleLicenses = Join-Path $licenseRoot $module
         New-Item -ItemType Directory -Path $moduleLicenses -Force | Out-Null
-        & tar -xf "$sourceCache/$module-everywhere-src-6.11.2.tar.xz" -C $moduleLicenses --strip-components 2 "$module-everywhere-src-6.11.2/LICENSES"
+        # Use Windows bsdtar explicitly: a PATH-provided GNU tar can interpret
+        # an absolute drive-letter archive path as a remote host.
+        & "$env:SystemRoot/System32/tar.exe" -xf "$sourceCache/$module-everywhere-src-6.11.2.tar.xz" -C $moduleLicenses --strip-components 2 "$module-everywhere-src-6.11.2/LICENSES"
         if ($LASTEXITCODE -ne 0) { throw "Could not extract $module licenses." }
+        Write-Output "Reading SPDX notices: $module"
         $sbom = Get-Content -LiteralPath "$QtRoot/sbom/$module-6.11.2.spdx.json" -Raw | ConvertFrom-Json
         $notices = foreach ($item in $sbom.packages) {
             "Component: $($item.name) $($item.versionInfo)"
@@ -111,6 +116,7 @@ try {
     Copy-Item -LiteralPath "$PSScriptRoot/THIRD-PARTY.md" -Destination $licenseRoot
 
     # Fail packaging if a binary imports a DLL that is neither shipped nor a Windows component.
+    Write-Output 'Checking deployed DLL dependencies.'
     $dependencies = foreach ($binary in Get-ChildItem -LiteralPath $stageRoot -Recurse -File | Where-Object { $_.Extension -in '.dll','.exe' }) {
         $headers = & "$CompilerRoot/bin/objdump.exe" -p $binary.FullName
         if ($LASTEXITCODE -ne 0) { throw "Cannot inspect $($binary.Name)." }
@@ -137,6 +143,7 @@ try {
     $manifest | Set-Content -LiteralPath "$stageRoot/SHA256SUMS.txt" -Encoding ASCII
     New-Item -ItemType Directory -Path (Split-Path -Parent $OutputPath) -Force | Out-Null
     Add-Type -AssemblyName System.IO.Compression.FileSystem
+    Write-Output 'Compressing portable ZIP.'
     [IO.Compression.ZipFile]::CreateFromDirectory($stageParent, $OutputPath, [IO.Compression.CompressionLevel]::Optimal, $false)
     $zipHash = (Get-FileHash -LiteralPath $OutputPath -Algorithm SHA256).Hash.ToLowerInvariant()
     "$zipHash  $([IO.Path]::GetFileName($OutputPath))" | Set-Content -LiteralPath "$OutputPath.sha256" -Encoding ASCII
