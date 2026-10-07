@@ -46,7 +46,8 @@ libraries come from the operating system. It builds on Ubuntu 22.04 x64 (glibc
 SDK or FUSE. This does not promise compatibility with every Linux distribution.
 Typical Ubuntu runtime packages include `libgl1`, `libegl1`, `libpulse0`,
 `libasound2` (or `libasound2t64` on newer systems), `libxcb-cursor0`, `libxkbcommon-x11-0`,
-`libxcb-icccm4`, `libxcb-keysyms1`, `libxcb-shape0` and `libxcb-xinerama0`.
+`libxcb-icccm4`, `libxcb-keysyms1`, `libxcb-shape0`, `libxcb-xinerama0` and
+`libwayland-cursor0` (a transitive Qt dependency even with X11 selected).
 The build job installs development equivalents. Use system PulseAudio or
 PipeWire's PulseAudio compatibility service. Native Wayland packaging is deferred.
 

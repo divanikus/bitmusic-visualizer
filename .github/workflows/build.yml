@@ -102,10 +102,10 @@ jobs:
         if: runner.os == 'Linux'
         shell: bash
         run: |
-          docker run --rm -v "$PWD:/work" -w /work fedora:43 bash -c '
+          docker run --rm -v "$PWD:/work" -w /work -e HOST_UID="$(id -u)" -e HOST_GID="$(id -g)" fedora:43 bash -c '
             set -e
-            dnf -y install python3 binutils glibc-langpack-en libglvnd-glx libglvnd-egl libglvnd-opengl pulseaudio-libs alsa-lib libX11 libxcb libxkbcommon-x11 xcb-util-cursor xcb-util-wm xcb-util-keysyms xcb-util-renderutil xcb-util-image fontconfig dbus-libs
-            python3 packaging/test-unix.py dist/*.AppImage
+            dnf -y install python3 binutils util-linux glibc-langpack-en libglvnd-glx libglvnd-egl libglvnd-opengl pulseaudio-libs alsa-lib libX11 libxcb libxkbcommon-x11 libwayland-cursor xcb-util-cursor xcb-util-wm xcb-util-keysyms xcb-util-renderutil xcb-util-image fontconfig dbus-libs
+            setpriv --reuid="$HOST_UID" --regid="$HOST_GID" --clear-groups python3 packaging/test-unix.py dist/*.AppImage
           '
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
