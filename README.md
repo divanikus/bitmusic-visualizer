@@ -4,6 +4,8 @@ A compact chiptune player with a separate, customizable oscilloscope window.
 Explore the voices inside retro game music, mute channels, and compare them
 with the final audio mix.
 
+![Bit Music Visualizer playing a Sega Genesis track with stereo channel oscilloscopes and the full mix.](docs/images/player-and-oscilloscopes.png)
+
 Built with C++17, Qt 6 and a modified Game Music Emu backend. Music is not included.
 
 ## Features
