@@ -37,6 +37,7 @@ try {
         --skip-plugin-types multimedia,imageformats,iconengines,networkinformation,tls,generic,styles,qmltooling `
         "$stageRoot/bitmusic_visualizer.exe"
     if ($LASTEXITCODE -ne 0) { throw 'Qt runtime deployment failed.' }
+    Write-Output 'Qt runtime deployment complete.'
     # Allows decoder/CPU checks on CI hosts without an interactive desktop.
     Copy-Item -LiteralPath "$QtRoot/plugins/platforms/qoffscreen.dll" -Destination "$stageRoot/platforms"
     @('[Paths]', 'Prefix=.', 'Plugins=.') | Set-Content -LiteralPath "$stageRoot/qt.conf" -Encoding ASCII
@@ -51,13 +52,20 @@ try {
         $archive = Join-Path $sourceCache $source.file
         if (!(Test-Path -LiteralPath $archive)) {
             $download = "$archive.download"
-            Invoke-WebRequest -UseBasicParsing -Uri $source.url -OutFile $download
+            Write-Output "Downloading corresponding source: $($source.file)"
+            # Native curl avoids unbounded Invoke-WebRequest stalls on hosted
+            # Windows runners. Timeouts never bypass the pinned checksum below.
+            & "$env:SystemRoot/System32/curl.exe" --fail --location --silent --show-error `
+                --connect-timeout 20 --max-time 180 --retry 3 --retry-delay 2 `
+                --output $download $source.url
+            if ($LASTEXITCODE -ne 0) { throw "Source download failed: $($source.file)" }
             if ((Get-FileHash -LiteralPath $download -Algorithm SHA256).Hash -ne $source.sha256) { throw "Source checksum mismatch: $($source.file)" }
             Move-Item -LiteralPath $download -Destination $archive
         }
         if ((Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash -ne $source.sha256) { throw "Source checksum mismatch: $($source.file)" }
         Copy-Item -LiteralPath $archive -Destination $sourceRoot
     }
+    Write-Output 'Corresponding sources verified and copied.'
     Copy-Item -LiteralPath "$PSScriptRoot/packaging/sources.json" -Destination $sourceRoot
     Copy-Item -LiteralPath "$PSScriptRoot/packaging/REBUILD-LIBRARIES.md" -Destination $sourceRoot
     $patchRoot = Join-Path $sourceRoot 'bitmusic-gme'
