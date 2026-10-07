@@ -8,6 +8,8 @@ with the final audio mix.
 
 Built with C++17, Qt 6 and a modified Game Music Emu backend. Music is not included.
 
+See the [changelog](CHANGELOG.md) for version history.
+
 ## Features
 
 - Play, pause, stop, seek, repeat, and select subsongs within a music file.
