@@ -1,0 +1,66 @@
+Scope color themes
+==================
+Place .ini files here, then open the Theme dropdown in the scope editor.
+Selecting an entry immediately applies it. Default restores the built-in colors.
+Save theme... asks only for a name, then automatically writes all 32 tile palettes,
+the Full mix palette and window background to themes/<name>.ini. Existing names show Replace;
+Cancel keeps the previous file. Names may contain spaces and Unicode characters.
+Empty names, path separators, reserved system names and Default are not accepted.
+Edits appear as Custom (unsaved); save before selecting another theme or exiting.
+The player restores the last selected/saved theme on startup, including the window
+background. If the file is missing, unreadable or invalid, it uses Default instead.
+Choosing Default also persists. Custom (unsaved) edits do not overwrite the saved
+theme; restart restores its last saved version. A new unsaved palette is not stored.
+Only the theme filename is remembered. On Windows it is stored in
+BitMusicVisualizer.ini beside the EXE.
+Move/copy that INI together with the application and themes folder to keep the choice.
+Each Windows copy has its own settings. No AppData or registry is used.
+If the app folder cannot be written, a message explains that the selection was not
+saved; it remains active for this session. There is no alternate storage fallback.
+
+On Linux, settings use $XDG_CONFIG_HOME/BitMusicVisualizer/BitMusicVisualizer.ini
+(default ~/.config/BitMusicVisualizer/BitMusicVisualizer.ini), and user themes use
+$XDG_DATA_HOME/BitMusicVisualizer/themes (default ~/.local/share/BitMusicVisualizer/themes).
+On macOS, settings use ~/Library/Preferences/org.bitmusicvisualizer.BitMusicVisualizer.plist,
+and themes use ~/Library/Application Support/BitMusicVisualizer/themes.
+The Theme dropdown tooltip shows the actual theme folder. Linux/macOS copies share
+the user's preferences; no data is written inside the app bundle or AppImage.
+
+Themes survive music file changes. Tile01 belongs to the first channel in a newly
+opened file, Tile02 to the second, etc. Moving/hiding tiles keeps their colors.
+Apply to all copies all five colors into all 32 entries, including unused ones,
+and Full mix. Full mix has its own palette regardless of its position in the grid.
+Grid Reset keeps the theme. The background pipette remains in the upper toolbar.
+User themes only control scope colors; player controls keep their dark palette.
+
+Files are UTF-8 INI with opaque #RRGGBB colors. Theme and Tile01 through Tile32
+must all be present with their required fields. Use Save theme... as a template.
+
+[Theme]
+Version=1
+Slots=32
+WindowBackground=#171E24
+
+[Tile01]
+Waveform=#75E2CB
+Label=#75E2CB
+Border=#314047
+Background=#1B252B
+Axis=#293E48
+
+...repeat the five keys in [Tile02] through [Tile32].
+
+[FullMix]
+Waveform=#75E2CB
+Label=#75E2CB
+Border=#314047
+Background=#1B252B
+Axis=#293E48
+
+FullMix is optional for compatibility with older themes: if absent, its colors
+come from Tile01. If present, all five keys must be valid. Saving always writes
+this group. Version=1 and Slots=32 still describe the hardware-voice palettes.
+
+Invalid/missing fields on manual selection leave the current theme unchanged and
+show an error. Startup silently falls back to Default instead of opening an error dialog.
+Theme files never include music, channel names, grid dimensions or audio settings.

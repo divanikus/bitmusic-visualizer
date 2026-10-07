@@ -1,0 +1,150 @@
+[
+  {
+    "file": "Ym2612_Nuked.cpp",
+    "sha256": "a3fdbfe7b37b3fd7ede083e5e89e1c7ba517540279f19b8bc21af7d3fc479e57",
+    "edits": [
+      [
+        "#include \"Ym2612_Nuked.h\"",
+        "#include \"Ym2612_Nuked.h\"\n#include \"taps.h\""
+      ],
+      [
+        "    Bit32u mute[7];",
+        "    bool capture;\n    Bit32s tap_sum[6][2], tap_old[6][2], tap_sample[6][2];\n    float tap_out[12];\n    Bit32u mute[7];"
+      ],
+      [
+        "    buf[1] = 0;\n\n    for (i = 0; i < 24; i++)",
+        "    buf[1] = 0;\n    if (chip->capture) memset(chip->tap_sum, 0, sizeof chip->tap_sum);\n\n    for (i = 0; i < 24; i++)"
+      ],
+      [
+        "        OPN2_Clock(chip, buffer);\n        if (!mute)",
+        "        const unsigned tap_channel = chip->cycles >> 2;\n        OPN2_Clock(chip, buffer);\n        if (chip->capture) {\n            static const unsigned map[6] = {1, 5, 3, 0, 4, 2};\n            chip->tap_sum[map[tap_channel]][0] += buffer[0];\n            chip->tap_sum[map[tap_channel]][1] += buffer[1];\n        }\n        if (!mute)"
+      ],
+      [
+        "        OPN2_Generate(chip, buffer);\n        chip->samples[0]",
+        "        if (chip->capture) memcpy(chip->tap_old, chip->tap_sample, sizeof chip->tap_old);\n        OPN2_Generate(chip, buffer);\n        if (chip->capture) for (int ch = 0; ch < 6; ++ch) for (int side = 0; side < 2; ++side)\n            chip->tap_sample[ch][side] = chip->tap_sum[ch][side] * 11;\n        chip->samples[0]"
+      ],
+      [
+        "    chip->samplecnt += 1 << RSM_FRAC;",
+        "    if (chip->capture) for (int ch = 0; ch < 6; ++ch) for (int side = 0; side < 2; ++side)\n        chip->tap_out[ch * 2 + side] = float(((chip->tap_old[ch][side] * (chip->rateratio - chip->samplecnt)\n            + chip->tap_sample[ch][side] * chip->samplecnt) / chip->rateratio) >> 1);\n    chip->samplecnt += 1 << RSM_FRAC;"
+      ],
+      [
+        "        *output++ += buffer[0];",
+        "        if (chip->capture) bm_taps_fm(chip->tap_out, 6);\n        *output++ += buffer[0];"
+      ],
+      [
+        "\tYm2612_NukedImpl::OPN2_GenerateStreamMix(chip_r, out, pair_count);",
+        "\tchip_r->capture = bm_taps_active();\n\tYm2612_NukedImpl::OPN2_GenerateStreamMix(chip_r, out, pair_count);"
+      ]
+    ]
+  },
+  {
+    "file": "Vgm_Emu_Impl.cpp",
+    "sha256": "fb92721188e692c848fb717ded3193dfa70ca4c8e3cdd2aa31437626651a73fd",
+    "edits": [
+      [
+        "#include \"Vgm_Emu.h\"",
+        "#include \"Vgm_Emu.h\"\n#include \"taps.h\""
+      ],
+      [
+        "\tif ( old >= 0 )\n\t\tdac_synth.offset_inline( blip_time, delta, &blip_buf );",
+        "\tif ( old >= 0 ) {\n\t\tdac_synth.offset_inline( blip_time, delta, &blip_buf );\n\t\tbm_taps_pcm(blip_time, delta);\n\t}"
+      ],
+      [
+        "\t\tcase cmd_gg_stereo:\n",
+        "\t\tcase cmd_gg_stereo:\n\t\t\tbm_taps_psg(to_blip_time(vgm_time), *pos, true);\n"
+      ],
+      [
+        "\t\tcase cmd_psg:\n\t\t\tpsg[0]",
+        "\t\tcase cmd_psg:\n\t\t\tbm_taps_psg(to_blip_time(vgm_time), *pos, false);\n\t\t\tpsg[0]"
+      ],
+      [
+        "\treturn pairs * stereo;",
+        "\tbm_taps_vgm_end(blip_time);\n\treturn pairs * stereo;"
+      ]
+    ]
+  },
+  {
+    "file": "Vgm_Emu.cpp",
+    "sha256": "bb946c954dc303caa97303b4db9c2221ed314fef1c066fa4b431ec3f69ce9fcd",
+    "edits": [
+      [
+        "#include \"Vgm_Emu.h\"",
+        "#include \"Vgm_Emu.h\"\n#include \"taps.h\""
+      ],
+      [
+        "\t\tpsg[0].output( (mask & 0x80) ? 0 : &blip_buf );",
+        "\t\tconst int psg_mask = ym2413[0].enabled() ? (1 << 9) : 0x80;\n\t\tpsg[0].output( (mask & psg_mask) ? 0 : &blip_buf );"
+      ],
+      [
+        "\t\t\tpsg[1].output( (mask & 0x80) ? 0 : &blip_buf );",
+        "\t\t\tpsg[1].output( (mask & psg_mask) ? 0 : &blip_buf );"
+      ],
+      [
+        "\t\t\tint m = mask & 0x3F;\n\t\t\tif ( mask & 0x20 )\n\t\t\t\tm |= 0x01E0; // channels 5-8\n\t\t\tif ( mask & 0x40 )\n\t\t\t\tm |= 0x3E00;",
+        "\t\t\tint m = mask & 0x1FF;"
+      ],
+      [
+        "\tset_voice_names( uses_fm ? fm_names : psg_names );",
+        "\tstatic const char* const opll_names[] = {\"FM 1\", \"FM 2\", \"FM 3\", \"FM 4\", \"FM 5\", \"FM 6\", \"FM 7 / Bass drum\", \"FM 8 / Hi-hat + Snare\", \"FM 9 / Tom + Cymbal\", \"PSG\"};\n\tset_voice_names(ym2413[0].enabled() ? opll_names : (uses_fm ? fm_names : psg_names));"
+      ],
+      [
+        "\t\tset_voice_count( 8 );\n\t}\n\n\tif ( uses_fm )",
+        "\t\tset_voice_count( 10 );\n\t}\n\n\tif ( uses_fm )"
+      ],
+      [
+        "\t\tRETURN_ERR( Dual_Resampler::reset( blip_buf.length() * blip_buf.sample_rate() / 1000 ) );",
+        "\t\tRETURN_ERR( Dual_Resampler::reset( blip_buf.length() * blip_buf.sample_rate() / 1000 ) );\n\t\tbm_taps_vgm_configure(fm_rate, psg_rate, get_le16(header().noise_feedback), header().noise_width, gain());"
+      ],
+      [
+        "static int const types [8]",
+        "static int const types [10]"
+      ]
+    ]
+  },
+  {
+    "file": "Spc_Dsp.cpp",
+    "sha256": "f42be04184870f10be655be786c26f254c49dbdaa4604a6b75132abf934e5da2",
+    "edits": [
+      [
+        "#include \"Spc_Dsp.h\"",
+        "#include \"Spc_Dsp.h\"\n#include \"taps.h\""
+      ],
+      [
+        "\t\tint main_out_l = 0;",
+        "\t\tfloat taps[16] = {};\n\t\tint main_out_l = 0;"
+      ],
+      [
+        "\t\t\t\t\tmain_out_l += l;",
+        "\t\t\t\t\tif (bm_taps_active() && !(REG(flg) & 0x40)) {\n\t\t\t\t\t\ttaps[(v - m.voices) * 2] = float((l * mvoll) >> 14);\n\t\t\t\t\t\ttaps[(v - m.voices) * 2 + 1] = float((r * mvolr) >> 14);\n\t\t\t\t\t}\n\t\t\t\t\tmain_out_l += l;"
+      ],
+      [
+        "\t\t// Sound out",
+        "\t\tif (bm_taps_active()) bm_taps_spc(taps);\n\t\t// Sound out"
+      ]
+    ]
+  },
+  {
+    "file": "Ym2413_Emu.h",
+    "sha256": "e422fc72b81e1a5cc49a53b5d736847ea045d768f1202507a71108c202d7ce60",
+    "edits": [
+      [
+        "struct OPLL* opll;",
+        "struct __OPLL* opll;"
+      ]
+    ]
+  },
+  {
+    "file": "Spc_Emu.cpp",
+    "sha256": "b6bd0bbed193825b04138abf29912d59f5032d8b8c4918dc3fe259299909f8de",
+    "edits": [
+      [
+        "#include \"Spc_Emu.h\"",
+        "#include \"Spc_Emu.h\"\n#include \"taps.h\""
+      ],
+      [
+        "\t\tresampler.time_ratio( (double) native_sample_rate / sample_rate, 0.9965 );",
+        "\t\tresampler.time_ratio( (double) native_sample_rate / sample_rate, 0.9965 );\n\t\tbm_taps_spc_ratio(resampler.ratio());"
+      ]
+    ]
+  }
+]

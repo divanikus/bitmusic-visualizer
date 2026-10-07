@@ -1,0 +1,108 @@
+name: Build packages
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    runs-on: windows-2022
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4.3.0
+        with:
+          persist-credentials: false
+      - uses: jurplel/install-qt-action@d325aaf2a8baeeda41ad0b5d39f84a6af9bcf005 # v4.3.0
+        with:
+          version: '6.11.2'
+          arch: win64_mingw
+          archives: qtbase qtdeclarative
+          modules: qtmultimedia qtshadertools
+          tools: tools_mingw1310,qt.tools.win64_mingw1310
+          cache: true
+      - name: Package Windows
+        shell: pwsh
+        run: |
+          $compiler = (Get-ChildItem "$env:QT_ROOT_DIR/../../Tools" -Directory -Filter 'mingw*' | Select-Object -First 1).FullName
+          if (!$compiler) { throw 'Qt MinGW toolchain not found.' }
+          ./package-native.ps1 -QtRoot $env:QT_ROOT_DIR -CompilerRoot $compiler -CMake (Get-Command cmake).Source -NinjaRoot (Split-Path (Get-Command ninja).Source)
+      - name: Decoder checks (CI has no physical audio device)
+        shell: pwsh
+        run: |
+          python -c "from fixtures import make_fixtures; make_fixtures('test-output')"
+          $archive = (Get-ChildItem dist/*-windows-x64.zip).FullName
+          Expand-Archive -LiteralPath $archive -DestinationPath 'test-output/relocated package'
+          $env:QT_QPA_PLATFORM = 'offscreen'
+          $env:BITMUSIC_SOFTWARE_SCOPES = '1'
+          $env:QT_PLUGIN_PATH = ''
+          $env:QT_QPA_PLATFORM_PLUGIN_PATH = ''
+          $env:PATH = "$env:SystemRoot/System32;$env:SystemRoot"
+          $process = Start-Process 'test-output/relocated package/BitMusicVisualizer/bitmusic_visualizer.exe' -ArgumentList '--tap-checks test-output --decoder-only' -PassThru -Wait -WindowStyle Hidden
+          if ($process.ExitCode -ne 0) { throw 'Decoder checks failed.' }
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: windows-x64
+          path: dist/*
+          if-no-files-found: error
+          compression-level: 0
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: windows-checks
+          path: test-output/**/*.txt
+          if-no-files-found: ignore
+
+  unix:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            label: linux-x64
+            qt-arch: linux_gcc_64
+          - runner: macos-15
+            label: macos-arm64
+            qt-arch: clang_64
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4.3.0
+        with:
+          persist-credentials: false
+      - name: Linux dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build patchelf libgl1-mesa-dev libegl1-mesa-dev libpulse-dev libasound2-dev libxcb-cursor0 libxkbcommon-x11-0 libxcb-icccm4 libxcb-keysyms1 libxcb-shape0 libxcb-xinerama0
+      - uses: jurplel/install-qt-action@d325aaf2a8baeeda41ad0b5d39f84a6af9bcf005 # v4.3.0
+        with:
+          version: '6.11.2'
+          arch: ${{ matrix.qt-arch }}
+          archives: qtbase qtdeclarative
+          modules: qtmultimedia qtshadertools
+          cache: true
+      - name: Package
+        run: python3 packaging/package-unix.py --qt-root "$QT_ROOT_DIR"
+      - name: Verify relocated package and decoder
+        shell: bash
+        run: |
+          for package in dist/*.tar.gz dist/*.zip; do
+            if [ -f "$package" ]; then python3 packaging/test-unix.py "$package"; fi
+          done
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: ${{ matrix.label }}
+          path: dist/*
+          if-no-files-found: error
+          compression-level: 0
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: ${{ matrix.label }}-checks
+          path: test-output/**/*.txt
+          if-no-files-found: ignore
