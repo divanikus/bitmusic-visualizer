@@ -32,6 +32,10 @@ It uses temporary settings and silent playback, exercises 30/60/120 FPS with
 NSF/VGZ/SPC, and reports refresh requests and fresh snapshots per second. These
 counts are not monitor-presented FPS. Add `--software-scopes` to check CPU drawing.
 
+`--self-test test-output --views-only` checks spectra, NES pitch-state capture,
+duplicate cards, audio continuity and transport changes. Add `--software-scopes`
+for CPU rendering. These checks also run in the complete native suite.
+
 ## Linux / macOS
 
 Set `QT_ROOT_DIR` to the Qt kit (Linux `gcc_64`, macOS `macos`). With the compiler,

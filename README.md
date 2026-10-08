@@ -17,6 +17,8 @@ See the [changelog](CHANGELOG.md) for version history.
 - Mono or stereo waveforms; optional Full mix showing the PCM sent to the audio
   device, including active voices, volume and shared effects.
 - Editable grid: hide, reorder and resize cards in whole grid cells.
+- Waveform, frequency spectrum and keyboard cards; add multiple views of a source.
+  Keyboard notes currently support the base NES pulse and triangle voices.
 - Saved 30 / 60 / 120 FPS target, selectable in the scope editor's Waves dialog.
 - Per-card colors, HEX input, named INI themes and a configurable window background.
 - Smooth/instant/fixed amplitude, stable/rising/off trigger, GPU glow and fading
@@ -66,8 +68,14 @@ shows/hides the separate window; closing that window keeps playback running.
 In the scope editor, drag cards to reorder and drag their edges/corners to resize.
 Apply finishes editing. Reset restores the grid and visibility, keeping colors.
 Keep grid retains only row/column counts when opening a new file. Layouts are
-session-local. Full mix starts hidden and can be enabled in Channel visibility.
+session-local. Full mix starts hidden and can be enabled in Cards.
 Theme selection applies immediately; Save theme asks for a name.
+
+Select a card in the editor's **Cards** list, then change **View** to Waveform,
+Spectrum or Keyboard. **Add card…** creates another view of any voice or Full mix,
+so a waveform and its keyboard can sit next to each other. Added cards use the same
+grid, resizing and source colors. Reset or opening a new file restores the original
+waveform cards; Keep grid still preserves only the grid dimensions.
 
 See [waveform controls](docs/VISUALIZATION.md) and [theme format](packaging/THEMES.txt).
 

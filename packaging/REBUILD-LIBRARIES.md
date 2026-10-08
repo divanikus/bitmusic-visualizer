@@ -13,7 +13,7 @@ cmake -S bitmusic-gme -B gme-build -G Ninja -DCMAKE_BUILD_TYPE=Release
 cmake --build gme-build
 ```
 
-Replace the bundle's `libgme.dll` with `gme-build/_deps/gme-build/gme/libgme.dll`. This includes the `bm_taps_*` exports required by this version of the player; an unmodified upstream DLL does not provide them. Patches are replayed against hash-checked original files on configure. The application decompresses VGZ input itself through statically linked zlib 1.3.2 (also included as source, under its permissive license).
+Replace the bundle's `libgme.dll` with `gme-build/_deps/gme-build/gme/libgme.dll`. This includes the `bm_taps_*` and `bm_notes_*` exports required by this version of the player; an unmodified upstream DLL does not provide them. Patches are replayed against hash-checked original files on configure. The application decompresses VGZ input itself through statically linked zlib 1.3.2 (also included as source, under its permissive license).
 
 ## Qt
 
@@ -61,7 +61,7 @@ macOS. Use the package architecture (Linux x64 / macOS arm64) and a compatible C
 runtime. On macOS add `-DCMAKE_OSX_ARCHITECTURES=arm64` and
 `-DCMAKE_OSX_DEPLOYMENT_TARGET=13.0` to configuration. Replace the versioned libgme
 file in `lib/` (Linux) or `BitMusicVisualizer.app/Contents/Frameworks/` (macOS),
-preserving its SONAME/install name and symlinks. The `bm_taps_*` exports are required.
+preserving its SONAME/install name and symlinks. The `bm_taps_*` and `bm_notes_*` exports are required.
 
 Qt's source build order remains Base, Shader Tools, Declarative and Multimedia.
 Use your native compiler and replace `C:/qt-rebuilt` above with a local Unix path.

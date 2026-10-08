@@ -37,6 +37,7 @@
 void checkGbs(QApplication &app, const QString &directory, QTextStream &log);
 void checkAy(QApplication &app, const QString &directory, QTextStream &log);
 void checkWaves(QApplication &app, const QString &directory, QTextStream &log, const QStringList &musicPaths = {});
+void checkViews(QApplication &app, const QString &directory, QTextStream &log);
 void checkFrameRates(QApplication &app, const QString &directory, QTextStream &log);
 void checkLayoutSpans(QApplication &app, const QString &directory, QTextStream &log);
 
@@ -636,6 +637,7 @@ int runChecks(QApplication &app, const QStringList &arguments) {
     app.setProperty("settingsFileForTests", settingsDirectory.filePath("BitMusicVisualizer.ini"));
     app.setProperty("themesDirectoryForTests", settingsDirectory.filePath("themes"));
     try {
+        if (arguments.contains("--views-only")) { checkViews(app, directory, log); return 0; }
         if (arguments.contains("--layout-only")) { checkLayoutSpans(app, directory, log); return 0; }
         if (arguments.contains("--fps-only")) { checkFrameRates(app, directory, log); return 0; }
         if (arguments.contains("--waves-only")) {
@@ -676,6 +678,7 @@ int runChecks(QApplication &app, const QStringList &arguments) {
         checkWaves(app, directory, log);
         checkFrameRates(app, directory, log);
         checkLayoutSpans(app, directory, log);
+        checkViews(app, directory, log);
         checkStereoOutputs(app, directory);
         log << "Stereo/mono capability, output PCM isolation, lane dimming, controls and transport preservation PASS\n"; log.flush();
         checkRing(); log << "Concurrent PCM ring: 500000 samples, variable callback sizes, exact order PASS\n"; log.flush();

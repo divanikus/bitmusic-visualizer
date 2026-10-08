@@ -146,5 +146,37 @@
         "\t\tresampler.time_ratio( (double) native_sample_rate / sample_rate, 0.9965 );\n\t\tbm_taps_spc_ratio(resampler.ratio());"
       ]
     ]
+  },
+  {
+    "file": "Nes_Apu.cpp",
+    "sha256": "bbbe11b99b542e780bc161803f05f4c77ff711998390711bfaaf1bbaeab4346a",
+    "edits": [
+      [
+        "#include \"Nes_Apu.h\"",
+        "#include \"Nes_Apu.h\"\n#include \"notes.h\""
+      ],
+      [
+        "\t\t// run oscs to present",
+        "\t\t// Snapshot oscillator gates/periods for this exact emulated interval.\n        if ( bm_notes_active() ) {\n            float periods[3] = {};\n            Nes_Square const* pulses[] = { &square1, &square2 };\n            for ( int i = 0; i < 2; ++i ) {\n                Nes_Square const& s = *pulses[i];\n                int period = s.period();\n                int offset = (s.regs[1] & Nes_Square::negate_flag) ? 0 : period >> (s.regs[1] & Nes_Square::shift_mask);\n                if ( s.volume() && period >= 8 && period + offset < 0x800 )\n                    periods[i] = float(16 * (period + 1));\n            }\n            if ( triangle.length_counter && triangle.linear_counter && triangle.period() >= 2 )\n                periods[2] = float(32 * (triangle.period() + 1));\n            bm_notes_nes(last_time, time, periods);\n        }\n\t\t// run oscs to present"
+      ],
+      [
+        "\t// make times relative to new frame",
+        "\tbm_notes_end(end_time);\n\t// make times relative to new frame"
+      ]
+    ]
+  },
+  {
+    "file": "Nsf_Emu.cpp",
+    "sha256": "380857679b888e34a4ce17b2d47af0680de451fe7cbae51f9ee973be120a29a9",
+    "edits": [
+      [
+        "#include \"Nsf_Emu.h\"",
+        "#include \"Nsf_Emu.h\"\n#include \"notes.h\""
+      ],
+      [
+        "\tapu.reset( pal_only,",
+        "\tbm_notes_clock( long(clock_rate_ + 0.5) );\n\tapu.reset( pal_only,"
+      ]
+    ]
   }
 ]

@@ -21,6 +21,7 @@
 
 void ScopeWindow::editColors(int selectedChannel) {
     if (colorDialog_) return;
+    if (selectedChannel >= 0) selectedChannel = sourceFor(selectedChannel);
     const auto original = theme_;
     const auto revision = colorRevision_;
     QDialog dialog(this);
@@ -42,7 +43,7 @@ void ScopeWindow::editColors(int selectedChannel) {
         channel->addItem(QString("%1  %2").arg(id + 1, 2, 10, QLatin1Char('0')).arg(state_.info.voices.value(id, "Unused tile")));
     channel->addItem("Full mix");
     if (selectedChannel >= 0 && selectedChannel <= ScopeTheme::FullMix) channel->setCurrentIndex(selectedChannel);
-    else if (channelList_->currentItem()) channel->setCurrentIndex(channelList_->currentItem()->data(Qt::UserRole).toInt());
+    else if (channelList_->currentItem()) channel->setCurrentIndex(sourceFor(channelList_->currentItem()->data(Qt::UserRole).toInt()));
     layout->addWidget(channel);
     auto fields = new QGridLayout; fields->setHorizontalSpacing(10); fields->setVerticalSpacing(10);
     layout->addLayout(fields);

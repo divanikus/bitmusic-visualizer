@@ -45,7 +45,7 @@ public:
     std::function<void()> onRefreshRequested;
     std::function<void(int)> onFrameRateChanged;
     int frameRate() const { return frameRate_; }
-    bool outputEnabled() const { return !newFile_ && visibleChannels().contains(ScopeTheme::FullMix); }
+    bool outputEnabled() const;
     bool renderingVisible() const { return isVisible() && !isMinimized(); }
     QVector<int> visibleChannels() const;
     QRectF cardRect(int slot) const;
@@ -65,7 +65,27 @@ protected:
 private:
     void paintContents(QPainter &p, bool waves);
     QVector<ScopeLane> waveLanes();
-    QByteArray chromeKey() const;
+    QByteArray chromeKey(bool dynamic = true) const;
+    enum class ViewKind { Waveform, Spectrum, Keyboard };
+    struct Card { int source = 0; ViewKind kind = ViewKind::Waveform; };
+    QVector<Card> cards_;
+    int sourceFor(int card) const { return card >= 0 && card < cards_.size() ? cards_[card].source : card; }
+    ViewKind viewFor(int card) const { return card >= 0 && card < cards_.size() ? cards_[card].kind : ViewKind::Waveform; }
+    QString sourceName(int source) const;
+    QString viewName(ViewKind kind) const;
+    void updateViewEditor();
+    void addCard();
+    void paintKeyboard(QPainter &p, int card, const QRectF &plot, bool muted);
+    void paintSpectrumAxes(QPainter &p, int card, const QRectF &plot, bool stereo);
+    QComboBox *cardView_;
+    QPushButton *addCard_, *removeCard_;
+    struct SpectrumState {
+        quint64 generation = 0, sequence = 0;
+        int position = -1;
+        bool stereo = false;
+        QVector<float> left, right;
+    };
+    std::array<SpectrumState, 33> spectrumStates_{};
     void editEffects();
     void editRenderer();
     void restoreEffects();

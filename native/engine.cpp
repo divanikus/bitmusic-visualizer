@@ -1,6 +1,7 @@
 #include "engine.h"
 #include "outputhistory.h"
 #include "gme-taps/taps.h"
+#include "gme-taps/notes.h"
 #include <QtEndian>
 #include <QAudioSink>
 #include <QFile>
@@ -18,6 +19,11 @@
 #include <vector>
 
 namespace {
+struct NoteScope {
+    BmNotes* previous;
+    explicit NoteScope(BmNotes* notes) : previous(bm_notes_enter(notes)) {}
+    ~NoteScope() { bm_notes_enter(previous); }
+};
 struct TapScope {
     BmTaps* previous;
     explicit TapScope(BmTaps* taps) : previous(bm_taps_enter(taps)) {}
@@ -120,6 +126,7 @@ void PcmRing::reset() { read_.store(0); write_.store(0); }
 GmeTrack::GmeTrack(const QString &path, int song, bool readPlaylist, bool capture) {
     const auto data = readMusic(path);
     if (capture) {
+        if (data.startsWith("NESM\x1a") || data.startsWith("NSFE")) notes_ = bm_notes_create();
         if (data.startsWith("SNES-SPC700")) taps_ = bm_taps_create(3);
         else if (data.startsWith("Vgm ") && data.size() >= 0x40) {
             auto word = [&](int at) { return qFromLittleEndian<quint32>(data.constData() + at); };
@@ -130,11 +137,12 @@ GmeTrack::GmeTrack(const QString &path, int song, bool readPlaylist, bool captur
             }
         }
     }
-    TapScope captureScope(taps_);
+    TapScope captureScope(taps_); NoteScope noteScope(notes_);
     try {
         check(gme_open_data(data.constData(), static_cast<long>(data.size()), &emu_, SampleRate));
         gme_ignore_silence(emu_, 1);
         gme_set_autoload_playback_limit(emu_, 0);
+        info_.tonalMask = (data.startsWith("NESM\x1a") || data.startsWith("NSFE")) ? 7u : 0u;
         info_.songs = gme_track_count(emu_);
         if (song < 0 || song >= info_.songs) throw std::runtime_error("Invalid subsong number.");
         info_.path = path;
@@ -173,14 +181,14 @@ GmeTrack::GmeTrack(const QString &path, int song, bool readPlaylist, bool captur
         info_.stereoOutput = data.startsWith("SNES-SPC700") || data.startsWith("GBS") ||
             (data.startsWith("Vgm ") && (count == 8 || (count != 10 && psgHasStereoRouting(data))));
         check(gme_start_track(emu_, song));
-    } catch (...) { if (emu_) gme_delete(emu_); emu_ = nullptr; bm_taps_delete(taps_); taps_ = nullptr; throw; }
+    } catch (...) { if (emu_) gme_delete(emu_); emu_ = nullptr; bm_taps_delete(taps_); taps_ = nullptr; bm_notes_delete(notes_); notes_ = nullptr; throw; }
 }
-GmeTrack::~GmeTrack() { if (emu_) gme_delete(emu_); bm_taps_delete(taps_); }
+GmeTrack::~GmeTrack() { if (emu_) gme_delete(emu_); bm_taps_delete(taps_); bm_notes_delete(notes_); }
 bool GmeTrack::seek(qint64 target, const std::function<bool()> &cancelled) {
-    TapScope captureScope(taps_);
+    TapScope captureScope(taps_); NoteScope noteScope(notes_);
     target = std::clamp<qint64>(target, 0, 3600LL * SampleRate);
     if (target < frame_) {
-        bm_taps_reset(taps_);
+        bm_taps_reset(taps_); bm_notes_reset(notes_);
         check(gme_start_track(emu_, info_.song)); frame_ = 0;
         // Chip reset can clear the hardware mute flags (Nuked YM2612), even
         // though libgme remembers its public mask. Restore before any samples.
@@ -199,10 +207,14 @@ bool GmeTrack::seek(qint64 target, const std::function<bool()> &cancelled) {
     }
     return !cancelled();
 }
-void GmeTrack::render(short *out, int frames) { TapScope captureScope(taps_); check(gme_play(emu_, frames * 2, out)); frame_ += frames; }
+void GmeTrack::render(short *out, int frames) { TapScope captureScope(taps_); NoteScope noteScope(notes_); check(gme_play(emu_, frames * 2, out)); frame_ += frames; }
 bool GmeTrack::readTap(int channel, QVector<float>& left, QVector<float>& right) const {
     left.resize(ScopeFrames); right.resize(ScopeFrames);
     return bm_taps_read(taps_, channel, frame_, ScopeFrames, left.data(), right.data());
+}
+float GmeTrack::noteHz(int channel) const {
+    float hz = -1;
+    return bm_notes_read(notes_, channel, std::max<qint64>(0, frame_-1), &hz) ? hz : -1;
 }
 void GmeTrack::mute(uint32_t mask) { muteMask_ = mask; gme_mute_voices(emu_, static_cast<int>(mask)); }
 void GmeTrack::dry() { dry_ = true; gme_disable_echo(emu_, 1); }
@@ -538,7 +550,7 @@ void NativePlayer::scopeLoop() {
                         try {
                             auto &voice = voices[i];
                             if (!voice.track) {
-                                voice.track = std::make_unique<GmeTrack>(path, song, false);
+                                voice.track = std::make_unique<GmeTrack>(path, song, false, true);
                                 voice.track->mute(~bit); voice.track->dry();
                             }
                             if (voice.track->frame() > target) voice.track->seek(0, cancelled);
@@ -564,13 +576,15 @@ void NativePlayer::scopeLoop() {
                 if (!cancelled()) {
                     QVector<QVector<float>> history(static_cast<int>(voices.size()));
                     QVector<QVector<float>> left(history.size()), right(history.size());
+                    QVector<float> notes(history.size(), -1);
                     for (size_t i = 0; i < voices.size(); ++i)
                         if (ready & (uint32_t(1) << i)) {
                             history[static_cast<int>(i)] = voices[i].history;
+                            notes[int(i)] = voices[i].track->noteHz(int(i));
                             left[static_cast<int>(i)] = voices[i].left; right[static_cast<int>(i)] = voices[i].right;
                         }
                     std::lock_guard lock(scopeMutex_);
-                    if (!cancelled()) scope_ = {current.generation, current.positionMs, history, ready, left, right};
+                    if (!cancelled()) scope_ = {current.generation, current.positionMs, history, ready, left, right, notes};
                     const uint32_t available = voices.size() == 32 ? ~0u : (uint32_t(1) << voices.size()) - 1;
                     preparing = (ready & mask) != (mask & available);
                 }

@@ -13,6 +13,7 @@
 #include <gme.h>
 #include "scopepacing.h"
 struct BmTaps;
+struct BmNotes;
 class OutputHistory;
 
 constexpr int SampleRate = 44100;
@@ -47,6 +48,7 @@ struct TrackInfo {
     int loopStartMs = 0;
     int songs = 0, song = 0, durationMs = -1;
     bool stereoOutput = false;
+    uint32_t tonalMask = 0; // Backend pitch metadata, initially base NES pulse/triangle only.
 };
 
 class GmeTrack {
@@ -62,10 +64,12 @@ public:
     void dry();
     bool hasTaps() const { return taps_ != nullptr; }
     bool readTap(int channel, QVector<float>& left, QVector<float>& right) const;
+    float noteHz(int channel) const; // -1 unavailable, 0 gated off.
     qint64 frame() const { return frame_; }
 private:
     Music_Emu *emu_ = nullptr;
     BmTaps *taps_ = nullptr;
+    BmNotes *notes_ = nullptr;
     TrackInfo info_;
     qint64 frame_ = 0;
     uint32_t muteMask_ = 0;
@@ -92,6 +96,7 @@ struct ScopeFrame {
     QVector<QVector<float>> channels;
     uint32_t mask = 0; // Channels ready at positionMs; preparing/hidden channels have empty rows.
     QVector<QVector<float>> left, right;
+    QVector<float> noteHz;
 };
 struct OutputFrame {
     quint64 generation = 0, token = 0, sequence = 0;

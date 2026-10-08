@@ -2,6 +2,7 @@
 #include "palette.h"
 #include "appsettings.h"
 #include "renderersettings.h"
+#include "spectrum.h"
 #include <QApplication>
 #include <QCheckBox>
 #include <QCloseEvent>
@@ -20,6 +21,7 @@
 #include <QPainterPath>
 #include <QPushButton>
 #include <QSignalBlocker>
+#include <QScrollArea>
 #include <QSpinBox>
 #include <QVBoxLayout>
 #include <QTimer>
@@ -133,15 +135,43 @@ ScopeWindow::ScopeWindow() {
     labels->addWidget(numbers_); labels->addWidget(names_); labels->addWidget(stereo_); labels->addWidget(keepGrid_);
     settings_->addWidget(gridControls_, 0, 0); settings_->addWidget(labelControls_, 0, 1); settings_->addWidget(editorActions_, 0, 2);
     summary_ = new QLabel; summary_->setObjectName("editorHint");
-    channelPanel_ = new QWidget(this); channelPanel_->setObjectName("scopeChannels");
-    auto channels = new QVBoxLayout(channelPanel_); channels->setContentsMargins(10, 10, 10, 10); channels->setSpacing(4);
-    channels->addWidget(new QLabel("Channel visibility"));
+    auto scroll = new QScrollArea(this); channelPanel_ = scroll; channelPanel_->setObjectName("scopeChannels");
+    scroll->setFrameShape(QFrame::NoFrame); scroll->setWidgetResizable(true);
+    scroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    auto content = new QWidget; content->setObjectName("scopeChannels"); scroll->setWidget(content);
+    auto channels = new QVBoxLayout(content); channels->setContentsMargins(10, 10, 10, 10); channels->setSpacing(4);
+    channels->setSizeConstraint(QLayout::SetMinimumSize);
+    channels->addWidget(new QLabel("Cards"));
     auto hint = new QLabel("Drag headers to reorder.\nDrag right/bottom edges to resize."); hint->setWordWrap(true); hint->setObjectName("editorHint"); channels->addWidget(hint);
     channels->addWidget(summary_);
     channelList_ = new QListWidget; channelList_->setObjectName("scopeChannelList");
+    channelList_->setMinimumHeight(110);
     channelList_->setDragDropMode(QAbstractItemView::InternalMove); channelList_->setDefaultDropAction(Qt::MoveAction);
     channelList_->setSelectionMode(QAbstractItemView::SingleSelection); channelList_->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     channels->addWidget(channelList_, 1);
+    auto viewRow = new QHBoxLayout; viewRow->addWidget(new QLabel("View"));
+    cardView_ = new QComboBox; cardView_->setObjectName("cardView"); cardView_->setAccessibleName("Card view"); styleCombo(cardView_);
+    for (auto kind : {ViewKind::Waveform, ViewKind::Spectrum, ViewKind::Keyboard}) cardView_->addItem(viewName(kind), int(kind));
+    viewRow->addWidget(cardView_, 1); channels->addLayout(viewRow);
+    auto cardActions = new QHBoxLayout;
+    addCard_ = new QPushButton("Add card..."); addCard_->setObjectName("addScopeCard"); cardActions->addWidget(addCard_);
+    removeCard_ = new QPushButton("Remove"); removeCard_->setObjectName("removeScopeCard"); cardActions->addWidget(removeCard_);
+    channels->addLayout(cardActions);
+    connect(channelList_, &QListWidget::currentRowChanged, this, [this] { updateViewEditor(); });
+    connect(cardView_, &QComboBox::currentIndexChanged, this, [this](int index) {
+        if (!channelList_->currentItem() || index < 0) return;
+        const int id = channelList_->currentItem()->data(Qt::UserRole).toInt();
+        cards_[id].kind = ViewKind(cardView_->itemData(index).toInt());
+        layoutChanged(); updateViewEditor();
+    });
+    connect(addCard_, &QPushButton::clicked, this, [this] { addCard(); });
+    connect(removeCard_, &QPushButton::clicked, this, [this] {
+        if (!channelList_->currentItem()) return;
+        const int id = channelList_->currentItem()->data(Qt::UserRole).toInt();
+        if (id <= ScopeTheme::FullMix) return;
+        order_.removeAll(id); hidden_[id] = true;
+        rebuildList(); layoutChanged(); updateViewEditor();
+    });
     auto colors = new QPushButton("Colors..."); colors->setObjectName("scopeColors"); colors->setToolTip("Edit the selected channel's colors"); channels->addWidget(colors);
     auto visualActions = new QHBoxLayout; visualActions->setSpacing(4); channels->addLayout(visualActions);
     auto waves = new QPushButton("Waves..."); waves->setObjectName("scopeWaves"); visualActions->addWidget(waves);
@@ -215,7 +245,7 @@ ScopeWindow::ScopeWindow() {
 
 void ScopeWindow::beginFile() {
     if (gpu_) gpu_->suspend();
-    newFile_ = true; frame_ = {}; output_ = {}; waveStates_ = {}; cancelDrag();
+    newFile_ = true; frame_ = {}; output_ = {}; waveStates_ = {}; spectrumStates_ = {}; cancelDrag();
     if (onChannelsChanged) onChannelsChanged(0);
     outputCapturing_ = false;
     if (onOutputChanged) onOutputChanged(false);
@@ -252,11 +282,13 @@ void ScopeWindow::resetChannels(bool grid) {
     if (colorDialog_) colorDialog_->reject();
     order_.clear(); hidden_ = QVector<bool>(ScopeTheme::FullMix + 1, false);
     spans_ = QVector<QSize>(ScopeTheme::FullMix + 1, QSize(1, 1));
+    cards_.clear(); for (int source = 0; source <= ScopeTheme::FullMix; ++source) cards_.push_back({source, ViewKind::Waveform});
+    spectrumStates_ = {}; waveStates_ = {};
     for (int i = 0; i < state_.info.voices.size(); ++i) order_.push_back(i);
     order_.push_back(ScopeTheme::FullMix); hidden_[ScopeTheme::FullMix] = !waveOptions_.output;
     cancelDrag();
     if (grid) resetGrid();
-    rebuildList(); layoutChanged();
+    rebuildList(); layoutChanged(); updateViewEditor();
 }
 QVector<int> ScopeWindow::visibleChannels() const {
     QVector<int> result;
@@ -266,19 +298,25 @@ QVector<int> ScopeWindow::visibleChannels() const {
 }
 uint32_t ScopeWindow::visibleMask() const {
     uint32_t mask = 0;
-    for (int channel : visibleChannels()) if (channel != ScopeTheme::FullMix) mask |= uint32_t(1) << channel;
+    for (int card : visibleChannels()) {
+        const int source = sourceFor(card);
+        if (source < ScopeTheme::FullMix && (viewFor(card) != ViewKind::Keyboard || (state_.info.tonalMask & (1u << source))))
+            mask |= uint32_t(1) << source;
+    }
     return mask;
 }
 QString ScopeWindow::channelName(int channel) const {
-    return channel == ScopeTheme::FullMix ? QString("Full mix") : state_.info.voices.value(channel);
+    return sourceName(sourceFor(channel));
 }
 bool ScopeWindow::channelReady(int channel) const {
+    channel = sourceFor(channel);
     if (state_.busy) return false;
     if (channel == ScopeTheme::FullMix) return output_.sequence && output_.generation == state_.generation && outputMono_.size() == ScopeFrames;
     return frame_.generation == state_.generation && (frame_.mask & (uint32_t(1) << channel)) &&
         channel < frame_.channels.size() && frame_.channels[channel].size() == ScopeFrames;
 }
 bool ScopeWindow::channelStereo(int channel) const {
+    channel = sourceFor(channel);
     if (!state_.info.stereoOutput || !stereo_->isChecked()) return false;
     if (channel == ScopeTheme::FullMix) return true;
     return channel < frame_.left.size() && channel < frame_.right.size() &&
@@ -309,6 +347,8 @@ void ScopeWindow::rebuildList() {
         item->setCheckState(hidden_[channel] ? Qt::Unchecked : Qt::Checked);
         if (channel == selected) channelList_->setCurrentItem(item);
     }
+    if (!channelList_->currentItem() && channelList_->count()) channelList_->setCurrentRow(0);
+    updateViewEditor();
 }
 void ScopeWindow::updateList() {
     const bool preview = dragging_ || resizeChannel_ >= 0;
@@ -318,13 +358,15 @@ void ScopeWindow::updateList() {
     for (int channel : order_) if (!hidden_[channel]) ++enabled;
     for (int i = 0; i < channelList_->count(); ++i) {
         auto item = channelList_->item(i); const int channel = item->data(Qt::UserRole).toInt();
-        const auto label = channel == ScopeTheme::FullMix ? channelName(channel) : QString("%1  %2").arg(channel + 1, 2, 10, QLatin1Char('0')).arg(channelName(channel));
+        const int source = sourceFor(channel);
+        auto label = source == ScopeTheme::FullMix ? channelName(channel) : QString("%1  %2").arg(source + 1, 2, 10, QLatin1Char('0')).arg(channelName(channel));
+        if (viewFor(channel) != ViewKind::Waveform) label += " / " + viewName(viewFor(channel));
         const auto status = hidden_[channel] ? "Hidden" : visible.contains(channel) ? "Visible" : "Overflow";
         const auto span = preview && previewValid_ && channel == resizeChannel_ ? resizeSpan_ : spans_[channel];
         const auto size = QString("%1 x %2").arg(span.width()).arg(span.height());
         item->setText(label + (span == QSize(1, 1) ? QString() : "  [" + size + "]"));
         item->setToolTip(label + " - " + status + "\nSize: " + size + " cells (columns x rows).\nMove earlier, hide another card or enlarge the grid if it overflows.");
-        if (channel == ScopeTheme::FullMix) item->setToolTip(item->toolTip() + "\nFinal audio after volume, voice mutes and effects.");
+        if (source == ScopeTheme::FullMix) item->setToolTip(item->toolTip() + "\nFinal audio after volume, voice mutes and effects.");
         item->setForeground(QColor(visible.contains(channel) ? "#c3f1e7" : "#81969f"));
         item->setCheckState(hidden_[channel] ? Qt::Unchecked : Qt::Checked);
     }
@@ -333,7 +375,7 @@ void ScopeWindow::updateList() {
 void ScopeWindow::updateVisibility() {
     if (renderingVisible()) presentationTimer_->start(); else presentationTimer_->stop();
     if (gpu_) { gpu_->suspend(); gpu_->setVisible(renderingVisible() && !gpuFailed_); }
-    frame_ = {}; output_ = {}; waveStates_ = {}; cancelDrag();
+    frame_ = {}; output_ = {}; waveStates_ = {}; spectrumStates_ = {}; cancelDrag();
     if (onVisibilityChanged) onVisibilityChanged(renderingVisible());
     update();
 }
@@ -372,61 +414,84 @@ void ScopeWindow::resizeEvent(QResizeEvent *event) {
     if (gpu_ && gpu_->checkHealth()) gpu_->setGeometry(rect());
 }
 void ScopeWindow::closeEvent(QCloseEvent *event) { hide(); event->ignore(); }
-QByteArray ScopeWindow::chromeKey() const {
+QByteArray ScopeWindow::chromeKey(bool dynamic) const {
     QByteArray key; QDataStream s(&key, QIODevice::WriteOnly);
     s << size() << devicePixelRatioF() << theme_.windowBackground << rows_->value() << columns_->value()
       << edit_->isChecked() << numbers_->isChecked() << names_->isChecked() << stereo_->isChecked()
-      << state_.info.stereoOutput << state_.busy << (frame_.generation == state_.generation)
+      << state_.info.stereoOutput << state_.info.tonalMask << state_.busy << (frame_.generation == state_.generation)
       << state_.muteMask << state_.outputMask << state_.scopeError << frame_.mask << hoveredColor_ << pressedColor_;
     s << channelReady(ScopeTheme::FullMix) << state_.playing;
     for (int ch : displayedChannels()) {
-        const auto &c = theme_.colors(ch);
+        const int source = sourceFor(ch);
+        const auto &c = theme_.colors(source);
+        s << source << int(viewFor(ch));
+        if (dynamic && viewFor(ch) == ViewKind::Keyboard) s << frame_.noteHz.value(source, -1);
         s << ch << panelRect(ch) << channelName(ch) << c.waveform << c.background << c.label << c.axis << c.border
-          << (ch < frame_.channels.size() ? frame_.channels[ch].size() : 0)
-          << (ch < frame_.left.size() ? frame_.left[ch].size() : 0)
-          << (ch < frame_.right.size() ? frame_.right[ch].size() : 0);
+          << (source < frame_.channels.size() ? frame_.channels[source].size() : 0)
+          << (source < frame_.left.size() ? frame_.left[source].size() : 0)
+          << (source < frame_.right.size() ? frame_.right[source].size() : 0);
     }
     return key;
 }
 QVector<ScopeLane> ScopeWindow::waveLanes() {
     QVector<ScopeLane> lanes;
     if (state_.busy) return lanes;
-    auto append = [&](int ch, const QRectF &plot, const QVector<float> &left, const QVector<float> &right,
-                      bool stereo, int position, quint64 sequence, bool muted) {
-        if (plot.width() < 2 || plot.height() < 2) return;
-        auto &view = waveStates_[ch];
-        if (view.generation != state_.generation || view.stereo != stereo) view = {};
-        if (view.position != position || view.sequence != sequence) {
-            view.wave.update(left, right, position, waveOptions_);
-            view.generation = state_.generation; view.position = position; view.sequence = sequence; view.stereo = stereo;
+    for (int card : displayedChannels()) {
+        if (!channelReady(card) || viewFor(card) == ViewKind::Keyboard) continue;
+        const int source = sourceFor(card);
+        const auto kind = viewFor(card);
+        const auto plot = panelRect(card).adjusted(12, edit_->isChecked() || names_->isChecked() || numbers_->isChecked() ? 32 : 10, -12, -10);
+        if (plot.width() < 2 || plot.height() < 2) continue;
+        const bool stereo = channelStereo(card), mix = source == ScopeTheme::FullMix;
+        const bool muted = !mix && (state_.muteMask & (uint32_t(1) << source));
+        const auto &left = mix ? (stereo ? output_.left : outputMono_) : (stereo ? frame_.left[source] : frame_.channels[source]);
+        const auto &right = mix ? (stereo ? output_.right : outputMono_) : (stereo ? frame_.right[source] : frame_.channels[source]);
+        const int position = mix ? output_.positionMs : frame_.positionMs;
+        const quint64 sequence = mix ? output_.sequence : 0;
+        auto &wave = waveStates_[source];
+        auto &spectrum = spectrumStates_[source];
+        if (kind == ViewKind::Waveform) {
+            if (wave.generation != state_.generation || wave.stereo != stereo) wave = {};
+            if (wave.position != position || wave.sequence != sequence) {
+                wave.wave.update(left, right, position, waveOptions_);
+                wave.generation = state_.generation; wave.position = position; wave.sequence = sequence; wave.stereo = stereo;
+            }
+        } else if (spectrum.generation != state_.generation || spectrum.stereo != stereo || spectrum.position != position || spectrum.sequence != sequence) {
+            spectrum.left = scopeSpectrum(left); spectrum.right = stereo ? scopeSpectrum(right) : spectrum.left;
+            spectrum.generation = state_.generation; spectrum.position = position; spectrum.sequence = sequence; spectrum.stereo = stereo;
         }
-        const float scale = float(plot.height() * (stereo ? .21 : .44)) / view.wave.peak;
-        const int points = std::max(2, std::min(2048, int(plot.width()*2)));
         for (int side = 0; side < (stereo ? 2 : 1); ++side) {
-            ScopeLane lane; lane.id = ch*2+side; lane.clip = plot; lane.color = theme_.colors(ch).waveform;
+            ScopeLane lane; lane.id = card*2+side; lane.clip = plot; lane.color = theme_.colors(source).waveform;
             if (muted || !state_.outputMask || (stereo && !(state_.outputMask & (1u << side)))) lane.color.setAlpha(115);
-            const auto &row = side ? right : left;
-            const double middle = stereo ? plot.top()+plot.height()*(.25+.5*side) : plot.center().y();
-            lane.points.reserve(points);
-            for (int j = 0; j < points; ++j) {
-                const float index = view.wave.start + float(j)*2047/(points-1);
-                lane.points.push_back({plot.left()+plot.width()*j/(points-1), middle-ScopeWave::sample(row, index)*scale});
+            if (kind == ViewKind::Spectrum) {
+                const auto &bins = side ? spectrum.right : spectrum.left;
+                const double top = plot.top()+plot.height()*side/(stereo ? 2 : 1);
+                const double bottom = top+plot.height()/(stereo ? 2 : 1)-16;
+                const double height = std::max(1., bottom-top-5);
+                // Logarithmic frequency axis, 20 Hz to 20 kHz. Bucket maxima
+                // preserve narrow peaks on small cards instead of skipping FFT bins.
+                const int points = std::clamp(int(plot.width()), 32, 512);
+                for (int j = 0; j < points; ++j) {
+                    const double low = 20*std::pow(1000., double(j)/points);
+                    const double high = 20*std::pow(1000., double(j+1)/points);
+                    const int first = std::clamp(int(std::floor(low*2048/SampleRate)), 1, int(bins.size())-1);
+                    const int last = std::clamp(int(std::ceil(high*2048/SampleRate)), first, int(bins.size())-1);
+                    float db = -80; for (int bin = first; bin <= last; ++bin) db = std::max(db, bins[bin]);
+                    lane.points.push_back({plot.left()+plot.width()*j/(points-1), bottom-height*(db+80)/80});
+                }
+            } else {
+                const float scale = float(plot.height() * (stereo ? .21 : .44)) / wave.wave.peak;
+                const int points = std::max(2, std::min(2048, int(plot.width()*2)));
+                const auto &row = side ? right : left;
+                const double middle = stereo ? plot.top()+plot.height()*(.25+.5*side) : plot.center().y();
+                lane.points.reserve(points);
+                for (int j = 0; j < points; ++j) {
+                    const float index = wave.wave.start + float(j)*2047/(points-1);
+                    lane.points.push_back({plot.left()+plot.width()*j/(points-1), middle-ScopeWave::sample(row, index)*scale});
+                }
             }
             lanes.push_back(std::move(lane));
         }
-    };
-    for (int ch : displayedChannels()) {
-        if (!channelReady(ch)) continue;
-        const auto plot = panelRect(ch).adjusted(12, edit_->isChecked() || names_->isChecked() || numbers_->isChecked() ? 32 : 10, -12, -10);
-        if (plot.width() < 2 || plot.height() < 2) continue;
-        const bool stereo = channelStereo(ch);
-        if (ch == ScopeTheme::FullMix) {
-            append(ch, plot, stereo ? output_.left : outputMono_, stereo ? output_.right : outputMono_, stereo, output_.positionMs, output_.sequence, false);
-            continue;
-        }
-        const auto &left = stereo ? frame_.left[ch] : frame_.channels[ch];
-        const auto &right = stereo ? frame_.right[ch] : frame_.channels[ch];
-        append(ch, plot, left, right, stereo, frame_.positionMs, 0, bool(state_.muteMask & (uint32_t(1) << ch)));
     }
     return lanes;
 }
@@ -547,7 +612,7 @@ void ScopeWindow::paintEvent(QPaintEvent *event) {
             chromeImage_.setDevicePixelRatio(devicePixelRatioF()); chromeImage_.fill(QColor("#171e24"));
             QPainter chrome(&chromeImage_); chrome.setRenderHint(QPainter::Antialiasing); paintContents(chrome, false);
         }
-        gpu_->submit(chromeImage_, waveLanes(), key, state_.generation, frame_.positionMs, state_.playing && !state_.busy, effects_, output_.sequence);
+        gpu_->submit(chromeImage_, waveLanes(), chromeKey(false), state_.generation, frame_.positionMs, state_.playing && !state_.busy, effects_, output_.sequence);
         return;
     }
     QPainter p(this); p.setRenderHint(QPainter::Antialiasing);
@@ -572,17 +637,19 @@ void ScopeWindow::paintContents(QPainter &p, bool waves) {
             p.drawRoundedRect(card.adjusted(-3, 3, 5, 8), 10, 10);
         }
         p.setClipRect(card);
-        const bool mix = channel == ScopeTheme::FullMix;
-        const bool muted = (!mix && (state_.muteMask & (uint32_t(1) << channel))) || state_.outputMask == 0;
-        const auto colors = theme_.colors(channel);
+        const int source = sourceFor(channel);
+        const bool mix = source == ScopeTheme::FullMix;
+        const bool muted = (!mix && (state_.muteMask & (uint32_t(1) << source))) || state_.outputMask == 0;
+        const auto colors = theme_.colors(source);
         auto dimmed = [muted](QColor color) { if (muted) color.setAlpha(115); return color; };
         p.setPen(QPen(floating ? QColor("#a2e5d5") : colors.border, floating ? 2 : 1));
         p.setBrush(colors.background); p.drawRoundedRect(card.adjusted(1, 1, -1, -1), 8, 8);
         p.setFont(QFont("Segoe UI", 9, QFont::DemiBold));
         p.setPen(dimmed(colors.label));
         QStringList label;
-        if (!mix && numbers_->isChecked()) label << QString("%1").arg(channel + 1, 2, 10, QLatin1Char('0'));
+        if (!mix && numbers_->isChecked()) label << QString("%1").arg(source + 1, 2, 10, QLatin1Char('0'));
         if (names_->isChecked() || (mix && numbers_->isChecked())) label << channelName(channel);
+        if (!label.isEmpty() && viewFor(channel) != ViewKind::Waveform) label << viewName(viewFor(channel));
         const auto textRect = card.adjusted(editing ? 28 : 12, 5, editing ? -58 : -12, 0);
         p.drawText(QRectF(textRect.left(), textRect.top(), std::max(0.0, textRect.width()), 22), Qt::AlignVCenter,
                    p.fontMetrics().elidedText(label.join("   "), Qt::ElideRight, std::max(0, int(textRect.width()))));
@@ -605,9 +672,13 @@ void ScopeWindow::paintContents(QPainter &p, bool waves) {
         }
         const auto plot = card.adjusted(12, editing || !label.isEmpty() ? 32 : 10, -12, -10);
         if (plot.width() < 2 || plot.height() < 2) { p.restore(); return; }
+        if (viewFor(channel) == ViewKind::Keyboard) {
+            paintKeyboard(p, channel, plot, muted); p.restore(); return;
+        }
         const bool stereo = channelStereo(channel);
+        if (viewFor(channel) == ViewKind::Spectrum) paintSpectrumAxes(p, channel, plot, stereo);
         p.setPen(colors.axis);
-        for (int side = 0; side < (stereo ? 2 : 1); ++side) {
+        for (int side = 0; viewFor(channel) == ViewKind::Waveform && side < (stereo ? 2 : 1); ++side) {
             const double middle = stereo ? plot.top() + plot.height() * (.25 + .5 * side) : plot.center().y();
             p.drawLine(QPointF(plot.left(), middle), QPointF(plot.right(), middle));
         }
