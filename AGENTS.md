@@ -12,6 +12,7 @@ This repository owns the native Bit Music Visualizer application.
   credentials, private paths or collection inventories. Use fixtures.py for tests.
 - Run native checks appropriate to the change. Update relevant user/build docs.
 - Keep release notes short and user-facing: changes, where to find them and downloads.
+  Explicitly name what was added or changed and briefly explain its visible effect.
   Leave implementation details and test-coverage reports in development documentation.
 - Application code is MIT; native/gme-taps is LGPL-2.1-or-later. Preserve notices.
 - Commit task-owned changes at a meaningful handoff. Do not push or publish unless
