@@ -189,7 +189,7 @@ int runGpuChecks(QApplication &app, const QStringList &arguments) {
         pump(app); canvas.resize(610, 230); pump(app); canvas.resize(600, 220);
         QImage chrome(QSize(600,220)*canvas.devicePixelRatioF(), QImage::Format_ARGB32_Premultiplied);
         chrome.setDevicePixelRatio(canvas.devicePixelRatioF()); chrome.fill(Qt::black);
-        ScopeLane a{0, QRectF(10,10,580,200), QColor("#60e6ce"), {{20,60}, {580,60}}};
+        ScopeLane a{0, QRectF(10,10,580,200), QColor("#60e6ce"), {{20,60}, {580,60}}, {}};
         ScopeLane b = a; b.points = {{20,130},{580,130}};
         ScopeEffects off; off.glow = off.trail = false;
         canvas.submit(chrome, {a}, "one", 1, 0, true, off); pump(app);
@@ -245,6 +245,18 @@ int runGpuChecks(QApplication &app, const QStringList &arguments) {
         pump(app, 400);
         require(canvas.historySize() == 1 && brightness(capture(),core) == 0,
             "High-rate history did not expire by elapsed time.");
+        ScopeLane bars; bars.clip = {10, 10, 580, 200}; bars.color = QColor("#60e6ce");
+        bars.bars = {{80, 50, 40, 140}, {140, 110, 40, 80}};
+        canvas.submit(chrome, {bars}, "bars", 5, 0, false, off); pump(app);
+        const auto filled = capture(); filled.save(dir.filePath("gpu-bars.png"));
+        require(brightness(filled, {84, 54, 32, 130}) > 500000, "GPU spectrum bars are not filled.");
+        require(brightness(filled, {123, 60, 12, 110}) == 0, "Spectrum bars have no gap.");
+        require(brightness(filled, {85, 55, 30, 20}) > brightness(filled, {85, 165, 30, 20}), "Bar gradient is absent or reversed.");
+        canvas.submit(chrome, {bars}, "bars", 5, 0, false, glow); pump(app);
+        require(brightness(capture(), {76, 60, 3, 100}) > brightness(filled, {76, 60, 3, 100}), "Spectrum bar glow missing.");
+        bars.color.setAlpha(115); canvas.submit(chrome, {bars}, "dim-bars", 5, 0, false, off); pump(app);
+        require(brightness(capture(), {84, 54, 32, 130}) < brightness(filled, {84, 54, 32, 130})*.6, "Muted bars are not dimmed.");
+        log << "Spectrum bars: filled GPU geometry, gaps, gradient, glow and mute dimming PASS\n"; log.flush();
         canvas.suspend(); canvas.hide(); pump(app);
         const auto rendered = canvas.renderedFrames(); pump(app, 100);
         require(canvas.historySize() == 0 && rendered == canvas.renderedFrames(), "Hidden canvas continues rendering.");

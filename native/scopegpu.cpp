@@ -11,6 +11,7 @@
 #include <QTimer>
 #include <QWindow>
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <deque>
 
@@ -27,6 +28,43 @@ struct SceneRoot : QSGNode {
     SceneRoot() { appendChildNode(chrome); }
     ~SceneRoot() override { delete chrome->texture(); }
 };
+
+QSGGeometryNode *bars(const ScopeLane &lane, const ScopeEffects &effects, qreal dpr) {
+    if (lane.bars.isEmpty()) return nullptr;
+    const float halo = effects.glow ? effects.glowStrength*.3f : 0.f;
+    auto geometry = new QSGGeometry(QSGGeometry::defaultAttributes_ColoredPoint2D(), int(lane.bars.size())*(halo > 0 ? 54 : 30));
+    geometry->setDrawingMode(QSGGeometry::DrawTriangles);
+    auto vertices = geometry->vertexDataAsColoredPoint2D();
+    const QColor top = lane.color.lighter(125), bottom = lane.color.darker(135);
+    int out = 0;
+    auto vertex = [&](QPointF point, const QColor &color, float opacity) {
+        opacity *= float(color.alphaF());
+        vertices[out++].set(float(point.x()), float(point.y()), uchar(color.red()*opacity),
+            uchar(color.green()*opacity), uchar(color.blue()*opacity), uchar(255*opacity));
+    };
+    auto corners = [](const QRectF &r) { return std::array<QPointF, 4>{r.topLeft(), r.topRight(), r.bottomRight(), r.bottomLeft()}; };
+    auto ring = [&](const QRectF &outer, float a, const QRectF &inner, float b) {
+        const auto o = corners(outer), i = corners(inner);
+        for (int edge = 0; edge < 4; ++edge) {
+            const int next = (edge+1)%4;
+            const QColor ca = edge < 2 ? top : bottom, cb = next < 2 ? top : bottom;
+            vertex(o[edge], ca, a); vertex(o[next], cb, a); vertex(i[edge], ca, b);
+            vertex(i[edge], ca, b); vertex(o[next], cb, a); vertex(i[next], cb, b);
+        }
+    };
+    for (const auto &r : lane.bars) {
+        const double fringe = 1./dpr;
+        const auto aa = r.adjusted(-fringe, -fringe, fringe, fringe);
+        if (halo > 0) ring(r.adjusted(-4, -4, 4, 4), 0, aa, halo);
+        ring(aa, halo, r, 1);
+        vertex(r.topLeft(), top, 1); vertex(r.topRight(), top, 1); vertex(r.bottomLeft(), bottom, 1);
+        vertex(r.bottomLeft(), bottom, 1); vertex(r.topRight(), top, 1); vertex(r.bottomRight(), bottom, 1);
+    }
+    auto node = new QSGGeometryNode;
+    node->setGeometry(geometry); node->setFlag(QSGNode::OwnsGeometry);
+    node->setMaterial(new QSGVertexColorMaterial); node->setFlag(QSGNode::OwnsMaterial);
+    return node;
+}
 
 QSGGeometryNode *ribbon(const ScopeLane &lane, const ScopeEffects &effects, qreal dpr) {
     const int count = int(lane.points.size());
@@ -149,7 +187,8 @@ protected:
             if (i >= root->traces.size()) {
                 auto opacity = new QSGOpacityNode;
                 for (const auto &lane : trace.lanes) {
-                    auto mesh = ribbon(lane, effects, window()->effectiveDevicePixelRatio());
+                    const auto dpr = window()->effectiveDevicePixelRatio();
+                    auto mesh = lane.bars.isEmpty() ? ribbon(lane, effects, dpr) : bars(lane, effects, dpr);
                     if (!mesh) continue;
                     auto clip = new QSGClipNode; clip->setIsRectangular(true); clip->setClipRect(lane.clip);
                     clip->appendChildNode(mesh); opacity->appendChildNode(clip);

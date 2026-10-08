@@ -67,7 +67,11 @@ private:
     QVector<ScopeLane> waveLanes();
     QByteArray chromeKey(bool dynamic = true) const;
     enum class ViewKind { Waveform, Spectrum, Keyboard };
-    struct Card { int source = 0; ViewKind kind = ViewKind::Waveform; };
+    struct Card {
+        int source = 0;
+        ViewKind kind = ViewKind::Waveform;
+        bool spectrumBars = false, spectrumGrid = true;
+    };
     QVector<Card> cards_;
     int sourceFor(int card) const { return card >= 0 && card < cards_.size() ? cards_[card].source : card; }
     ViewKind viewFor(int card) const { return card >= 0 && card < cards_.size() ? cards_[card].kind : ViewKind::Waveform; }
@@ -80,6 +84,9 @@ private:
     void paintKeyboard(QPainter &p, int card, const QRectF &plot, bool muted);
     void paintSpectrumAxes(QPainter &p, int card, const QRectF &plot, bool stereo);
     QComboBox *cardView_;
+    QWidget *spectrumControls_;
+    QComboBox *spectrumStyle_;
+    QCheckBox *spectrumGrid_;
     QLabel *keyboardHint_;
     QPushButton *addCard_, *removeCard_;
     struct SpectrumState {

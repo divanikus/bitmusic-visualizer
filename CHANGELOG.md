@@ -11,6 +11,7 @@ not published GitHub releases. Unreleased lists changes made after the latest ta
 ### Added
 
 - Frequency spectrum cards for individual voices and Full mix, with optional L/R lanes.
+- Per-card Line / Bars spectrum styles and an optional grid, under View in the editor.
 - Keyboard cards with NES pulse/triangle chip notes and experimental pitch
   estimation for other voices and Full mix, marked Estimated.
 - A View selector and Add card dialog in the existing grid editor: compare multiple

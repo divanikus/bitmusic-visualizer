@@ -11,6 +11,7 @@ struct ScopeLane {
     QRectF clip;
     QColor color;
     QVector<QPointF> points;
+    QVector<QRectF> bars;
 };
 struct ScopeEffects {
     bool trail = true, glow = true;

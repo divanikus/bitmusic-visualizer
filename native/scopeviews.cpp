@@ -2,6 +2,7 @@
 #include "palette.h"
 #include "spectrum.h"
 #include <QComboBox>
+#include <QCheckBox>
 #include <QDialog>
 #include <QDialogButtonBox>
 #include <QFormLayout>
@@ -36,6 +37,10 @@ void ScopeWindow::updateViewEditor() {
     QSignalBlocker block(cardView_);
     cardView_->setEnabled(valid); cardView_->setCurrentIndex(valid ? int(cards_[id].kind) : 0);
     cardView_->setToolTip("Keyboard uses chip pitch for NES pulse/triangle and estimates pitch from audio for other sources.");
+    const QSignalBlocker styleBlock(spectrumStyle_), gridBlock(spectrumGrid_);
+    spectrumControls_->setVisible(valid && cards_[id].kind == ViewKind::Spectrum);
+    spectrumStyle_->setCurrentIndex(valid && cards_[id].spectrumBars ? 1 : 0);
+    spectrumGrid_->setChecked(!valid || cards_[id].spectrumGrid);
     const int source = valid ? sourceFor(id) : -1;
     const bool exact = source >= 0 && source < 32 && (state_.info.tonalMask & (1u << source));
     keyboardHint_->setVisible(valid && cards_[id].kind == ViewKind::Keyboard);
@@ -76,6 +81,7 @@ void ScopeWindow::addCard() {
     rebuildList(); channelList_->setCurrentRow(order_.indexOf(id)); layoutChanged(); updateViewEditor();
 }
 void ScopeWindow::paintSpectrumAxes(QPainter &p, int card, const QRectF &plot, bool stereo) {
+    if (!cards_[card].spectrumGrid) return;
     const auto colors = theme_.colors(sourceFor(card));
     p.save(); p.setClipRect(plot, Qt::IntersectClip); p.setFont(QFont("Segoe UI", 7));
     for (int side = 0; side < (stereo ? 2 : 1); ++side) {

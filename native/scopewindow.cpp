@@ -153,6 +153,15 @@ ScopeWindow::ScopeWindow() {
     cardView_ = new QComboBox; cardView_->setObjectName("cardView"); cardView_->setAccessibleName("Card view"); styleCombo(cardView_);
     for (auto kind : {ViewKind::Waveform, ViewKind::Spectrum, ViewKind::Keyboard}) cardView_->addItem(viewName(kind), int(kind));
     viewRow->addWidget(cardView_, 1); channels->addLayout(viewRow);
+    spectrumControls_ = new QWidget;
+    auto spectrumRow = new QHBoxLayout(spectrumControls_); spectrumRow->setContentsMargins(0, 0, 0, 0);
+    spectrumRow->addWidget(new QLabel("Style"));
+    spectrumStyle_ = new QComboBox; spectrumStyle_->setObjectName("spectrumStyle"); styleCombo(spectrumStyle_);
+    spectrumStyle_->setAccessibleName("Spectrum style"); spectrumStyle_->addItems({"Line", "Bars"});
+    spectrumRow->addWidget(spectrumStyle_, 1);
+    spectrumGrid_ = new QCheckBox("Grid"); spectrumGrid_->setObjectName("spectrumGrid");
+    spectrumGrid_->setToolTip("Show frequency and level grid lines and labels on this card");
+    spectrumRow->addWidget(spectrumGrid_); channels->addWidget(spectrumControls_); spectrumControls_->hide();
     keyboardHint_ = new QLabel; keyboardHint_->setObjectName("keyboardHint"); keyboardHint_->setWordWrap(true);
     channels->addWidget(keyboardHint_); keyboardHint_->hide();
     auto cardActions = new QHBoxLayout;
@@ -167,6 +176,15 @@ ScopeWindow::ScopeWindow() {
         layoutChanged(); updateViewEditor();
     });
     connect(addCard_, &QPushButton::clicked, this, [this] { addCard(); });
+    auto spectrumChanged = [this] {
+        if (!channelList_->currentItem()) return;
+        const int id = channelList_->currentItem()->data(Qt::UserRole).toInt();
+        cards_[id].spectrumBars = spectrumStyle_->currentIndex() == 1;
+        cards_[id].spectrumGrid = spectrumGrid_->isChecked();
+        update();
+    };
+    connect(spectrumStyle_, &QComboBox::currentIndexChanged, this, spectrumChanged);
+    connect(spectrumGrid_, &QCheckBox::toggled, this, spectrumChanged);
     connect(removeCard_, &QPushButton::clicked, this, [this] {
         if (!channelList_->currentItem()) return;
         const int id = channelList_->currentItem()->data(Qt::UserRole).toInt();
@@ -429,7 +447,7 @@ QByteArray ScopeWindow::chromeKey(bool dynamic) const {
     for (int ch : displayedChannels()) {
         const int source = sourceFor(ch);
         const auto &c = theme_.colors(source);
-        s << source << int(viewFor(ch));
+        s << source << int(viewFor(ch)) << cards_[ch].spectrumBars << cards_[ch].spectrumGrid;
         if (dynamic && viewFor(ch) == ViewKind::Keyboard) {
             const float hz = keyboardHz(ch);
             // Ignore sub-decimal estimate jitter that cannot change visible text.
@@ -475,10 +493,16 @@ QVector<ScopeLane> ScopeWindow::waveLanes() {
             if (kind == ViewKind::Spectrum) {
                 const auto &bins = side ? spectrum.right : spectrum.left;
                 const double top = plot.top()+plot.height()*side/(stereo ? 2 : 1);
-                const double bottom = top+plot.height()/(stereo ? 2 : 1)-16;
+                const double bottom = top+plot.height()/(stereo ? 2 : 1)-(cards_[card].spectrumGrid ? 16 : 2);
+                if (bottom-top <= 5) continue;
                 const double height = std::max(1., bottom-top-5);
                 // Logarithmic frequency axis, 20 Hz to 20 kHz. Bucket maxima
                 // preserve narrow peaks on small cards instead of skipping FFT bins.
+                if (cards_[card].spectrumBars) {
+                    lane.bars = scopeSpectrumBars(bins, QRectF(plot.left(), top+5, plot.width(), height));
+                    lane.clip = QRectF(plot.left(), top, plot.width(), bottom-top);
+                    lanes.push_back(std::move(lane)); continue;
+                }
                 const int points = std::clamp(int(plot.width()), 32, 512);
                 for (int j = 0; j < points; ++j) {
                     const double low = 20*std::pow(1000., double(j)/points);
@@ -708,10 +732,19 @@ void ScopeWindow::paintContents(QPainter &p, bool waves) {
         }
         if (!waves) { p.restore(); return; }
         p.setClipRect(plot, Qt::IntersectClip);
-        for (const auto &lane : lanes) if (lane.id/2 == channel && !lane.points.isEmpty()) {
-            QPainterPath line; line.moveTo(lane.points.front());
-            for (int j = 1; j < lane.points.size(); ++j) line.lineTo(lane.points[j]);
-            p.setPen(QPen(lane.color, 1.6)); p.setBrush(Qt::NoBrush); p.drawPath(line);
+        for (const auto &lane : lanes) if (lane.id/2 == channel) {
+            if (!lane.bars.isEmpty()) {
+                p.setPen(Qt::NoPen);
+                for (const auto &bar : lane.bars) {
+                    QLinearGradient gradient(bar.bottomLeft(), bar.topLeft());
+                    gradient.setColorAt(0, lane.color.darker(135)); gradient.setColorAt(1, lane.color.lighter(125));
+                    p.fillRect(bar, gradient);
+                }
+            } else if (!lane.points.isEmpty()) {
+                QPainterPath line; line.moveTo(lane.points.front());
+                for (int j = 1; j < lane.points.size(); ++j) line.lineTo(lane.points[j]);
+                p.setPen(QPen(lane.color, 1.6)); p.setBrush(Qt::NoBrush); p.drawPath(line);
+            }
         }
         p.restore();
     };

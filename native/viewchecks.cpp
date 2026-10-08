@@ -2,6 +2,7 @@
 #include "spectrum.h"
 #include <QApplication>
 #include <QComboBox>
+#include <QCheckBox>
 #include <QDialog>
 #include <QDialogButtonBox>
 #include <QDir>
@@ -45,8 +46,70 @@ void checkSpectrum(QTextStream& log) {
     pcm.fill(12000); const auto dc = scopeSpectrum(pcm);
     require(*std::max_element(dc.begin(), dc.end()) == -80, "DC displayed as a tone.");
     pcm.fill(0); require(scopeSpectrum(pcm) == dc && scopeSpectrum({}) == dc, "Silence spectrum is not flat.");
+    require(scopeSpectrumBars(dc, {0, 0, 400, 100}).isEmpty(), "Silent spectrum has bars.");
+    QVector<float> peakBins(1025, -80); peakBins[20] = -20;
+    for (double width : {2., 50., 400., 2000.}) {
+        const QRectF area(12, 8, width, 120);
+        const auto bars = scopeSpectrumBars(peakBins, area);
+        require(!bars.isEmpty() && bars.size() <= 96, "Bar bands lost a narrow FFT peak or exceeded their bound.");
+        for (const auto &bar : bars) require(area.contains(bar) && std::abs(bar.height()-90) < .01,
+            "Spectrum bar is outside the plot or has the wrong dBFS height.");
+    }
     QElapsedTimer timer; timer.start(); for (int i = 0; i < 64; ++i) scopeSpectrum(copy);
-    log << "Spectrum: sine-bin frequency, -6 dBFS amplitude, DC/silence and immutable input PASS; 64 transforms " << timer.elapsed() << " ms\n"; log.flush();
+    log << "Spectrum: frequency/dBFS, silence, immutable input, bar peak preservation and bounds PASS; 64 transforms " << timer.elapsed() << " ms\n"; log.flush();
+}
+void checkSpectrumControls(QApplication& app, const QString& directory, QTextStream& log) {
+    ScopeWindow scope; scope.resize(1050, 650); scope.show();
+    PlayerState state; state.valid = true; state.generation = 1;
+    state.info.path = "spectrum-preview"; state.info.title = "Spectrum styles";
+    state.info.voices = {"Pulse", "Mix"}; state.info.stereoOutput = true;
+    ScopeFrame frame; frame.generation = 1; frame.mask = 3;
+    QVector<float> row(ScopeFrames), right(ScopeFrames);
+    for (int i = 0; i < ScopeFrames; ++i) {
+        row[i] = float(5000*std::sin(i*.055)+2200*std::sin(i*.23)+1100*std::sin(i*.71));
+        right[i] = float(4200*std::sin(i*.11)+2100*std::sin(i*.45));
+    }
+    frame.channels = {row, row}; frame.left = {row, row}; frame.right = {right, right};
+    scope.present(state, frame); scope.findChild<QPushButton*>("editLayout")->click(); pump(app);
+    auto list = scope.findChild<QListWidget*>("scopeChannelList");
+    auto view = scope.findChild<QComboBox*>("cardView");
+    auto style = scope.findChild<QComboBox*>("spectrumStyle");
+    auto grid = scope.findChild<QCheckBox*>("spectrumGrid");
+    list->setCurrentRow(0); require(!style->isVisible(), "Spectrum controls shown for a waveform.");
+    view->setCurrentIndex(1); pump(app);
+    require(style->isVisible() && style->currentIndex() == 0 && grid->isChecked(), "Spectrum defaults/controls missing.");
+    auto capture = [&] {
+        pump(app, 90);
+        auto gpu = dynamic_cast<ScopeGpu*>(scope.findChild<QQuickWidget*>("scopeGpu"));
+        auto image = gpu ? gpu->grabFramebuffer() : scope.grab().toImage();
+        const auto r = scope.panelRect(0); const auto dpr = scope.devicePixelRatioF();
+        return image.copy(QRect(qRound(r.x()*dpr), qRound(r.y()*dpr), qRound(r.width()*dpr), qRound(r.height()*dpr)));
+    };
+    const auto axes = capture(); grid->setChecked(false); const auto line = capture();
+    require(axes != line, "Grid toggle did not redraw paused spectrum.");
+    style->setCurrentIndex(1); const auto bars = capture();
+    require(bars != line, "Bars did not replace paused spectrum line.");
+    bars.save(QDir(directory).filePath("native-spectrum-bars.png"));
+    list->setCurrentRow(1); view->setCurrentIndex(1);
+    require(style->currentIndex()==0 && grid->isChecked(), "Spectrum settings leaked to another card.");
+    list->setCurrentRow(0); require(style->currentIndex()==1 && !grid->isChecked(), "Card settings were lost on selection.");
+    view->setCurrentIndex(2); require(!style->isVisible(), "Spectrum controls shown for Keyboard.");
+    view->setCurrentIndex(1); require(style->currentIndex()==1 && !grid->isChecked(), "Switching views lost spectrum options.");
+    scope.findChild<QCheckBox*>("scopeStereo")->setChecked(true); pump(app);
+    scope.grab().save(QDir(directory).filePath("native-spectrum-bars-editor.png"));
+    scope.findChild<QPushButton*>("applyLayout")->click(); pump(app);
+    scope.grab().save(QDir(directory).filePath("native-spectrum-styles.png"));
+    scope.hide(); scope.show(); scope.present(state, frame); pump(app);
+    scope.findChild<QPushButton*>("editLayout")->click();
+    require(style->currentIndex()==1 && !grid->isChecked(), "Hide/show lost spectrum options.");
+    scope.resize(620, 390); pump(app);
+    scope.findChild<QPushButton*>("resetLayout")->click(); list->setCurrentRow(0); view->setCurrentIndex(1);
+    require(style->currentIndex()==0 && grid->isChecked(), "Reset did not restore spectrum defaults.");
+    style->setCurrentIndex(1); grid->setChecked(false);
+    scope.beginFile(); state.info.path = "next-spectrum-preview"; scope.present(state, frame);
+    list->setCurrentRow(0); view->setCurrentIndex(1);
+    require(style->currentIndex()==0 && grid->isChecked(), "New file retained previous spectrum options.");
+    scope.close(); log << "Spectrum UI: conditional/per-card controls, paused redraw, stereo, hide/resize, Reset and new-file defaults PASS\n"; log.flush();
 }
 void checkPitch(QTextStream& log) {
     QVector<float> pcm(ScopeFrames), other(ScopeFrames);
@@ -134,7 +197,7 @@ void checkNotes(const QString& directory, QTextStream& log) {
 }
 }
 void checkViews(QApplication& app, const QString& directory, QTextStream& log) {
-    checkSpectrum(log); checkPitch(log); checkNotes(directory, log);
+    checkSpectrum(log); checkSpectrumControls(app, directory, log); checkPitch(log); checkNotes(directory, log);
     PlayerWindow player; player.player().setVolume(0); player.show(); player.loadFile(QDir(directory).filePath("demo.nsf"));
     auto& scope = player.scopeWindow(); scope.resize(1180, 840); scope.show();
     until(app, [&] { return !player.player().state().busy && player.player().scopes().mask == 31; }, "NES views not ready.");

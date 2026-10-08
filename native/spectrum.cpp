@@ -46,6 +46,23 @@ QVector<float> scopeSpectrum(const QVector<float>& pcm) {
     return result;
 }
 
+QVector<QRectF> scopeSpectrumBars(const QVector<float>& bins, const QRectF& area) {
+    QVector<QRectF> bars;
+    if (bins.size() < 2 || area.width() < 2 || area.height() <= 0) return bars;
+    const int count = std::clamp(int(area.width()/7), 1, 96);
+    const double step = area.width()/count, gap = std::min(2., step*.25);
+    for (int i = 0; i < count; ++i) {
+        const double low = 20*std::pow(1000., double(i)/count);
+        const double high = 20*std::pow(1000., double(i+1)/count);
+        const int first = std::clamp(int(std::floor(low*2048/44100)), 1, int(bins.size())-1);
+        const int last = std::clamp(int(std::ceil(high*2048/44100)), first, int(bins.size())-1);
+        float db = -80; for (int bin = first; bin <= last; ++bin) db = std::max(db, bins[bin]);
+        const double height = area.height()*std::clamp((db+80)/80., 0., 1.);
+        if (height > .01) bars.push_back({area.left()+step*i+gap/2, area.bottom()-height, step-gap, height});
+    }
+    return bars;
+}
+
 float scopePitch(const QVector<float>& left, const QVector<float>& right) {
     constexpr int N = 2048, MaxLag = 735; // 30 Hz at 22050 Hz after 2:1 averaging.
     auto energy = [](const QVector<float>& row) {

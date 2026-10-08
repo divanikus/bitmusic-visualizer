@@ -22,11 +22,23 @@ Spectrum shows frequency content on a logarithmic 20 Hz–20 kHz axis, with a fi
 Full mix. Stereo uses separate L/R plots; mono stays one plot. Full mix follows
 output volume and mutes, so a zero-volume player has a flat Full mix spectrum.
 
+Selecting a Spectrum card reveals a compact **Style: Line / Bars** selector and
+**Grid** checkbox below View. These apply to that card immediately, including
+while paused. Grid hides both grid lines and scale labels, freeing that space for
+the plot. Defaults are Line with Grid on. Like the card's view, these options
+survive rearranging and switching views, but reset on Reset or opening a new file.
+
+Bars group frequencies into up to 96 logarithmic bands, adapting their count to
+card width and keeping the strongest FFT peak in each band. They use a vertical
+gradient based on the source's theme color. Stereo, channel/output dimming and
+GPU trail/glow effects work with both styles; CPU draws the same bars without
+effects. Duplicate cards can use different styles without additional decoding.
+
 The analysis uses the latest 2048 samples (about 46 ms) with a Hann window and DC
 removal. Its bin spacing is about 21.5 Hz; closely spaced low-frequency tones may
 not be distinguishable. This is a view of the existing PCM, not an instrument or
 note detector. Duplicate cards reuse analysis. Wave height/trigger controls apply
-to waveforms only; spectrum curves can use the same GPU trail/glow effects.
+to waveforms only.
 
 ## Keyboard
 
