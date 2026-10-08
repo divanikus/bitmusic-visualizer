@@ -1,4 +1,4 @@
-Bit Music Visualizer 0.7.0 - portable Windows x64 build
+Bit Music Visualizer 0.7.1 - portable Windows x64 build
 
 1. Extract the whole ZIP to a folder on Windows 10 or Windows 11 (64-bit).
 2. Run bitmusic_visualizer.exe from that folder.
@@ -9,10 +9,11 @@ Keep the EXE, DLLs, platforms folder and qt.conf together. Do not run directly
 from inside the ZIP. Music files are not included or modified by the player.
 
 Supported formats: NSF, NSFE, VGM, VGZ, SPC, Game Boy GBS and Spectrum AY (ZXAYEMUL).
-Version 0.7.0 adds Spectrum and Keyboard cards. Pencil -> Cards -> View changes
+Pencil -> Cards -> View changes
 the selected card; Add card... adds another view of any voice or Full mix.
 Spectrum offers Line / Bars and an optional Grid. Keyboard uses NES pulse/triangle
-chip data, with experimental audio-based estimates elsewhere. Estimates can be
+and Sega PSG chip data, with names and frequencies for all active notes. Combined
+PSG cards can show three tones at once. Other sources estimate one pitch from audio, which can be
 inaccurate, especially for chords, noise and drums. Remove deletes any card without
 muting its source. Card layouts reset on a new file or Reset; themes keep colors.
 A saved 30 / 60 / 120 FPS target is available in Pencil -> Waves... -> Frame rate.

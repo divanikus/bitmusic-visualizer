@@ -8,6 +8,10 @@ not published GitHub releases. Unreleased lists changes made after the latest ta
 
 ## Unreleased
 
+No changes yet.
+
+## [0.7.1](https://github.com/divanikus/bitmusic-visualizer/releases/tag/v0.7.1) — 2026-10-09
+
 ### Added
 
 - Keyboard cards can highlight multiple notes at once, with names and frequencies
