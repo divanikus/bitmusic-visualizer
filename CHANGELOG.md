@@ -8,6 +8,10 @@ not published GitHub releases. Unreleased lists changes made after the latest ta
 
 ## Unreleased
 
+No changes yet.
+
+## [0.7.2](https://github.com/divanikus/bitmusic-visualizer/releases/tag/v0.7.2) — 2026-10-09
+
 ### Added
 
 - Chip-derived keyboard notes for Game Boy GBS Square/Wave and AY A/B/C channels.

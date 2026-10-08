@@ -1,4 +1,4 @@
-Bit Music Visualizer 0.7.1 - portable Windows x64 build
+Bit Music Visualizer 0.7.2 - portable Windows x64 build
 
 1. Extract the whole ZIP to a folder on Windows 10 or Windows 11 (64-bit).
 2. Run bitmusic_visualizer.exe from that folder.
