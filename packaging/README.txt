@@ -1,4 +1,4 @@
-Bit Music Visualizer 0.6.1 - portable Windows x64 build
+Bit Music Visualizer 0.7.0 - portable Windows x64 build
 
 1. Extract the whole ZIP to a folder on Windows 10 or Windows 11 (64-bit).
 2. Run bitmusic_visualizer.exe from that folder.
@@ -9,7 +9,13 @@ Keep the EXE, DLLs, platforms folder and qt.conf together. Do not run directly
 from inside the ZIP. Music files are not included or modified by the player.
 
 Supported formats: NSF, NSFE, VGM, VGZ, SPC, Game Boy GBS and Spectrum AY (ZXAYEMUL).
-Version 0.6.1 adds a saved 30 / 60 / 120 FPS target in Pencil -> Waves... -> Frame rate.
+Version 0.7.0 adds Spectrum and Keyboard cards. Pencil -> Cards -> View changes
+the selected card; Add card... adds another view of any voice or Full mix.
+Spectrum offers Line / Bars and an optional Grid. Keyboard uses NES pulse/triangle
+chip data, with experimental audio-based estimates elsewhere. Estimates can be
+inaccurate, especially for chords, noise and drums. Remove deletes any card without
+muting its source. Card layouts reset on a new file or Reset; themes keep colors.
+A saved 30 / 60 / 120 FPS target is available in Pencil -> Waves... -> Frame rate.
 Selection applies immediately; the default is 30. Actual rates depend on the
 track, audio device, renderer, system load and monitor. Higher rates use more
 CPU/GPU. Trail duration is preserved, including 999 ms at the 120 FPS target.
@@ -17,7 +23,7 @@ Every scope card supports resizing in whole grid cells.
 Pencil -> Waves...: Smooth auto / Instant auto / Fixed amplitude; Hold and Release
 control how quickly a fading note grows back on screen. Trigger offers Stable,
 Rising edge and Off. These controls work with both GPU and CPU rendering.
-Full mix is unchecked by default in the editor's Channel visibility list. It uses
+Full mix is unchecked by default in the editor's Cards list. It uses
 one grid cell initially and supports resizing, reordering, hiding and its own colors. If it
 overflows, move it higher in the list, hide another card or enlarge the grid.
 Stereo splits it into L/R lanes for stereo sources; mono stays a single wave.

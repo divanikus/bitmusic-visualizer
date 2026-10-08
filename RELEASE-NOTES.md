@@ -1,19 +1,15 @@
-# Bit Music Visualizer 0.6.1
+# Bit Music Visualizer 0.7.0
 
 ## What's new
 
-- **Adjustable oscilloscope frame rate:** added a choice of **30, 60 or 120 FPS**.
-  Higher settings can make the waves smoother, at the cost of more CPU/GPU usage.
-  The default is 30 FPS.
-- **Saved frame-rate preference:** changes apply immediately, and the player
-  restores your choice on the next launch.
-- **Wave trails at higher FPS:** trails keep their selected duration, up to
-  999 ms, when you increase the frame rate.
-- **Project documentation:** added a player screenshot to the README and a changelog.
+- **Spectrum cards:** see frequency content as a line or bars, with an optional grid and stereo L/R display.
+- **Keyboard cards:** see the current note. NES pulse/triangle use chip data; other sources, including Full mix, use experimental estimates that can be inaccurate.
+- **Multiple views:** place a channel's waveform, spectrum and keyboard side by side in the existing grid.
+- **Scrollable editor:** controls remain accessible in small windows.
 
-To change the frame rate, click the **pencil** in the oscilloscope window,
-then open **Waves… → Frame rate**.
+Click the **pencil**, select a card and change **View**, or choose **Add card…**.
+Spectrum reveals **Line / Bars** and **Grid** controls. Card layouts remain session-local.
 
-**Downloads:** [Windows x64 ZIP](https://github.com/divanikus/bitmusic-visualizer/releases/download/v0.6.1/BitMusicVisualizer-0.6.1-windows-x64.zip) · [Linux x64 AppImage](https://github.com/divanikus/bitmusic-visualizer/releases/download/v0.6.1/BitMusicVisualizer-0.6.1-linux-x64.AppImage) · [macOS Apple Silicon ZIP](https://github.com/divanikus/bitmusic-visualizer/releases/download/v0.6.1/BitMusicVisualizer-0.6.1-macos-arm64.zip)
+**Downloads:** [Windows x64 ZIP](https://github.com/divanikus/bitmusic-visualizer/releases/download/v0.7.0/BitMusicVisualizer-0.7.0-windows-x64.zip) · [Linux x64 AppImage](https://github.com/divanikus/bitmusic-visualizer/releases/download/v0.7.0/BitMusicVisualizer-0.7.0-linux-x64.AppImage) · [macOS Apple Silicon ZIP](https://github.com/divanikus/bitmusic-visualizer/releases/download/v0.7.0/BitMusicVisualizer-0.7.0-macos-arm64.zip)
 
 Linux and macOS builds are experimental.

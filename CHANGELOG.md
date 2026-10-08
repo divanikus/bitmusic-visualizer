@@ -8,6 +8,10 @@ not published GitHub releases. Unreleased lists changes made after the latest ta
 
 ## Unreleased
 
+No changes yet.
+
+## [0.7.0](https://github.com/divanikus/bitmusic-visualizer/releases/tag/v0.7.0) — 2026-10-09
+
 ### Added
 
 - Frequency spectrum cards for individual voices and Full mix, with optional L/R lanes.
@@ -17,11 +21,6 @@ not published GitHub releases. Unreleased lists changes made after the latest ta
 - A View selector and Add card dialog in the existing grid editor: compare multiple
   views of one channel without opening extra windows.
 - A scrollable card editor for smaller windows.
-
-### Fixed
-
-- Remove now works for original cards as well as added ones.
-- NES keyboards no longer periodically flash Waiting for note data during playback.
 
 ## [0.6.1](https://github.com/divanikus/bitmusic-visualizer/releases/tag/v0.6.1) — 2026-10-08
 

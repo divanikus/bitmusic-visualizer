@@ -22,7 +22,7 @@ int main(int argc, char **argv) {
         if (std::strcmp(argv[i], "--software-scopes") == 0) qputenv("BITMUSIC_SOFTWARE_SCOPES", "1");
     QApplication app(argc, argv);
     app.setApplicationName("Bit Music Visualizer");
-    app.setApplicationVersion("0.6.1");
+    app.setApplicationVersion("0.7.0");
     app.setStyle("Fusion");
     app.setPalette(playerPalette());
     app.setWindowIcon(QIcon(":/assets/player.png"));
