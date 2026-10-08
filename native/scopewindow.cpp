@@ -153,6 +153,8 @@ ScopeWindow::ScopeWindow() {
     cardView_ = new QComboBox; cardView_->setObjectName("cardView"); cardView_->setAccessibleName("Card view"); styleCombo(cardView_);
     for (auto kind : {ViewKind::Waveform, ViewKind::Spectrum, ViewKind::Keyboard}) cardView_->addItem(viewName(kind), int(kind));
     viewRow->addWidget(cardView_, 1); channels->addLayout(viewRow);
+    keyboardHint_ = new QLabel; keyboardHint_->setObjectName("keyboardHint"); keyboardHint_->setWordWrap(true);
+    channels->addWidget(keyboardHint_); keyboardHint_->hide();
     auto cardActions = new QHBoxLayout;
     addCard_ = new QPushButton("Add card..."); addCard_->setObjectName("addScopeCard"); cardActions->addWidget(addCard_);
     removeCard_ = new QPushButton("Remove"); removeCard_->setObjectName("removeScopeCard"); cardActions->addWidget(removeCard_);
@@ -168,9 +170,12 @@ ScopeWindow::ScopeWindow() {
     connect(removeCard_, &QPushButton::clicked, this, [this] {
         if (!channelList_->currentItem()) return;
         const int id = channelList_->currentItem()->data(Qt::UserRole).toInt();
-        if (id <= ScopeTheme::FullMix) return;
+        if (id < 0 || id >= cards_.size()) return;
+        const int row = channelList_->currentRow();
         order_.removeAll(id); hidden_[id] = true;
-        rebuildList(); layoutChanged(); updateViewEditor();
+        rebuildList();
+        if (channelList_->count()) channelList_->setCurrentRow(std::min(row, channelList_->count()-1));
+        layoutChanged(); updateViewEditor();
     });
     auto colors = new QPushButton("Colors..."); colors->setObjectName("scopeColors"); colors->setToolTip("Edit the selected channel's colors"); channels->addWidget(colors);
     auto visualActions = new QHBoxLayout; visualActions->setSpacing(4); channels->addLayout(visualActions);
@@ -245,7 +250,7 @@ ScopeWindow::ScopeWindow() {
 
 void ScopeWindow::beginFile() {
     if (gpu_) gpu_->suspend();
-    newFile_ = true; frame_ = {}; output_ = {}; waveStates_ = {}; spectrumStates_ = {}; cancelDrag();
+    newFile_ = true; frame_ = {}; output_ = {}; waveStates_ = {}; spectrumStates_ = {}; pitchStates_ = {}; cancelDrag();
     if (onChannelsChanged) onChannelsChanged(0);
     outputCapturing_ = false;
     if (onOutputChanged) onOutputChanged(false);
@@ -283,7 +288,7 @@ void ScopeWindow::resetChannels(bool grid) {
     order_.clear(); hidden_ = QVector<bool>(ScopeTheme::FullMix + 1, false);
     spans_ = QVector<QSize>(ScopeTheme::FullMix + 1, QSize(1, 1));
     cards_.clear(); for (int source = 0; source <= ScopeTheme::FullMix; ++source) cards_.push_back({source, ViewKind::Waveform});
-    spectrumStates_ = {}; waveStates_ = {};
+    spectrumStates_ = {}; waveStates_ = {}; pitchStates_ = {};
     for (int i = 0; i < state_.info.voices.size(); ++i) order_.push_back(i);
     order_.push_back(ScopeTheme::FullMix); hidden_[ScopeTheme::FullMix] = !waveOptions_.output;
     cancelDrag();
@@ -300,7 +305,7 @@ uint32_t ScopeWindow::visibleMask() const {
     uint32_t mask = 0;
     for (int card : visibleChannels()) {
         const int source = sourceFor(card);
-        if (source < ScopeTheme::FullMix && (viewFor(card) != ViewKind::Keyboard || (state_.info.tonalMask & (1u << source))))
+        if (source < ScopeTheme::FullMix)
             mask |= uint32_t(1) << source;
     }
     return mask;
@@ -375,7 +380,7 @@ void ScopeWindow::updateList() {
 void ScopeWindow::updateVisibility() {
     if (renderingVisible()) presentationTimer_->start(); else presentationTimer_->stop();
     if (gpu_) { gpu_->suspend(); gpu_->setVisible(renderingVisible() && !gpuFailed_); }
-    frame_ = {}; output_ = {}; waveStates_ = {}; spectrumStates_ = {}; cancelDrag();
+    frame_ = {}; output_ = {}; waveStates_ = {}; spectrumStates_ = {}; pitchStates_ = {}; cancelDrag();
     if (onVisibilityChanged) onVisibilityChanged(renderingVisible());
     update();
 }
@@ -425,7 +430,11 @@ QByteArray ScopeWindow::chromeKey(bool dynamic) const {
         const int source = sourceFor(ch);
         const auto &c = theme_.colors(source);
         s << source << int(viewFor(ch));
-        if (dynamic && viewFor(ch) == ViewKind::Keyboard) s << frame_.noteHz.value(source, -1);
+        if (dynamic && viewFor(ch) == ViewKind::Keyboard) {
+            const float hz = keyboardHz(ch);
+            // Ignore sub-decimal estimate jitter that cannot change visible text.
+            s << qRound(hz*10) << (hz > 0 ? qRound(69+12*std::log2(hz/440.)) : -1);
+        }
         s << ch << panelRect(ch) << channelName(ch) << c.waveform << c.background << c.label << c.axis << c.border
           << (source < frame_.channels.size() ? frame_.channels[source].size() : 0)
           << (source < frame_.left.size() ? frame_.left[source].size() : 0)
@@ -597,6 +606,7 @@ void ScopeWindow::editEffects() {
 }
 void ScopeWindow::paintEvent(QPaintEvent *event) {
     FrameWindow::paintEvent(event);
+    updateKeyboardNotes();
     // During a drag the floating card can cover another card's waveform. Use the
     // original painter for this brief animation so its complete stacking stays exact.
     const bool gpu = gpu_ && !gpuFailed_ && !dragging_ && resizeChannel_ < 0 && animationFrom_.isEmpty() && renderingVisible();

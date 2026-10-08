@@ -74,10 +74,13 @@ private:
     QString sourceName(int source) const;
     QString viewName(ViewKind kind) const;
     void updateViewEditor();
+    void updateKeyboardNotes();
+    float keyboardHz(int card) const;
     void addCard();
     void paintKeyboard(QPainter &p, int card, const QRectF &plot, bool muted);
     void paintSpectrumAxes(QPainter &p, int card, const QRectF &plot, bool stereo);
     QComboBox *cardView_;
+    QLabel *keyboardHint_;
     QPushButton *addCard_, *removeCard_;
     struct SpectrumState {
         quint64 generation = 0, sequence = 0;
@@ -86,6 +89,12 @@ private:
         QVector<float> left, right;
     };
     std::array<SpectrumState, 33> spectrumStates_{};
+    struct PitchState {
+        quint64 generation = 0, sequence = 0;
+        int position = -1;
+        float hz = -1;
+    };
+    std::array<PitchState, 33> pitchStates_{};
     void editEffects();
     void editRenderer();
     void restoreEffects();

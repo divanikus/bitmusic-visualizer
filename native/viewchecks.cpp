@@ -8,6 +8,7 @@
 #include <QEventLoop>
 #include <QFile>
 #include <QListWidget>
+#include <QLabel>
 #include <QPushButton>
 #include <QSpinBox>
 #include <QTextStream>
@@ -47,6 +48,28 @@ void checkSpectrum(QTextStream& log) {
     QElapsedTimer timer; timer.start(); for (int i = 0; i < 64; ++i) scopeSpectrum(copy);
     log << "Spectrum: sine-bin frequency, -6 dBFS amplitude, DC/silence and immutable input PASS; 64 transforms " << timer.elapsed() << " ms\n"; log.flush();
 }
+void checkPitch(QTextStream& log) {
+    QVector<float> pcm(ScopeFrames), other(ScopeFrames);
+    for (double hz : {55., 110., 440., 1760., 3000.}) {
+        for (int i = 0; i < ScopeFrames; ++i) pcm[i] = float(6000*std::sin(2*3.141592653589793*hz*i/SampleRate)+500);
+        const auto estimate = scopePitch(pcm);
+        require(std::abs(estimate/hz-1) < .03, "PCM pitch estimate missed a sine tone.");
+    }
+    for (int i = 0; i < ScopeFrames; ++i) {
+        pcm[i] = std::fmod(440.*i/SampleRate, 1.) < .25 ? 5000 : -5000;
+        other[i] = -pcm[i];
+    }
+    require(std::abs(scopePitch(pcm, other)-440) < 4, "Harmonic-rich/antiphase stereo pitch is incorrect.");
+    const auto copy = pcm;
+    QElapsedTimer timer; timer.start(); for (int i = 0; i < 32; ++i) scopePitch(pcm, other);
+    require(pcm == copy, "Pitch estimation changed input PCM.");
+    log << "PCM pitch: tones, harmonics, DC offset, antiphase stereo PASS; 32 estimates " << timer.elapsed() << " ms\n";
+    pcm.fill(0); other.fill(12000); require(scopePitch(pcm, other) == 0, "Silence/DC invented a note.");
+    uint32_t random = 17;
+    for (auto& value : pcm) { random = random*1664525u+1013904223u; value = float(int(random >> 16)-32768); }
+    require(scopePitch(pcm) < 0, "Broadband noise falsely acquired a stable pitch.");
+    log << "PCM pitch: silence/noise rejection and immutable samples PASS\n"; log.flush();
+}
 void checkNotes(const QString& directory, QTextStream& log) {
     const QDir dir(directory);
     std::array<short, BlockFrames*2> a{}, b{};
@@ -77,7 +100,7 @@ void checkNotes(const QString& directory, QTextStream& log) {
     float previous = -1; int stable = 0;
     for (int i = 0; i < 700; ++i) {
         track.render(a.data(), 128);
-        const auto hz = track.noteHz(0); if (hz < 0) continue;
+        const auto hz = track.noteHz(0); require(hz >= 0, "Changing notes intermittently unavailable.");
         low |= std::abs(hz-440.4) < 1; high |= std::abs(hz-658.) < 1;
         stable = hz == previous ? stable+1 : 0; previous = hz;
         for (int j = 0; j < 128; ++j) history.push_back(a[j*2]);
@@ -90,11 +113,28 @@ void checkNotes(const QString& directory, QTextStream& log) {
         }
     }
     require(low && high && compared > 100, "Changing notes did not follow the fixture.");
+    for (bool pal : {false, true}) {
+        auto content = data; content[0x7a] = pal ? 1 : 0;
+        QFile longFile(dir.filePath(pal ? "notes-pal.nsf" : "notes-ntsc.nsf"));
+        require(longFile.open(QIODevice::WriteOnly), "Cannot write clock fixture."); longFile.write(content); longFile.close();
+        GmeTrack continuous(longFile.fileName(), 0, false, true);
+        int missing = 0, firstMissing = -1;
+        for (int i = 0; i < 180*SampleRate/512; ++i) {
+            continuous.render(a.data(), 512);
+            if (continuous.noteHz(0) < 0) { ++missing; if (firstMissing < 0) firstMissing = int(continuous.frame()*1000/SampleRate); }
+        }
+        log << "Continuous " << (pal ? "PAL" : "NTSC") << " notes (180 seconds): missing=" << missing << " firstMs=" << firstMissing << '\n'; log.flush();
+        require(!missing, "Continuous NES notes intermittently unavailable.");
+        for (qint64 position : {SampleRate*20LL, SampleRate/3LL, SampleRate*60LL}) {
+            continuous.seek(position); continuous.render(a.data(), 128);
+            require(continuous.noteHz(0) >= 0, "Note clock did not recover after seek.");
+        }
+    }
     log << "NES/NSFE notes: hardware periods/gates, noise exclusion, unchanged PCM, rewind and changing pitch vs delivered PCM PASS\n"; log.flush();
 }
 }
 void checkViews(QApplication& app, const QString& directory, QTextStream& log) {
-    checkSpectrum(log); checkNotes(directory, log);
+    checkSpectrum(log); checkPitch(log); checkNotes(directory, log);
     PlayerWindow player; player.player().setVolume(0); player.show(); player.loadFile(QDir(directory).filePath("demo.nsf"));
     auto& scope = player.scopeWindow(); scope.resize(1180, 840); scope.show();
     until(app, [&] { return !player.player().state().busy && player.player().scopes().mask == 31; }, "NES views not ready.");
@@ -126,9 +166,14 @@ void checkViews(QApplication& app, const QString& directory, QTextStream& log) {
     scope.findChild<QPushButton*>("editLayout")->click();
     for (int row=0; row<list->count(); ++row) if (list->item(row)->data(Qt::UserRole).toInt()==spectrum) list->setCurrentRow(row);
     scope.findChild<QComboBox*>("cardView")->setCurrentIndex(2); pump(app);
-    require(!scope.outputEnabled(), "Unsupported mix keyboard kept output capture enabled.");
+    require(scope.outputEnabled() && scope.findChild<QLabel*>("keyboardHint")->text().contains("Estimated"), "Mix keyboard did not enable/explain its estimate.");
     scope.findChild<QPushButton*>("removeScopeCard")->click(); pump(app);
-    require(!scope.visibleChannels().contains(spectrum), "Remove left an added card visible.");
+    require(!scope.visibleChannels().contains(spectrum) && !scope.outputEnabled(), "Remove left an added card visible/capturing.");
+    list->setCurrentRow(0); // Original waveform, with two other views of its source.
+    require(list->currentItem()->data(Qt::UserRole).toInt() == 0, "Wrong original card selected.");
+    auto remove = scope.findChild<QPushButton*>("removeScopeCard"); require(remove->isEnabled(), "Remove disabled for an original card.");
+    remove->click(); pump(app);
+    require(!scope.visibleChannels().contains(0) && player.player().scopes().mask==31, "Removing original card affected a duplicate or its capture.");
     scope.hide(); pump(app, 120); require(player.player().state().scopesSuspended, "Hidden views continued emulating.");
     scope.show(); player.player().seek(500, true);
     until(app, [&] { return player.player().scopes().mask==31 && player.player().state().positionMs>700; }, "Views did not resume.");
@@ -141,7 +186,15 @@ void checkViews(QApplication& app, const QString& directory, QTextStream& log) {
     until(app, [&] { return !player.player().state().busy && player.player().scopes().mask==255; }, "SPC failed after note views.");
     scope.findChild<QComboBox*>("cardView")->setCurrentIndex(1); pump(app, 120);
     scope.findChild<QComboBox*>("cardView")->setCurrentIndex(2);
-    until(app, [&] { return player.player().scopes().mask==254; }, "Unsupported keyboard unnecessarily retained its voice capture.");
+    require(player.player().scopes().mask==255 && scope.findChild<QLabel*>("keyboardHint")->text().contains("Estimated"), "SPC keyboard missing source capture/estimate label.");
+    pump(app, 100); scope.grab().save(QDir(directory).filePath("native-keyboard-estimated.png"));
+    const int count = list->count();
+    for (int i=0; i<count; ++i) { list->setCurrentRow(0); remove->click(); }
+    require(list->count()==0 && !remove->isEnabled() && scope.visibleChannels().isEmpty(), "Remove could not clear all cards.");
+    add(scope, 0, 2); pump(app);
+    require(list->count()==1 && scope.visibleChannels().size()==1, "Deleted source could not be re-added.");
+    scope.findChild<QPushButton*>("resetLayout")->click(); pump(app);
+    require(list->count()==9 && scope.visibleChannels().size()==8, "Reset did not restore original cards.");
     const auto state = player.player().state(); require(state.starvations == 0 && state.outputErrors == 0, "Views caused audio starvation/errors.");
     player.close();
     log << "Views UI/live: duplicate voice/mix cards, masks, GPU/CPU image, mute dimming, pause/seek, hide/resume, removal, file reset and VGZ/SPC spectra PASS; audio errors 0/0\n"; log.flush();

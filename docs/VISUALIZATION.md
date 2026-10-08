@@ -4,8 +4,10 @@ Click the pencil, select a card in **Cards**, then choose its **View**. The chan
 is immediate. **Add card…** asks for a source and view, keeping existing cards.
 For example, keep Square 1's waveform, add Square 1 / Keyboard, then add a Full mix
 / Spectrum. Drag and resize them in the same grid. Increase Rows/Columns or hide
-other cards if the editor reports overflow. **Remove** deletes an added card;
-original cards can be hidden with their checkboxes or header crosses.
+other cards if the editor reports overflow. **Remove** deletes any selected card
+without muting its audio source. Use **Add card…** to bring that source back, or
+**Reset** to restore the default cards. Checkboxes and header crosses just hide
+cards, keeping their entries in the list.
 
 Cards of the same source share colors, audio capture and mute state. Moving or
 hiding a card never mutes its source. Added cards and view choices, like sizes and
@@ -26,18 +28,28 @@ not be distinguishable. This is a view of the existing PCM, not an instrument or
 note detector. Duplicate cards reuse analysis. Wave height/trigger controls apply
 to waveforms only; spectrum curves can use the same GPU trail/glow effects.
 
-## Keyboard (initial NES support)
+## Keyboard
 
 Keyboard highlights the nearest equal-tempered note (A4 = 440 Hz) and displays
-the oscillator frequency. The fixed keyboard covers C1–B7; pitches outside that
-range are still named above it. NES/NSFE Square 1, Square 2 and Triangle currently
-provide this data. Gated-off voices show No note. Noise, DMC, expansion chips,
-other systems and Full mix explicitly report that notes are unavailable.
+its frequency. The fixed keyboard covers C1–B7; pitches outside that range are
+still named above it. All supported audio sources, including Full mix, can use
+this view. It has two automatic modes:
 
-Pitch comes from emulated oscillator periods and gates, with timestamped history
-to account for decoder look-ahead. It is not inferred from the waveform and is
-not a transcription of the original score. Fast arpeggios can change between
-display frames. Voice/output mutes dim the display while retaining source state.
+- **Chip pitch:** NES/NSFE Square 1, Square 2 and Triangle use oscillator periods
+  and gates. No note means the oscillator is gated off.
+- **Estimated:** other voices, expansion chips and Full mix estimate one periodic
+  pitch from their audio. The readout and editor explicitly mark this mode.
+  Chords, drums, noise, strong harmonics and quick note changes can confuse it,
+  including octave errors. No stable pitch means the signal was not periodic
+  enough; silence shows No note. This is an experimental visual aid, not a score
+  transcription or a display of all notes in a chord.
+
+Chip-pitch history follows the decoder's actual fixed-point resampling clock
+and filter delay, accounting for look-ahead. Estimates use up to 4096 samples
+(about 93 ms), analyze the stronger stereo side and refresh at up to 30 Hz per
+source. Duplicate views share analysis. Rapid arpeggios can change between
+display frames. Voice/output mutes dim the display while retaining source state;
+Full mix reflects the actual delivered audio, including volume and all mutes.
 Pause freezes it; seeks and file changes replace old state. This view does not
 expose a chip-register inspector or add support for new file formats.
 

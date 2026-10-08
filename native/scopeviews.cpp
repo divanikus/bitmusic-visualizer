@@ -1,5 +1,6 @@
 #include "window.h"
 #include "palette.h"
+#include "spectrum.h"
 #include <QComboBox>
 #include <QDialog>
 #include <QDialogButtonBox>
@@ -25,7 +26,7 @@ QString ScopeWindow::viewName(ViewKind kind) const {
 }
 bool ScopeWindow::outputEnabled() const {
     if (newFile_) return false;
-    for (int id : visibleChannels()) if (sourceFor(id) == ScopeTheme::FullMix && viewFor(id) != ViewKind::Keyboard) return true;
+    for (int id : visibleChannels()) if (sourceFor(id) == ScopeTheme::FullMix) return true;
     return false;
 }
 void ScopeWindow::updateViewEditor() {
@@ -34,10 +35,14 @@ void ScopeWindow::updateViewEditor() {
     const bool valid = id >= 0 && id < cards_.size();
     QSignalBlocker block(cardView_);
     cardView_->setEnabled(valid); cardView_->setCurrentIndex(valid ? int(cards_[id].kind) : 0);
-    cardView_->setToolTip("Change the selected card. Keyboard notes currently support NES pulse and triangle voices.");
+    cardView_->setToolTip("Keyboard uses chip pitch for NES pulse/triangle and estimates pitch from audio for other sources.");
+    const int source = valid ? sourceFor(id) : -1;
+    const bool exact = source >= 0 && source < 32 && (state_.info.tonalMask & (1u << source));
+    keyboardHint_->setVisible(valid && cards_[id].kind == ViewKind::Keyboard);
+    keyboardHint_->setText(exact ? "Notes from the NES oscillator." : "Estimated from audio. Chords, noise and drums may be inaccurate.");
     addCard_->setEnabled(state_.valid && order_.size() < 128);
-    removeCard_->setEnabled(valid && id > ScopeTheme::FullMix);
-    removeCard_->setToolTip("Remove an added card. Original channel cards can be hidden with their checkbox.");
+    removeCard_->setEnabled(valid);
+    removeCard_->setToolTip("Remove this card without muting its source. Add card... or Reset can bring it back.");
 }
 void ScopeWindow::addCard() {
     if (!state_.valid || order_.size() >= 128) return;
@@ -54,7 +59,7 @@ void ScopeWindow::addCard() {
     for (auto type : {ViewKind::Waveform, ViewKind::Spectrum, ViewKind::Keyboard}) kind->addItem(viewName(type), int(type));
     kind->setCurrentIndex((sourceFor(selectedId) < 32 && (state_.info.tonalMask & (1u << sourceFor(selectedId)))) ? 2 : 1);
     form->addRow("View", kind);
-    auto note = new QLabel("Add another view of a channel or the final mix.\nCards share their source's colors.\nKeyboard: NES pulse and triangle voices only.");
+    auto note = new QLabel("Add another view of a channel or the final mix.\nCards share their source's colors.\nKeyboard: chip pitch for NES pulse/triangle; estimated from audio for other sources.");
     note->setWordWrap(true); layout->addWidget(note);
     auto buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel); layout->addWidget(buttons);
     buttons->button(QDialogButtonBox::Ok)->setText("Add");
@@ -98,20 +103,21 @@ void ScopeWindow::paintSpectrumAxes(QPainter &p, int card, const QRectF &plot, b
 }
 void ScopeWindow::paintKeyboard(QPainter &p, int card, const QRectF &plot, bool muted) {
     const int source = sourceFor(card);
-    const bool supported = source < 32 && (state_.info.tonalMask & (1u << source));
-    const float hz = supported && channelReady(card) ? frame_.noteHz.value(source, -1) : -1;
+    const bool exact = source < 32 && (state_.info.tonalMask & (1u << source));
+    const float hz = keyboardHz(card);
     const int midi = hz > 0 ? qRound(69+12*std::log2(hz/440.)) : -1;
     const auto colors = theme_.colors(source);
     QColor ink = colors.waveform; if (muted) ink.setAlpha(115);
     QString text;
-    if (!supported) text = source == ScopeTheme::FullMix ? "Keyboard needs a single tonal voice" : "Notes unavailable for this channel";
-    else if (hz < 0) text = state_.busy || !channelReady(card) ? "Preparing..." : "Waiting for note data...";
+    if (!channelReady(card)) text = source == ScopeTheme::FullMix && !state_.playing && !state_.busy ? "No output" : "Preparing...";
+    else if (hz < 0) text = exact ? "Waiting for note data..." : "No stable pitch";
     else if (hz == 0) text = "No note";
     else {
         const QStringList names = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"};
         text = QString("%1%2  |  %3 Hz").arg(names[(midi%12+12)%12]).arg(int(std::floor(midi/12.))-1).arg(hz, 0, 'f', 1);
         if (midi < 24 || midi > 107) text += " (outside range)";
     }
+    if (!exact) text = "Estimated | " + text;
     p.save(); p.setClipRect(plot, Qt::IntersectClip); p.setFont(QFont("Segoe UI", 8)); p.setPen(colors.label);
     p.drawText(QRectF(plot.left(), plot.top(), plot.width(), 18), Qt::AlignCenter, text);
     const auto keys = plot.adjusted(0, 23, 0, 0);
@@ -126,7 +132,6 @@ void ScopeWindow::paintKeyboard(QPainter &p, int card, const QRectF &plot, bool 
                 const QRectF key(keys.left()+(white-(dark ? .32 : 0))*width, keys.top(), width*(dark ? .64 : 1), keys.height()*(dark ? .62 : 1));
                 QColor fill = dark ? QColor("#26343a") : QColor("#cdd8da");
                 if (note == midi) fill = ink;
-                else if (!supported) fill.setAlpha(90);
                 p.setPen(QPen(colors.background, .8)); p.setBrush(fill); p.drawRoundedRect(key.adjusted(.3, .3, -.3, -.3), 1.5, 1.5);
                 if (!dark && note%12 == 0 && width >= 9 && keys.height() >= 28) {
                     p.setPen(QColor("#35484d")); p.setFont(QFont("Segoe UI", 7));
@@ -137,4 +142,31 @@ void ScopeWindow::paintKeyboard(QPainter &p, int card, const QRectF &plot, bool 
         }
     }
     p.restore();
+}
+
+float ScopeWindow::keyboardHz(int card) const {
+    if (!channelReady(card)) return -1;
+    const int source = sourceFor(card);
+    if (source < 32 && (state_.info.tonalMask & (1u << source))) return frame_.noteHz.value(source, -1);
+    const auto& estimate = pitchStates_[source];
+    return estimate.generation == state_.generation ? estimate.hz : -1;
+}
+void ScopeWindow::updateKeyboardNotes() {
+    for (int card : displayedChannels()) {
+        const int source = sourceFor(card);
+        if (viewFor(card) != ViewKind::Keyboard || !channelReady(card) ||
+            (source < 32 && (state_.info.tonalMask & (1u << source)))) continue;
+        const bool mix = source == ScopeTheme::FullMix;
+        const int position = mix ? output_.positionMs : frame_.positionMs;
+        const quint64 sequence = mix ? output_.sequence : 0;
+        auto& estimate = pitchStates_[source];
+        if (estimate.generation == state_.generation && estimate.position >= 0 && position >= estimate.position &&
+            (position-estimate.position < 33 || (position == estimate.position && sequence == estimate.sequence))) continue;
+        // Analysis is bounded to ~30 Hz per source, reused by all its cards.
+        // Read actual stereo sides even when the visual Stereo checkbox is off.
+        const auto& left = mix ? output_.left : frame_.left.value(source, frame_.channels[source]);
+        const auto& right = mix ? output_.right : frame_.right.value(source);
+        estimate.hz = scopePitch(left, right);
+        estimate.generation = state_.generation; estimate.position = position; estimate.sequence = sequence;
+    }
 }
