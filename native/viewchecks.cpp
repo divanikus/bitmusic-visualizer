@@ -20,6 +20,7 @@
 #include <stdexcept>
 
 void checkPsgNotes(QApplication&, const QString&, QTextStream&);
+void checkGbAyNotes(QApplication&, const QString&, QTextStream&);
 namespace {
 void require(bool value, const char* message) { if (!value) throw std::runtime_error(message); }
 void pump(QApplication& app, int ms = 70) { QEventLoop loop(&app); QTimer::singleShot(ms, &loop, &QEventLoop::quit); loop.exec(); }
@@ -198,6 +199,7 @@ void checkNotes(const QString& directory, QTextStream& log) {
 }
 }
 void checkViews(QApplication& app, const QString& directory, QTextStream& log) {
+    checkGbAyNotes(app, directory, log);
     checkSpectrum(log); checkSpectrumControls(app, directory, log); checkPitch(log); checkNotes(directory, log);
     checkPsgNotes(app, directory, log);
     PlayerWindow player; player.player().setVolume(0); player.show(); player.loadFile(QDir(directory).filePath("demo.nsf"));

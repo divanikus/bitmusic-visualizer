@@ -19,6 +19,7 @@ void bm_notes_delete(BmNotes* n) { delete n; }
 BmNotes* bm_notes_enter(BmNotes* n) { auto old = currentNotes; currentNotes = n; return old; }
 void bm_notes_reset(BmNotes* n) { if (n) { n->written = 0; n->clocks = 0; } }
 bool bm_notes_active() { return currentNotes != nullptr; }
+double bm_notes_clock_rate() { return currentNotes ? currentNotes->rate : 0; }
 void bm_notes_bind_psg(const void* apu) { if (currentNotes) currentNotes->psg = apu; }
 bool bm_notes_psg_active(const void* apu) { return currentNotes && currentNotes->psg == apu; }
 void bm_notes_clock(double rate) {

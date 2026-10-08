@@ -32,7 +32,7 @@ It uses temporary settings and silent playback, exercises 30/60/120 FPS with
 NSF/VGZ/SPC, and reports refresh requests and fresh snapshots per second. These
 counts are not monitor-presented FPS. Add `--software-scopes` to check CPU drawing.
 
-`--self-test test-output --views-only` checks spectra, NES/PSG pitch-state capture,
+`--self-test test-output --views-only` checks spectra, NES/PSG/GBS/AY pitch-state capture,
 multi-note keyboards, duplicate cards, audio continuity and transport changes.
 Add `--software-scopes` for CPU rendering. These checks also run in the complete native suite.
 

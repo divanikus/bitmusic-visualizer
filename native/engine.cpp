@@ -128,8 +128,10 @@ GmeTrack::GmeTrack(const QString &path, int song, bool readPlaylist, bool captur
     const bool psgNotes = data.startsWith("Vgm ") && data.size() >= 0x40 &&
         !((qFromLittleEndian<quint32>(data.constData()+12) | qFromLittleEndian<quint32>(data.constData()+16) |
            qFromLittleEndian<quint32>(data.constData()+44)) & 0xc0000000u);
+    const bool threeToneNotes = data.startsWith("NESM\x1a") || data.startsWith("NSFE") ||
+        data.startsWith("GBS") || data.startsWith("ZXAYEMUL");
     if (capture) {
-        if (data.startsWith("NESM\x1a") || data.startsWith("NSFE") || psgNotes) notes_ = bm_notes_create();
+        if (threeToneNotes || psgNotes) notes_ = bm_notes_create();
         if (data.startsWith("SNES-SPC700")) taps_ = bm_taps_create(3);
         else if (data.startsWith("Vgm ") && data.size() >= 0x40) {
             auto word = [&](int at) { return qFromLittleEndian<quint32>(data.constData() + at); };
@@ -145,7 +147,7 @@ GmeTrack::GmeTrack(const QString &path, int song, bool readPlaylist, bool captur
         check(gme_open_data(data.constData(), static_cast<long>(data.size()), &emu_, SampleRate));
         gme_ignore_silence(emu_, 1);
         gme_set_autoload_playback_limit(emu_, 0);
-        info_.tonalMask = (data.startsWith("NESM\x1a") || data.startsWith("NSFE")) ? 7u : 0u;
+        info_.tonalMask = threeToneNotes ? 7u : 0u;
         info_.songs = gme_track_count(emu_);
         if (song < 0 || song >= info_.songs) throw std::runtime_error("Invalid subsong number.");
         info_.path = path;

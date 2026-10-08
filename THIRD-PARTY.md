@@ -44,8 +44,8 @@ MIDI ROMs or sound banks are bundled.
 `native/gme-taps/` (the tap implementation, YM2413 adapter and patches.json) is
 licensed LGPL-2.1-or-later, copyright 2026 Bit Music Visualizer contributors,
 with original notices retained in modified upstream files. The changes add
-per-voice capture, timestamped NES and Sega PSG pitch-state capture, hardware
-channel grouping and YM2413 support. Patch application
+per-voice capture, timestamped NES, Sega PSG, Game Boy and AY pitch-state capture,
+hardware channel grouping and YM2413 support. Patch application
 is hash-checked by `cmake/PatchGme.cmake`; that original build script is MIT.
 The LGPL text is in [LICENSES/LGPL-2.1.txt](LICENSES/LGPL-2.1.txt).
 

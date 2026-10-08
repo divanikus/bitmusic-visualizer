@@ -9,12 +9,13 @@ Keep the EXE, DLLs, platforms folder and qt.conf together. Do not run directly
 from inside the ZIP. Music files are not included or modified by the player.
 
 Supported formats: NSF, NSFE, VGM, VGZ, SPC, Game Boy GBS and Spectrum AY (ZXAYEMUL).
-Pencil -> Cards -> View changes
-the selected card; Add card... adds another view of any voice or Full mix.
-Spectrum offers Line / Bars and an optional Grid. Keyboard uses NES pulse/triangle
-and Sega PSG chip data, with names and frequencies for all active notes. Combined
-PSG cards can show three tones at once. Other sources estimate one pitch from audio, which can be
-inaccurate, especially for chords, noise and drums. Remove deletes any card without
+Pencil -> Cards -> View changes the selected card; Add card... adds another view
+of any voice or Full mix. Spectrum offers Line / Bars and an optional Grid.
+Keyboard uses NES pulse/triangle,
+Sega PSG, Game Boy Square/Wave and AY A/B/C chip data, with names and frequencies
+for all active notes. Combined PSG cards can show three tones at once. Other sources
+estimate one pitch from audio, which can be inaccurate, especially for chords,
+noise and drums. Remove deletes any card without
 muting its source. Card layouts reset on a new file or Reset; themes keep colors.
 A saved 30 / 60 / 120 FPS target is available in Pencil -> Waves... -> Frame rate.
 Selection applies immediately; the default is 30. Actual rates depend on the

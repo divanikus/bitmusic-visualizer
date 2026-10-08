@@ -200,5 +200,73 @@
         "        // Read the real PSG only, not the visualization tap's mirror APU.\n        if ( bm_notes_psg_active(this) ) {\n            float periods[3] = {};\n            for ( int i = 0; i < 3; ++i ) {\n                Sms_Square const& s = squares[i];\n                if ( s.volume && s.output_select && s.period > 128 )\n                    periods[i] = float(s.period * 2);\n            }\n            bm_notes_periods(last_time, end_time, periods);\n        }\n\t\t// run oscillators"
       ]
     ]
+  },
+  {
+    "file": "Gb_Apu.cpp",
+    "sha256": "85b3bd6260b62ac5b70ffd1018db0c64fe09b4ec68db28f18761a60974d0e59a",
+    "edits": [
+      [
+        "#include \"Gb_Apu.h\"",
+        "#include \"Gb_Apu.h\"\n#include \"notes.h\""
+      ],
+      [
+        "\t\t// run oscillators",
+        "        // Capture pitch/gates before running this interval, independently of solo output pointers.\n        if ( bm_notes_active() ) {\n            float periods[3] = {};\n            for ( int i = 0; i < 3; ++i ) {\n                Gb_Osc const& osc = *oscs[i];\n                int freq = osc.frequency();\n                if ( !osc.enabled || !osc.volume || !osc.output_select ||\n                    ((osc.regs[4] & osc.len_enabled_mask) && !osc.length) ) continue;\n                if ( i < 2 ) {\n                    Gb_Square const& square = i ? square2 : square1;\n                    if ( square.sweep_freq != 2048 && freq >= 1 && freq <= 2041 )\n                        periods[i] = float(32 * (2048 - freq));\n                } else if ( freq >= 1 && freq <= 2045 ) {\n                    int shift = (wave.volume - 1) & 7;\n                    bool varying = false;\n                    for ( int j = 1; j < wave.wave_size; ++j )\n                        varying |= (wave.wave[j] >> shift) != (wave.wave[0] >> shift);\n                    if ( varying ) periods[i] = float(64 * (2048 - freq));\n                }\n            }\n            bm_notes_periods(last_time, time, periods);\n        }\n\t\t// run oscillators"
+      ],
+      [
+        "\tassert( next_frame_time >= end_time );",
+        "\tbm_notes_end(end_time);\n\tassert( next_frame_time >= end_time );"
+      ]
+    ]
+  },
+  {
+    "file": "Gbs_Emu.cpp",
+    "sha256": "21b03fd6220a7ffa68cd0dee832a4e8a218eb614dda01159d87c22bb41f4b9e4",
+    "edits": [
+      [
+        "#include \"Gbs_Emu.h\"",
+        "#include \"Gbs_Emu.h\"\n#include \"notes.h\""
+      ],
+      [
+        "\tapu.reset();",
+        "\tbm_notes_clock(clock_rate());\n\tapu.reset();"
+      ]
+    ]
+  },
+  {
+    "file": "Ay_Apu.cpp",
+    "sha256": "3e1329e4fdea8e6ec35d507e19b0098f032872084bcd3f675654e5182e0b4781",
+    "edits": [
+      [
+        "#include \"Ay_Apu.h\"",
+        "#include \"Ay_Apu.h\"\n#include \"notes.h\""
+      ],
+      [
+        "\t// run each osc separately",
+        "    // Follow envelope zero gates without changing the audio oscillator state.\n    if ( bm_notes_active() ) {\n        bool envelope = false;\n        for ( int i = 0; i < osc_count; ++i )\n            envelope |= !(regs[7] & (1 << i)) && (regs[8+i] & 0x10);\n        blip_time_t begin = last_time, next = last_time + env.delay;\n        int pos = env.pos;\n        blip_time_t inaudible = (uint32_t(bm_notes_clock_rate()) + inaudible_freq) / (inaudible_freq * 2);\n        while ( begin < final_end_time ) {\n            blip_time_t end = envelope && next < final_end_time ? next : final_end_time;\n            float periods[3] = {};\n            for ( int i = 0; i < osc_count; ++i ) {\n                int level = (regs[8+i] & 0x10) ? env.wave[pos] : amp_table[regs[8+i] & 15];\n                if ( !(regs[7] & (1 << i)) && level && oscs[i].period > inaudible )\n                    periods[i] = float(oscs[i].period * 2);\n            }\n            bm_notes_periods(begin, end, periods);\n            begin = end;\n            if ( ++pos >= 0 ) pos -= 32;\n            next += env_period;\n        }\n    }\n\t// run each osc separately"
+      ]
+    ]
+  },
+  {
+    "file": "Ay_Emu.cpp",
+    "sha256": "4329cad6c1c4ee57d74d9e8c6f4a863e09c21f95dcd874adc0c6ebd0d13877ec",
+    "edits": [
+      [
+        "#include \"Ay_Emu.h\"",
+        "#include \"Ay_Emu.h\"\n#include \"notes.h\""
+      ],
+      [
+        "\tchange_clock_rate( spectrum_clock );",
+        "\tchange_clock_rate( spectrum_clock );\n\tbm_notes_clock(spectrum_clock);"
+      ],
+      [
+        "\t\tchange_clock_rate( cpc_clock );",
+        "\t\tchange_clock_rate( cpc_clock );\n\t\tbm_notes_clock(cpc_clock);"
+      ],
+      [
+        "\tapu.end_frame( duration );",
+        "\tapu.end_frame( duration );\n\tbm_notes_end(duration);"
+      ]
+    ]
   }
 ]

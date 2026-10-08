@@ -18,8 +18,9 @@ See the [changelog](CHANGELOG.md) for version history.
   device, including active voices, volume and shared effects.
 - Editable grid: hide, reorder and resize cards in whole grid cells.
 - Waveform, frequency spectrum and keyboard cards; add multiple views of a source.
-  Keyboard can highlight several notes at once. NES pulse/triangle and Sega PSG
-  use chip pitches; other voices and Full mix use experimental single-pitch estimates.
+  Keyboard can highlight several notes at once. NES pulse/triangle, Sega PSG,
+  Game Boy Square/Wave and AY A/B/C use chip pitches; other voices and Full mix
+  use experimental single-pitch estimates.
 - Saved 30 / 60 / 120 FPS target, selectable in the scope editor's Waves dialog.
 - Per-card colors, HEX input, named INI themes and a configurable window background.
 - Smooth/instant/fixed amplitude, stable/rising/off trigger, GPU glow and fading
