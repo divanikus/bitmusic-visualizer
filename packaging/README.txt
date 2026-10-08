@@ -1,4 +1,4 @@
-Bit Music Visualizer 0.6.0 - portable Windows x64 build
+Bit Music Visualizer 0.6.1 - portable Windows x64 build
 
 1. Extract the whole ZIP to a folder on Windows 10 or Windows 11 (64-bit).
 2. Run bitmusic_visualizer.exe from that folder.
@@ -9,7 +9,11 @@ Keep the EXE, DLLs, platforms folder and qt.conf together. Do not run directly
 from inside the ZIP. Music files are not included or modified by the player.
 
 Supported formats: NSF, NSFE, VGM, VGZ, SPC, Game Boy GBS and Spectrum AY (ZXAYEMUL).
-Version 0.6.0 adds resizing of every scope card in whole grid cells.
+Version 0.6.1 adds a saved 30 / 60 / 120 FPS target in Pencil -> Waves... -> Frame rate.
+Selection applies immediately; the default is 30. Actual rates depend on the
+track, audio device, renderer, system load and monitor. Higher rates use more
+CPU/GPU. Trail duration is preserved, including 999 ms at the 120 FPS target.
+Every scope card supports resizing in whole grid cells.
 Pencil -> Waves...: Smooth auto / Instant auto / Fixed amplitude; Hold and Release
 control how quickly a fading note grows back on screen. Trigger offers Stable,
 Rising edge and Off. These controls work with both GPU and CPU rendering.

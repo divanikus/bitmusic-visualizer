@@ -8,6 +8,10 @@ not published GitHub releases. Unreleased lists changes made after the latest ta
 
 ## Unreleased
 
+No changes yet.
+
+## [0.6.1](https://github.com/divanikus/bitmusic-visualizer/releases/tag/v0.6.1) — 2026-10-08
+
 ### Added
 
 - Saved 30 / 60 / 120 FPS choice in the Waveforms dialog, applied immediately to

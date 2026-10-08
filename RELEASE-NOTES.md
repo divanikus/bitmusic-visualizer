@@ -1,31 +1,40 @@
-# Bit Music Visualizer 0.6.0
+# Bit Music Visualizer 0.6.1
 
-First public source snapshot of the native chiptune player and oscilloscope.
+Choose how often the oscilloscopes update: **30, 60 or 120 FPS**, under
+**pencil → Waves… → Frame rate**. The setting applies immediately and is
+remembered across restarts, independently of color themes. The default is 30.
 
-- NSF/NSFE, VGM/VGZ, SPC, GBS and ZXAYEMUL AY playback.
-- Compact player, subsongs, seeks, repeat, voice mutes and L/R output controls.
-- Mono/stereo voice cards and an optional final Full mix waveform.
-- Editable grid with hiding, reordering and resizing across rows and columns.
-- INI color themes, smooth/instant/fixed amplitude and configurable triggering.
-- GPU glow/trails, renderer selection and CPU fallback.
-- Saved theme, display settings and window geometry; platform-specific storage.
+- Coordinates channel snapshot preparation and scope presentation, including
+  GPU trail fading, without restarting playback.
+- Preserves time-based trail duration up to 999 ms at the 120 FPS target.
+- Suspends scope capture and the presentation timer while hidden or minimized.
+- Adds a README screenshot and public changelog.
 
-Archives include Qt/libgme libraries, licenses and corresponding source.
-Music is not included. Windows EXE is unsigned; macOS uses an ad-hoc signature
-and is not notarized. Linux uses a single AppImage, with an Ubuntu 22.04 / glibc
-2.35 build baseline. It includes Qt/libgme/ICU; system graphics/X11/audio/C++
-libraries remain required. Without FUSE, use --appimage-extract-and-run.
+These are target rates. Actual refresh and fresh-wave rates depend on the track,
+audio device, CPU/GPU load, renderer and display. Higher targets use more resources;
+they do not change the sound. Existing settings and themes remain compatible.
 
-Known limits: not all VGM chips are supported; Mega Drive PSG is a combined group;
-SPC voice cards exclude shared echo (included in Full mix); cold seeks can take
-time; repeat is not seamless. Some GPU/driver combinations may need CPU rendering.
+## Downloads
 
-Windows validation: the relocated portable archive passes the full native,
-channel-tap and GPU suites with SDK paths removed. Playback/seek/repeat checks
-reported zero empty PCM callbacks and zero output errors on the test workstation.
-The separate headless decoder mode also passes.
+- **Windows x64:** extract the complete portable ZIP and run the EXE.
+- **Linux x64 (experimental):** AppImage, Ubuntu 22.04 / glibc 2.35 baseline.
+  Make it executable; without FUSE use `--appimage-extract-and-run`.
+- **macOS Apple Silicon (experimental):** extract the ZIP and open the app.
+  Requires macOS 13 or newer; ad-hoc signed, not notarized.
 
-Linux and macOS desktop validation is pending. Before publishing their assets,
-record CI results and real audio/GPU checks. A successful compilation or headless
-decoder run alone does not validate desktop audio or GPU behavior.
-BUILD.txt inside each archive identifies its exact source commit.
+Packages include Qt/libgme libraries, licenses and corresponding source.
+Music is not included. SHA256 files are provided for each download.
+Linux still needs system graphics/X11/audio/C++ libraries. The Windows EXE
+is unsigned. See [the README](https://github.com/divanikus/bitmusic-visualizer#run)
+for platform launch details.
+
+Windows checks cover live 30/60/120 FPS changes with NSF/VGZ/SPC, saved preferences,
+seek/reload, CPU and GPU rendering, hidden-window suspension and trail lifetime.
+Linux/macOS builds and relocated decoder checks do not replace real desktop,
+audio and GPU validation; those platforms remain experimental.
+
+Existing limits include combined Mega Drive PSG, dry SPC voice cards (shared
+echo is in Full mix), cold-seek preparation and non-seamless repeat. Some GPU
+drivers may require CPU rendering. See the
+[changelog](https://github.com/divanikus/bitmusic-visualizer/blob/v0.6.1/CHANGELOG.md).
+BUILD.txt inside each package identifies its exact source commit.

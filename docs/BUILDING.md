@@ -18,7 +18,7 @@ The shared standard-library license collector avoids Windows Server tar stalls.
 ./launch.cmd
 ./package-native.ps1
 python -c "from fixtures import make_fixtures; make_fixtures('test-output')"
-./test-portable.ps1 -Archive dist/BitMusicVisualizer-0.6.0-windows-x64.zip
+./test-portable.ps1 -Archive dist/BitMusicVisualizer-0.6.1-windows-x64.zip
 ```
 
 Portable tests use a real output device at zero volume, isolate preferences and
@@ -42,7 +42,7 @@ cmake -S . -B build/native -G Ninja -DCMAKE_BUILD_TYPE=Release \
   -DCMAKE_PREFIX_PATH="$QT_ROOT_DIR" -DBITMUSIC_SHARED_GME=ON
 cmake --build build/native --parallel 3
 python3 packaging/package-unix.py --qt-root "$QT_ROOT_DIR"
-python3 packaging/test-unix.py dist/BitMusicVisualizer-0.6.0-linux-x64.AppImage
+python3 packaging/test-unix.py dist/BitMusicVisualizer-0.6.1-linux-x64.AppImage
 # On Apple Silicon use the generated -macos-arm64.zip instead.
 ```
 
@@ -64,8 +64,8 @@ Packaging does not use mutable continuous downloads. The statically linked
 runtime needs no separately installed libfuse2. For hosts without FUSE access:
 
 ```sh
-chmod +x BitMusicVisualizer-0.6.0-linux-x64.AppImage
-./BitMusicVisualizer-0.6.0-linux-x64.AppImage --appimage-extract-and-run
+chmod +x BitMusicVisualizer-0.6.1-linux-x64.AppImage
+./BitMusicVisualizer-0.6.1-linux-x64.AppImage --appimage-extract-and-run
 ```
 
 `--appimage-extract` exposes the bundle as `squashfs-root/`, including all sources
@@ -99,7 +99,7 @@ Qt and libgme stay shared in all distributable packages. See
 [THIRD-PARTY.md](../THIRD-PARTY.md) and
 [library replacement instructions](../packaging/REBUILD-LIBRARIES.md).
 
-## CI and first release
+## CI and releases
 
 `Build packages` runs on pushes to main, pull requests and manual dispatch. It
 produces Windows x64, Linux x64 and macOS arm64 archives and adjacent SHA256 files.
@@ -111,13 +111,14 @@ The Windows job pins an upstream aqtinstall revision that understands Qt 6.11's
 separate MinGW/compiler repository folders; released aqtinstall 3.3.0 selects a
 nonexistent path for that SDK. Linux explicitly installs the kit's ICU archive.
 
-Before publishing v0.6.0:
+Before publishing a release:
 
 1. Confirm all selected platform jobs pass and BUILD.txt identifies the intended
    clean source commit. Run full Windows tests and Unix desktop listening checks.
 2. Inspect tracked files, commit author metadata and artifacts for private data.
    Never add personal music, preferences or logs to a release.
-3. Create tag `v0.6.0` at that commit and a draft release using RELEASE-NOTES.md.
+3. Create the version tag at that commit (currently `v0.6.1`) and a draft release
+   using RELEASE-NOTES.md.
 4. Attach tested archives and their `.sha256` files. Mark any platform's incomplete
    runtime validation explicitly, or defer its asset. Publish after review.
 
