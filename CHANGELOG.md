@@ -10,7 +10,8 @@ not published GitHub releases. Unreleased lists changes made after the latest ta
 
 ### Added
 
-- Keyboard cards can highlight multiple notes at once, with a shared chord readout.
+- Keyboard cards can highlight multiple notes at once, with names and frequencies
+  for each note in the chord readout.
 - Chip-derived Sega PSG notes in VGM/VGZ, including all three tones in combined
   PSG cards alongside FM channels.
 

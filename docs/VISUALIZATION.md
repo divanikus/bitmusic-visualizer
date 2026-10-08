@@ -44,8 +44,9 @@ to waveforms only.
 
 Keyboard highlights all notes supplied by its source, rounded to the nearest
 equal-tempered keys (A4 = 440 Hz). Simultaneous notes are named together, for
-example C4 + E4 + G4; unison voices light the same key once. A single note also
-shows its frequency. The fixed keyboard covers C1–B7; pitches outside that range
+example C4 · 261.6 Hz + E4 · 329.6 Hz + G4 · 392.0 Hz; each note shows its
+frequency, and unison voices light the same key once. The fixed keyboard covers
+C1–B7; pitches outside that range
 are still named above it. All supported audio sources, including Full mix, can
 use this view. It has two automatic modes:
 

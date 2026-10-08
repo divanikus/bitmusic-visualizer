@@ -125,11 +125,11 @@ void ScopeWindow::paintKeyboard(QPainter &p, int card, const QRectF &plot, bool 
         QStringList notes; bool outside = false;
         for (auto it = keysDown.cbegin(); it != keysDown.cend(); ++it) {
             const int midi = it.key();
-            notes << QString("%1%2").arg(names[(midi%12+12)%12]).arg(int(std::floor(midi/12.))-1);
+            notes << QString("%1%2 · %3 Hz").arg(names[(midi%12+12)%12])
+                .arg(int(std::floor(midi/12.))-1).arg(it.value(), 0, 'f', 1);
             outside |= midi < 24 || midi > 107;
         }
         text = notes.join(" + ");
-        if (keysDown.size() == 1) text += QString("  |  %1 Hz").arg(keysDown.first(), 0, 'f', 1);
         if (outside) text += " (outside range)";
     }
     if (!exact) text = "Estimated | " + text;
