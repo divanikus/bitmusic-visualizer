@@ -42,19 +42,29 @@ to waveforms only.
 
 ## Keyboard
 
-Keyboard highlights the nearest equal-tempered note (A4 = 440 Hz) and displays
-its frequency. The fixed keyboard covers C1–B7; pitches outside that range are
-still named above it. All supported audio sources, including Full mix, can use
-this view. It has two automatic modes:
+Keyboard highlights all notes supplied by its source, rounded to the nearest
+equal-tempered keys (A4 = 440 Hz). Simultaneous notes are named together, for
+example C4 + E4 + G4; unison voices light the same key once. A single note also
+shows its frequency. The fixed keyboard covers C1–B7; pitches outside that range
+are still named above it. All supported audio sources, including Full mix, can
+use this view. It has two automatic modes:
 
-- **Chip pitch:** NES/NSFE Square 1, Square 2 and Triangle use oscillator periods
-  and gates. No note means the oscillator is gated off.
+- **Chip pitch:** NES/NSFE Square 1, Square 2 and Triangle, and Sega PSG tones in
+  VGM/VGZ, use oscillator periods and gates. A combined PSG card alongside
+  YM2612 or YM2413 can show its three tones simultaneously. PSG-only files expose
+  separate Square cards, each with one tone. Noise is excluded from chip notes;
+  No note means no active tonal oscillator. Dual-PSG/T6W28 configurations still
+  use Estimated mode.
 - **Estimated:** other voices, expansion chips and Full mix estimate one periodic
   pitch from their audio. The readout and editor explicitly mark this mode.
   Chords, drums, noise, strong harmonics and quick note changes can confuse it,
   including octave errors. No stable pitch means the signal was not periodic
   enough; silence shows No note. This is an experimental visual aid, not a score
   transcription or a display of all notes in a chord.
+
+The card itself accepts multiple notes for any source; the number available
+depends on its backend. AY, Game Boy and FM chip-note extraction is not connected
+yet. Full mix currently estimates one pitch rather than combining chip notes.
 
 Chip-pitch history follows the decoder's actual fixed-point resampling clock
 and filter delay, accounting for look-ahead. Estimates use up to 4096 samples

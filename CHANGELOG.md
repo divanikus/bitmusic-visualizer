@@ -8,7 +8,11 @@ not published GitHub releases. Unreleased lists changes made after the latest ta
 
 ## Unreleased
 
-No changes yet.
+### Added
+
+- Keyboard cards can highlight multiple notes at once, with a shared chord readout.
+- Chip-derived Sega PSG notes in VGM/VGZ, including all three tones in combined
+  PSG cards alongside FM channels.
 
 ## [0.7.0](https://github.com/divanikus/bitmusic-visualizer/releases/tag/v0.7.0) — 2026-10-09
 

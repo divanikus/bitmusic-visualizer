@@ -13,5 +13,7 @@ BLARGG_EXPORT int bm_notes_read(BmNotes*, int channel, int64_t sample, float* hz
 }
 bool bm_notes_active();
 void bm_notes_clock(double rate);
-void bm_notes_nes(long begin, long end, const float* periods);
+void bm_notes_bind_psg(const void* apu);
+bool bm_notes_psg_active(const void* apu);
+void bm_notes_periods(long begin, long end, const float* periods);
 void bm_notes_end(long clocks);

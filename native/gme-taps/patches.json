@@ -43,7 +43,7 @@
     "edits": [
       [
         "#include \"Vgm_Emu.h\"",
-        "#include \"Vgm_Emu.h\"\n#include \"taps.h\""
+        "#include \"Vgm_Emu.h\"\n#include \"taps.h\"\n#include \"notes.h\""
       ],
       [
         "\tif ( old >= 0 )\n\t\tdac_synth.offset_inline( blip_time, delta, &blip_buf );",
@@ -59,7 +59,7 @@
       ],
       [
         "\treturn pairs * stereo;",
-        "\tbm_taps_vgm_end(blip_time);\n\treturn pairs * stereo;"
+        "\tbm_taps_vgm_end(blip_time);\n\tbm_notes_end(blip_time);\n\treturn pairs * stereo;"
       ]
     ]
   },
@@ -69,7 +69,7 @@
     "edits": [
       [
         "#include \"Vgm_Emu.h\"",
-        "#include \"Vgm_Emu.h\"\n#include \"taps.h\""
+        "#include \"Vgm_Emu.h\"\n#include \"taps.h\"\n#include \"notes.h\""
       ],
       [
         "\t\tpsg[0].output( (mask & 0x80) ? 0 : &blip_buf );",
@@ -98,6 +98,14 @@
       [
         "static int const types [8]",
         "static int const types [10]"
+      ],
+      [
+        "\tpsg[0].reset( get_le16( header().noise_feedback ), header().noise_width );",
+        "\tbm_notes_clock(psg_rate);\n\tbm_notes_bind_psg(&psg[0]);\n\tpsg[0].reset( get_le16( header().noise_feedback ), header().noise_width );"
+      ],
+      [
+        "\tpsg[0].end_frame( time_io );",
+        "\tpsg[0].end_frame( time_io );\n\tbm_notes_end(time_io);"
       ]
     ]
   },
@@ -157,7 +165,7 @@
       ],
       [
         "\t\t// run oscs to present",
-        "\t\t// Snapshot oscillator gates/periods for this exact emulated interval.\n        if ( bm_notes_active() ) {\n            float periods[3] = {};\n            Nes_Square const* pulses[] = { &square1, &square2 };\n            for ( int i = 0; i < 2; ++i ) {\n                Nes_Square const& s = *pulses[i];\n                int period = s.period();\n                int offset = (s.regs[1] & Nes_Square::negate_flag) ? 0 : period >> (s.regs[1] & Nes_Square::shift_mask);\n                if ( s.volume() && period >= 8 && period + offset < 0x800 )\n                    periods[i] = float(16 * (period + 1));\n            }\n            if ( triangle.length_counter && triangle.linear_counter && triangle.period() >= 2 )\n                periods[2] = float(32 * (triangle.period() + 1));\n            bm_notes_nes(last_time, time, periods);\n        }\n\t\t// run oscs to present"
+        "\t\t// Snapshot oscillator gates/periods for this exact emulated interval.\n        if ( bm_notes_active() ) {\n            float periods[3] = {};\n            Nes_Square const* pulses[] = { &square1, &square2 };\n            for ( int i = 0; i < 2; ++i ) {\n                Nes_Square const& s = *pulses[i];\n                int period = s.period();\n                int offset = (s.regs[1] & Nes_Square::negate_flag) ? 0 : period >> (s.regs[1] & Nes_Square::shift_mask);\n                if ( s.volume() && period >= 8 && period + offset < 0x800 )\n                    periods[i] = float(16 * (period + 1));\n            }\n            if ( triangle.length_counter && triangle.linear_counter && triangle.period() >= 2 )\n                periods[2] = float(32 * (triangle.period() + 1));\n            bm_notes_periods(last_time, time, periods);\n        }\n\t\t// run oscs to present"
       ],
       [
         "\t// make times relative to new frame",
@@ -176,6 +184,20 @@
       [
         "\tapu.reset( pal_only,",
         "\tbm_notes_clock( long(clock_rate_ + 0.5) );\n\tapu.reset( pal_only,"
+      ]
+    ]
+  },
+  {
+    "file": "Sms_Apu.cpp",
+    "sha256": "32ad7b3c29028587529758fdd1136d2cd3657877afdb726a246ffad518f657e8",
+    "edits": [
+      [
+        "#include \"Sms_Apu.h\"",
+        "#include \"Sms_Apu.h\"\n#include \"notes.h\""
+      ],
+      [
+        "\t\t// run oscillators",
+        "        // Read the real PSG only, not the visualization tap's mirror APU.\n        if ( bm_notes_psg_active(this) ) {\n            float periods[3] = {};\n            for ( int i = 0; i < 3; ++i ) {\n                Sms_Square const& s = squares[i];\n                if ( s.volume && s.output_select && s.period > 128 )\n                    periods[i] = float(s.period * 2);\n            }\n            bm_notes_periods(last_time, end_time, periods);\n        }\n\t\t// run oscillators"
       ]
     ]
   }

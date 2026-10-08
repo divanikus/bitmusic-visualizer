@@ -79,7 +79,7 @@ private:
     QString viewName(ViewKind kind) const;
     void updateViewEditor();
     void updateKeyboardNotes();
-    float keyboardHz(int card) const;
+    QVector<float> keyboardPitches(int card) const;
     void addCard();
     void paintKeyboard(QPainter &p, int card, const QRectF &plot, bool muted);
     void paintSpectrumAxes(QPainter &p, int card, const QRectF &plot, bool stereo);

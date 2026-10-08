@@ -19,6 +19,7 @@
 #include <cmath>
 #include <stdexcept>
 
+void checkPsgNotes(QApplication&, const QString&, QTextStream&);
 namespace {
 void require(bool value, const char* message) { if (!value) throw std::runtime_error(message); }
 void pump(QApplication& app, int ms = 70) { QEventLoop loop(&app); QTimer::singleShot(ms, &loop, &QEventLoop::quit); loop.exec(); }
@@ -198,6 +199,7 @@ void checkNotes(const QString& directory, QTextStream& log) {
 }
 void checkViews(QApplication& app, const QString& directory, QTextStream& log) {
     checkSpectrum(log); checkSpectrumControls(app, directory, log); checkPitch(log); checkNotes(directory, log);
+    checkPsgNotes(app, directory, log);
     PlayerWindow player; player.player().setVolume(0); player.show(); player.loadFile(QDir(directory).filePath("demo.nsf"));
     auto& scope = player.scopeWindow(); scope.resize(1180, 840); scope.show();
     until(app, [&] { return !player.player().state().busy && player.player().scopes().mask == 31; }, "NES views not ready.");
@@ -209,7 +211,7 @@ void checkViews(QApplication& app, const QString& directory, QTextStream& log) {
     require(scope.visibleChannels().contains(keyboard) && scope.visibleChannels().contains(34), "Added cards not visible.");
     require(player.player().scopes().mask == 31, "Duplicate views changed voice capture mask.");
     const auto note = player.player().scopes().noteHz;
-    require(note.size() == 5 && note[0] > 400 && note[1] == 0, "Live note snapshot is missing.");
+    require(note.size() == 5 && note[0].value(0) > 400 && note[1].isEmpty(), "Live note snapshot is missing.");
     scope.grab().save(QDir(directory).filePath("native-views-editor.png"));
     scope.findChild<QPushButton*>("applyLayout")->click(); pump(app, 250);
     auto image = [&] {

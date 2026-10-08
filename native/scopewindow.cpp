@@ -449,9 +449,10 @@ QByteArray ScopeWindow::chromeKey(bool dynamic) const {
         const auto &c = theme_.colors(source);
         s << source << int(viewFor(ch)) << cards_[ch].spectrumBars << cards_[ch].spectrumGrid;
         if (dynamic && viewFor(ch) == ViewKind::Keyboard) {
-            const float hz = keyboardHz(ch);
+            const auto pitches = keyboardPitches(ch);
+            s << pitches.size();
             // Ignore sub-decimal estimate jitter that cannot change visible text.
-            s << qRound(hz*10) << (hz > 0 ? qRound(69+12*std::log2(hz/440.)) : -1);
+            for (float hz : pitches) s << qRound(hz*10) << (hz > 0 ? qRound(69+12*std::log2(hz/440.)) : -1);
         }
         s << ch << panelRect(ch) << channelName(ch) << c.waveform << c.background << c.label << c.axis << c.border
           << (source < frame_.channels.size() ? frame_.channels[source].size() : 0)

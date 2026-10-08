@@ -11,6 +11,7 @@ struct BmNotes {
     int64_t clocks = 0;
     double rate = 1789773;
     double samplesPerClock = 0;
+    const void* psg = nullptr;
 };
 namespace { thread_local BmNotes* currentNotes = nullptr; }
 BmNotes* bm_notes_create() { return new BmNotes; }
@@ -18,6 +19,8 @@ void bm_notes_delete(BmNotes* n) { delete n; }
 BmNotes* bm_notes_enter(BmNotes* n) { auto old = currentNotes; currentNotes = n; return old; }
 void bm_notes_reset(BmNotes* n) { if (n) { n->written = 0; n->clocks = 0; } }
 bool bm_notes_active() { return currentNotes != nullptr; }
+void bm_notes_bind_psg(const void* apu) { if (currentNotes) currentNotes->psg = apu; }
+bool bm_notes_psg_active(const void* apu) { return currentNotes && currentNotes->psg == apu; }
 void bm_notes_clock(double rate) {
     if (!currentNotes) return;
     currentNotes->rate = rate;
@@ -26,7 +29,7 @@ void bm_notes_clock(double rate) {
     constexpr double accuracy = double(1L << BLIP_BUFFER_ACCURACY);
     currentNotes->samplesPerClock = std::floor(44100.0 / rate * accuracy + .5) / accuracy;
 }
-void bm_notes_nes(long begin, long end, const float* periods) {
+void bm_notes_periods(long begin, long end, const float* periods) {
     if (!currentNotes || end <= begin) return;
     auto& n = *currentNotes;
     BmNotes::Event event; event.begin = n.clocks + begin; event.end = n.clocks + end;

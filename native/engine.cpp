@@ -125,8 +125,11 @@ void PcmRing::reset() { read_.store(0); write_.store(0); }
 
 GmeTrack::GmeTrack(const QString &path, int song, bool readPlaylist, bool capture) {
     const auto data = readMusic(path);
+    const bool psgNotes = data.startsWith("Vgm ") && data.size() >= 0x40 &&
+        !((qFromLittleEndian<quint32>(data.constData()+12) | qFromLittleEndian<quint32>(data.constData()+16) |
+           qFromLittleEndian<quint32>(data.constData()+44)) & 0xc0000000u);
     if (capture) {
-        if (data.startsWith("NESM\x1a") || data.startsWith("NSFE")) notes_ = bm_notes_create();
+        if (data.startsWith("NESM\x1a") || data.startsWith("NSFE") || psgNotes) notes_ = bm_notes_create();
         if (data.startsWith("SNES-SPC700")) taps_ = bm_taps_create(3);
         else if (data.startsWith("Vgm ") && data.size() >= 0x40) {
             auto word = [&](int at) { return qFromLittleEndian<quint32>(data.constData() + at); };
@@ -174,6 +177,12 @@ GmeTrack::GmeTrack(const QString &path, int song, bool readPlaylist, bool captur
         }
         const int count = gme_voice_count(emu_);
         if (count < 1 || count > 32) throw std::runtime_error("Unsupported voice count.");
+        if (psgNotes) {
+            if (count == 4) info_.tonalMask = 7;
+            else if (count == 8 || count == 10) {
+                psgNoteChannel_ = count-1; info_.tonalMask = 1u << psgNoteChannel_;
+            }
+        }
         for (int i = 0; i < count; ++i) info_.voices << QString::fromUtf8(gme_voice_name(emu_, i));
         if (data.startsWith("ZXAYEMUL") && count == 4) info_.voices = {"AY A", "AY B", "AY C", "Beeper"};
         // Patched libgme exposes 8 voices for YM2612 and 10 for mono YM2413 + PSG.
@@ -213,8 +222,19 @@ bool GmeTrack::readTap(int channel, QVector<float>& left, QVector<float>& right)
     return bm_taps_read(taps_, channel, frame_, ScopeFrames, left.data(), right.data());
 }
 float GmeTrack::noteHz(int channel) const {
-    float hz = -1;
-    return bm_notes_read(notes_, channel, std::max<qint64>(0, frame_-1), &hz) ? hz : -1;
+    return notePitches(channel).value(0, 0);
+}
+QVector<float> GmeTrack::notePitches(int channel) const {
+    if (channel < 0 || channel >= 32 || !(info_.tonalMask & (1u << channel))) return {-1};
+    QVector<float> pitches;
+    const bool grouped = channel == psgNoteChannel_;
+    const int first = grouped ? 0 : channel, end = grouped ? 3 : channel+1;
+    for (int voice = first; voice < end; ++voice) {
+        float hz = -1;
+        if (!bm_notes_read(notes_, voice, std::max<qint64>(0, frame_-1), &hz)) return {-1};
+        if (hz > 0) pitches.push_back(hz);
+    }
+    return pitches;
 }
 void GmeTrack::mute(uint32_t mask) { muteMask_ = mask; gme_mute_voices(emu_, static_cast<int>(mask)); }
 void GmeTrack::dry() { dry_ = true; gme_disable_echo(emu_, 1); }
@@ -491,11 +511,13 @@ void NativePlayer::scopeLoop() {
                     frame.generation = current.generation; frame.positionMs = current.positionMs;
                     const int count = int(voices.size());
                     frame.channels.resize(count); frame.left.resize(count); frame.right.resize(count);
+                    frame.noteHz.resize(count);
                     for (int i = 0; i < count; ++i) if (mask & (uint32_t(1) << i)) {
                         if (shared->readTap(i, frame.left[i], frame.right[i])) {
                             frame.channels[i].resize(ScopeFrames);
                             for (int j = 0; j < ScopeFrames; ++j) frame.channels[i][j] = (frame.left[i][j] + frame.right[i][j]) * .5f;
                             frame.mask |= uint32_t(1) << i;
+                            frame.noteHz[i] = shared->notePitches(i);
                         }
                     }
                     { std::lock_guard lock(scopeMutex_); if (!cancelled()) scope_ = std::move(frame); }
@@ -576,11 +598,11 @@ void NativePlayer::scopeLoop() {
                 if (!cancelled()) {
                     QVector<QVector<float>> history(static_cast<int>(voices.size()));
                     QVector<QVector<float>> left(history.size()), right(history.size());
-                    QVector<float> notes(history.size(), -1);
+                    QVector<QVector<float>> notes(history.size(), QVector<float>{-1});
                     for (size_t i = 0; i < voices.size(); ++i)
                         if (ready & (uint32_t(1) << i)) {
                             history[static_cast<int>(i)] = voices[i].history;
-                            notes[int(i)] = voices[i].track->noteHz(int(i));
+                            notes[int(i)] = voices[i].track->notePitches(int(i));
                             left[static_cast<int>(i)] = voices[i].left; right[static_cast<int>(i)] = voices[i].right;
                         }
                     std::lock_guard lock(scopeMutex_);

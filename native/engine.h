@@ -48,7 +48,7 @@ struct TrackInfo {
     int loopStartMs = 0;
     int songs = 0, song = 0, durationMs = -1;
     bool stereoOutput = false;
-    uint32_t tonalMask = 0; // Backend pitch metadata, initially base NES pulse/triangle only.
+    uint32_t tonalMask = 0; // Sources with chip pitch metadata (possibly several tones).
 };
 
 class GmeTrack {
@@ -65,6 +65,7 @@ public:
     bool hasTaps() const { return taps_ != nullptr; }
     bool readTap(int channel, QVector<float>& left, QVector<float>& right) const;
     float noteHz(int channel) const; // -1 unavailable, 0 gated off.
+    QVector<float> notePitches(int channel) const; // Active Hz, empty = silent, {-1} = unavailable.
     qint64 frame() const { return frame_; }
 private:
     Music_Emu *emu_ = nullptr;
@@ -74,6 +75,7 @@ private:
     qint64 frame_ = 0;
     uint32_t muteMask_ = 0;
     bool dry_ = false;
+    int psgNoteChannel_ = -1;
 };
 
 struct PlayerState {
@@ -96,7 +98,7 @@ struct ScopeFrame {
     QVector<QVector<float>> channels;
     uint32_t mask = 0; // Channels ready at positionMs; preparing/hidden channels have empty rows.
     QVector<QVector<float>> left, right;
-    QVector<float> noteHz;
+    QVector<QVector<float>> noteHz; // Independent list of active pitches for each source.
 };
 struct OutputFrame {
     quint64 generation = 0, token = 0, sequence = 0;
