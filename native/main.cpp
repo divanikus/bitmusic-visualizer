@@ -58,6 +58,7 @@ int main(int argc, char **argv) {
                 << "scopeBlocks=" << state.scopeBlocks << "visible=" << scope.renderingVisible()
                 << "suspended=" << state.scopesSuspended << "audioErrors=" << state.starvations << '/' << state.outputErrors
                 << "backend=" << (gpu ? gpu->backend() : "CPU")
+                << "targetFps=" << scope.frameRate()
                 << "gpuFrames=" << (gpu ? gpu->renderedFrames() : 0)
                 << "completed=" << (gpu ? gpu->completedFrames() : 0)
                 << "history=" << (gpu ? gpu->historySize() : 0)

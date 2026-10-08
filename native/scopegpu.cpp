@@ -108,8 +108,8 @@ public:
     }
     void expire() {
         const double life = effects.trailMs / 1000.0;
-        // Enough for a 999 ms trail even at 60 updates/s; normal scopes use ~30.
-        while (traces.size() > 1 && (now - traces.front().born >= life || traces.size() > 64 || !effects.trail)) traces.pop_front();
+        // Covers 999 ms at 120 FPS, with headroom for occasional extra UI paints.
+        while (traces.size() > 1 && (now - traces.front().born >= life || traces.size() > 128 || !effects.trail)) traces.pop_front();
     }
     void clear() { traces.clear(); position = -1; timer.stop(); update(); }
 protected:
@@ -165,7 +165,8 @@ protected:
     }
 };
 
-ScopeGpu::ScopeGpu(QWidget *parent) : QQuickWidget(parent), scene_(new ScopeScene) {
+ScopeGpu::ScopeGpu(QWidget *parent, bool externallyPaced)
+    : QQuickWidget(parent), scene_(new ScopeScene), externallyPaced_(externallyPaced) {
     healthClock_.start();
     setObjectName("scopeGpu"); setFocusPolicy(Qt::NoFocus);
     setAttribute(Qt::WA_TransparentForMouseEvents);
@@ -228,7 +229,8 @@ void ScopeGpu::submit(const QImage &chrome, const QVector<ScopeLane> &lanes,
         scene_->outputSequence = outputSequence;
     }
     scene_->expire();
-    if (playing && effects.trail && scene_->traces.size() > 1) scene_->timer.start(); else scene_->timer.stop();
+    // The player uses one cadence for both new waves and fading their history.
+    if (!externallyPaced_ && playing && effects.trail && scene_->traces.size() > 1) scene_->timer.start(); else scene_->timer.stop();
     scene_->update();
 }
 void ScopeGpu::suspend() { pending_ = false; scene_->advance(); scene_->running = false; scene_->clear(); }

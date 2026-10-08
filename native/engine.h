@@ -11,6 +11,7 @@
 #include <mutex>
 #include <optional>
 #include <gme.h>
+#include "scopepacing.h"
 struct BmTaps;
 class OutputHistory;
 
@@ -110,6 +111,8 @@ public:
     void setRepeat(bool enabled) { repeat_.store(enabled); }
     void setScopesEnabled(bool enabled);
     void setScopeMask(uint32_t mask);
+    void setScopeFrameRate(int fps);
+    int scopeFrameRate() const { return scopeFrameRate_.load(); }
     void setOutputScopesEnabled(bool enabled);
     PlayerState state() const;
     ScopeFrame scopes() const;
@@ -135,6 +138,7 @@ private:
     std::atomic<bool> repeat_{false};
     std::atomic<bool> scopesEnabled_{false}, scopesSuspended_{true};
     std::atomic<quint64> scopeRevision_{0};
+    std::atomic<int> scopeFrameRate_{ScopePacing::DefaultFps};
     std::atomic<uint64_t> scopeBlocks_{0};
     std::atomic<bool> sharedScopes_{false};
     std::atomic<qint64> playedFrame_{0}, endFrame_{-1};

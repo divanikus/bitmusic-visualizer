@@ -23,7 +23,7 @@ class ScopeScene;
 // and a cached chrome texture; waveform ribbons are rasterized by the GPU.
 class ScopeGpu : public QQuickWidget {
 public:
-    explicit ScopeGpu(QWidget *parent);
+    explicit ScopeGpu(QWidget *parent, bool externallyPaced = false);
     void submit(const QImage &chrome, const QVector<ScopeLane> &lanes,
                 const QByteArray &layoutKey, quint64 generation, int positionMs,
                 bool playing, const ScopeEffects &effects, quint64 outputSequence = 0);
@@ -36,6 +36,7 @@ public:
     std::function<void(const QString &)> failed;
 private:
     ScopeScene *scene_;
+    bool externallyPaced_;
     void reportFailure(const QString &reason);
     QElapsedTimer healthClock_;
     qint64 requestedAt_ = 0;

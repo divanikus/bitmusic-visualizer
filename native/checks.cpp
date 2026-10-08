@@ -37,6 +37,7 @@
 void checkGbs(QApplication &app, const QString &directory, QTextStream &log);
 void checkAy(QApplication &app, const QString &directory, QTextStream &log);
 void checkWaves(QApplication &app, const QString &directory, QTextStream &log, const QStringList &musicPaths = {});
+void checkFrameRates(QApplication &app, const QString &directory, QTextStream &log);
 void checkLayoutSpans(QApplication &app, const QString &directory, QTextStream &log);
 
 namespace {
@@ -636,6 +637,7 @@ int runChecks(QApplication &app, const QStringList &arguments) {
     app.setProperty("themesDirectoryForTests", settingsDirectory.filePath("themes"));
     try {
         if (arguments.contains("--layout-only")) { checkLayoutSpans(app, directory, log); return 0; }
+        if (arguments.contains("--fps-only")) { checkFrameRates(app, directory, log); return 0; }
         if (arguments.contains("--waves-only")) {
             QStringList paths;
             for (int i = option + 2; i < arguments.size(); ++i) if (!arguments[i].startsWith('-')) paths << arguments[i];
@@ -672,6 +674,7 @@ int runChecks(QApplication &app, const QStringList &arguments) {
         checkGbs(app, directory, log);
         checkAy(app, directory, log);
         checkWaves(app, directory, log);
+        checkFrameRates(app, directory, log);
         checkLayoutSpans(app, directory, log);
         checkStereoOutputs(app, directory);
         log << "Stereo/mono capability, output PCM isolation, lane dimming, controls and transport preservation PASS\n"; log.flush();

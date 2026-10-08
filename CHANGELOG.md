@@ -10,6 +10,9 @@ not published GitHub releases. Unreleased lists changes made after the latest ta
 
 ### Added
 
+- Saved 30 / 60 / 120 FPS choice in the Waveforms dialog, applied immediately to
+  scope capture and presentation. Hidden/minimized scopes suspend their timer;
+  trails retain their selected duration up to 999 ms at 120 FPS.
 - Player and oscilloscope screenshot in the README.
 - This version history, linked from the README.
 

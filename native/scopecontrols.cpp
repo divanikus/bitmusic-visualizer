@@ -17,6 +17,7 @@
 void ScopeWindow::restoreWaves() {
     QSettings settings(playerSettingsPath(), playerSettingsFormat()); settings.setFallbacksEnabled(false);
     settings.beginGroup("Waveforms");
+    frameRate_ = ScopePacing::normalize(settings.value("FrameRate", ScopePacing::DefaultFps).toInt());
     auto number = [&](const char *key, int fallback, int low, int high) {
         bool ok = false; const int value = settings.value(key, fallback).toInt(&ok);
         return ok ? std::clamp(value, low, high) : fallback;
@@ -36,6 +37,7 @@ void ScopeWindow::rememberWaves() {
     const char *scales[] = {"smooth", "instant", "fixed"}, *triggers[] = {"stable", "rising", "off"};
     settings.setValue("Scale", scales[waveOptions_.scale]); settings.setValue("Trigger", triggers[waveOptions_.trigger]);
     settings.setValue("HoldMs", waveOptions_.holdMs); settings.setValue("ReleaseMs", waveOptions_.releaseMs);
+    settings.setValue("FrameRate", frameRate_);
     settings.setValue("OutputMix", waveOptions_.output); settings.sync();
     if (settings.status() != QSettings::NoError)
         QMessageBox::warning(this, "Could not save settings", "The waveform settings are applied for this session, but could not be saved to:\n" +
@@ -44,6 +46,10 @@ void ScopeWindow::rememberWaves() {
 void ScopeWindow::editWaves() {
     QDialog dialog(this); dialog.setWindowTitle("Waveforms"); dialog.setObjectName("scopeWavesDialog"); dialog.setMinimumWidth(420);
     auto layout = new QVBoxLayout(&dialog); auto form = new QFormLayout; layout->addLayout(form);
+    auto fps = new QComboBox; fps->setObjectName("waveFrameRate");
+    for (int rate : {30, 60, 120}) fps->addItem(QString("%1 FPS").arg(rate), rate);
+    styleCombo(fps); fps->setCurrentIndex(fps->findData(frameRate_)); form->addRow("Frame rate", fps);
+    fps->setToolTip("Target refresh rate. Higher rates use more CPU/GPU; actual smoothness depends on the track, renderer and display.");
     auto scale = new QComboBox; scale->setObjectName("waveScale"); scale->addItems({"Smooth auto", "Instant auto", "Fixed (full scale)"});
     styleCombo(scale); scale->setCurrentIndex(waveOptions_.scale); form->addRow("Wave height", scale);
     auto scaleHelp = new QLabel; scaleHelp->setObjectName("waveScaleHelp"); scaleHelp->setWordWrap(true); scaleHelp->setMaximumWidth(290);
@@ -71,6 +77,9 @@ void ScopeWindow::editWaves() {
     note->setObjectName("editorHint"); layout->addWidget(note);
     auto buttons = new QDialogButtonBox(QDialogButtonBox::Close | QDialogButtonBox::RestoreDefaults); layout->addWidget(buttons);
     bool edited = false;
+    connect(fps, &QComboBox::currentIndexChanged, &dialog, [&] {
+        edited = true; setFrameRate(fps->currentData().toInt());
+    });
     auto changed = [&] {
         edited = true;
         waveOptions_ = {WaveOptions::Scale(scale->currentIndex()), WaveOptions::Trigger(trigger->currentIndex()), hold->value(), release->value(), waveOptions_.output};
@@ -84,6 +93,7 @@ void ScopeWindow::editWaves() {
     connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::accept);
     connect(buttons->button(QDialogButtonBox::RestoreDefaults), &QPushButton::clicked, &dialog, [&] {
         const WaveOptions defaults;
+        fps->setCurrentIndex(fps->findData(ScopePacing::DefaultFps));
         scale->setCurrentIndex(defaults.scale); trigger->setCurrentIndex(defaults.trigger);
         hold->setValue(defaults.holdMs); release->setValue(defaults.releaseMs);
     });

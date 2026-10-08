@@ -20,6 +20,7 @@ class QCloseEvent;
 class QCheckBox;
 class QSpinBox;
 class QTimer;
+class QChronoTimer;
 class QDialog;
 class QComboBox;
 
@@ -41,6 +42,9 @@ public:
     std::function<void(bool)> onVisibilityChanged;
     std::function<void(uint32_t)> onChannelsChanged;
     std::function<void(bool)> onOutputChanged;
+    std::function<void()> onRefreshRequested;
+    std::function<void(int)> onFrameRateChanged;
+    int frameRate() const { return frameRate_; }
     bool outputEnabled() const { return !newFile_ && visibleChannels().contains(ScopeTheme::FullMix); }
     bool renderingVisible() const { return isVisible() && !isMinimized(); }
     QVector<int> visibleChannels() const;
@@ -69,6 +73,9 @@ private:
     void editWaves();
     void restoreWaves();
     void rememberWaves();
+    void setFrameRate(int fps);
+    int frameRate_ = ScopePacing::DefaultFps;
+    QChronoTimer *presentationTimer_;
     WaveOptions waveOptions_;
     struct WaveState {
         ScopeWave wave;
@@ -164,6 +171,8 @@ protected:
     void dragEnterEvent(QDragEnterEvent *) override;
     void dropEvent(QDropEvent *) override;
 private:
+    void refreshControls();
+    void refreshScopes();
     void rebuildChannels(const PlayerState &state);
     void setScopesVisible(bool visible);
     void playSong(int song);

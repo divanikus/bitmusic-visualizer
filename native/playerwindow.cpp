@@ -222,11 +222,23 @@ PlayerWindow::PlayerWindow() {
     };
     scopes_.onChannelsChanged = [this](uint32_t mask) { player_.setScopeMask(mask); };
     scopes_.onOutputChanged = [this](bool enabled) { player_.setOutputScopesEnabled(enabled && scopes_.renderingVisible()); };
+    scopes_.onRefreshRequested = [this] { refreshScopes(); };
+    scopes_.onFrameRateChanged = [this](int fps) { player_.setScopeFrameRate(fps); };
+    player_.setScopeFrameRate(scopes_.frameRate());
     QSettings settings(playerSettingsPath(), playerSettingsFormat()); settings.setFallbacksEnabled(false);
     restoreGeometry(settings.value("Windows/Player").toByteArray());
-    auto timer = new QTimer(this); timer->setInterval(33); connect(timer, &QTimer::timeout, this, [this] { refresh(); }); timer->start(); refresh();
+    auto timer = new QTimer(this); timer->setInterval(33);
+    connect(timer, &QTimer::timeout, this, [this] {
+        refreshControls();
+        // Keep file/channel metadata current while capture and painting are asleep.
+        if (!scopes_.renderingVisible()) refreshScopes();
+    });
+    timer->start(); refresh();
 }
-PlayerWindow::~PlayerWindow() { scopes_.onVisibilityChanged = {}; scopes_.onChannelsChanged = {}; scopes_.onOutputChanged = {}; player_.shutdown(); }
+PlayerWindow::~PlayerWindow() {
+    scopes_.onVisibilityChanged = {}; scopes_.onChannelsChanged = {}; scopes_.onOutputChanged = {};
+    scopes_.onRefreshRequested = {}; scopes_.onFrameRateChanged = {}; player_.shutdown();
+}
 void PlayerWindow::setScopesVisible(bool visible) {
     if (visible) {
         if (scopes_.isMinimized()) scopes_.setWindowState(scopes_.windowState() & ~Qt::WindowMinimized);
@@ -267,6 +279,9 @@ void PlayerWindow::rebuildChannels(const PlayerState &state) {
     }
 }
 void PlayerWindow::refresh() {
+    refreshControls(); refreshScopes();
+}
+void PlayerWindow::refreshControls() {
     const auto s = player_.state();
     const bool changed = s.valid && (shownPath_ != s.info.path || shownSong_ != s.info.song);
     if (changed) {
@@ -317,6 +332,8 @@ void PlayerWindow::refresh() {
     for (int i = 0; i < channels_->count(); ++i) { auto button = qobject_cast<QToolButton *>(channels_->itemAt(i)->widget()); QSignalBlocker block(button); button->setChecked(!(s.muteMask & (uint32_t(1) << i))); button->setEnabled(ready); }
     const auto message = !s.error.isEmpty() ? s.error : !s.scopeError.isEmpty() ? s.scopeError : s.busy ? QString::fromUtf8("Loading…") : QString();
     status_->setText(message); status_->setVisible(!message.isEmpty());
-    scopes_.present(s, scopes_.renderingVisible() ? player_.scopes() : ScopeFrame{},
+}
+void PlayerWindow::refreshScopes() {
+    scopes_.present(player_.state(), scopes_.renderingVisible() ? player_.scopes() : ScopeFrame{},
                     scopes_.renderingVisible() && scopes_.outputEnabled() ? player_.outputScopes() : OutputFrame{});
 }

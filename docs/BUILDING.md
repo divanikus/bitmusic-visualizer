@@ -26,6 +26,12 @@ SDK paths, and verify playback, seeks, loops, scopes, themes, geometry, taps and
 GPU output. They need an interactive desktop/audio device. Hosted Windows CI
 runs decoder/tap checks; it is not a substitute for the full workstation suite.
 
+For a focused frame-rate check after generating fixtures, run
+`build/native/bitmusic_visualizer --self-test test-output --fps-only`.
+It uses temporary settings and silent playback, exercises 30/60/120 FPS with
+NSF/VGZ/SPC, and reports refresh requests and fresh snapshots per second. These
+counts are not monitor-presented FPS. Add `--software-scopes` to check CPU drawing.
+
 ## Linux / macOS
 
 Set `QT_ROOT_DIR` to the Qt kit (Linux `gcc_64`, macOS `macos`). With the compiler,

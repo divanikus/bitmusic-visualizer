@@ -226,6 +226,11 @@ void NativePlayer::setScopesEnabled(bool enabled) {
     { std::lock_guard lock(scopeMutex_); scope_ = {}; }
     scopeWake_.notify_all();
 }
+void NativePlayer::setScopeFrameRate(int fps) {
+    { std::lock_guard lock(scopeWaitMutex_); scopeFrameRate_.store(ScopePacing::normalize(fps)); }
+    // Only reschedule capture. Changing FPS must not invalidate prepared voices.
+    scopeWake_.notify_all();
+}
 void NativePlayer::setScopeMask(uint32_t mask) {
     {
         std::lock_guard lock(scopeWaitMutex_);
@@ -443,6 +448,7 @@ void NativePlayer::scopeLoop() {
             scopesSuspended_ = false;
         }
         const auto revision = scopeRevision_.load();
+        const auto fps = scopeFrameRate_.load();
         const auto mask = scopeMask_.load();
         const auto current = state();
         const auto tick = std::chrono::steady_clock::now();
@@ -482,8 +488,8 @@ void NativePlayer::scopeLoop() {
                     }
                     { std::lock_guard lock(scopeMutex_); if (!cancelled()) scope_ = std::move(frame); }
                     std::unique_lock lock(scopeWaitMutex_);
-                    scopeWake_.wait_until(lock, tick + std::chrono::milliseconds(25), [this, revision] {
-                        return closing_ || !scopesEnabled_ || revision != scopeRevision_;
+                    scopeWake_.wait_until(lock, tick + ScopePacing::interval(fps), [this, revision, fps] {
+                        return closing_ || !scopesEnabled_ || revision != scopeRevision_ || fps != scopeFrameRate_;
                     });
                     continue;
                 }
@@ -577,8 +583,8 @@ void NativePlayer::scopeLoop() {
         // with playback, so distant seeks could remain Preparing indefinitely.
         if (preparing) continue;
         std::unique_lock lock(scopeWaitMutex_);
-        scopeWake_.wait_until(lock, tick + std::chrono::milliseconds(25), [this, revision] {
-            return closing_ || !scopesEnabled_ || revision != scopeRevision_;
+        scopeWake_.wait_until(lock, tick + ScopePacing::interval(fps), [this, revision, fps] {
+            return closing_ || !scopesEnabled_ || revision != scopeRevision_ || fps != scopeFrameRate_;
         });
     }
     preparationPool.waitForDone();

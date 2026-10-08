@@ -226,7 +226,7 @@ int runGpuChecks(QApplication &app, const QStringList &arguments) {
         canvas.submit(chrome, {b}, "changed-layout", 2, 70, true, trail); pump(app);
         require(canvas.historySize() == 1, "Layout/color/mask change retained a stale trace.");
         for (int i = 0; i < 200; ++i) canvas.submit(chrome, {a}, "changed-layout", 2, 100+i, true, trail);
-        require(canvas.historySize() <= 64, "History exceeds its memory bound.");
+        require(canvas.historySize() <= 128, "History exceeds its memory bound.");
         trail.trailMs = 999;
         canvas.submit(chrome, {a}, "long-trail", 3, 0, true, trail); pump(app, 70);
         for (int i = 1; i <= 18; ++i) {
@@ -235,6 +235,16 @@ int runGpuChecks(QApplication &app, const QStringList &arguments) {
         require(canvas.historySize() > 13 && brightness(capture(),core) > 0, "999 ms trail was truncated at the old frame limit.");
         pump(app, 400);
         require(brightness(capture(),core) == 0, "Long trail did not expire after its duration.");
+        // More than 64 distinct captures within the longest trail must survive.
+        canvas.submit(chrome, {a}, "fast-trail", 4, 0, true, trail);
+        pump(app, 50);
+        for (int i = 1; i <= 90; ++i) canvas.submit(chrome, {b}, "fast-trail", 4, i*8, true, trail);
+        pump(app, 650);
+        require(canvas.historySize() == 91 && brightness(capture(),core) > 0,
+            "High-rate history was truncated before 999 ms.");
+        pump(app, 400);
+        require(canvas.historySize() == 1 && brightness(capture(),core) == 0,
+            "High-rate history did not expire by elapsed time.");
         canvas.suspend(); canvas.hide(); pump(app);
         const auto rendered = canvas.renderedFrames(); pump(app, 100);
         require(canvas.historySize() == 0 && rendered == canvas.renderedFrames(), "Hidden canvas continues rendering.");
@@ -422,7 +432,7 @@ int runGpuSoak(QApplication &app, const QStringList &arguments) {
                     << " audioErrors=" << state.starvations << '/' << state.outputErrors
                     << " screen=" << scopes.screen()->name() << " completed=" << gpu->completedFrames() << '\n'; log.flush();
             }
-            require(gpu->historySize() <= 64, "GPU history exceeds bound.");
+            require(gpu->historySize() <= 128, "GPU history exceeds bound.");
             require(wall.elapsed()-renderChanged < 4000, "GPU rendering stopped.");
             require(state.busy || !state.playing || wall.elapsed()-scopeChanged < 6000, "Scope producer stopped.");
         }

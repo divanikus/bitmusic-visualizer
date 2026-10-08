@@ -23,6 +23,7 @@
 #include <QSpinBox>
 #include <QVBoxLayout>
 #include <QTimer>
+#include <QChronoTimer>
 #include <algorithm>
 #include <cmath>
 
@@ -79,6 +80,12 @@ ScopeWindow::ScopeWindow() {
     setMouseTracking(true);
     restoreEffects();
     restoreWaves();
+    presentationTimer_ = new QChronoTimer(ScopePacing::interval(frameRate_), this);
+    presentationTimer_->setTimerType(Qt::PreciseTimer);
+    connect(presentationTimer_, &QChronoTimer::timeout, this, [this] {
+        if (onRefreshRequested) onRefreshRequested();
+        else update();
+    });
     setStyleSheet(R"(
       QWidget { color: #dce5e8; font-family: 'Segoe UI'; font-size: 9pt; }
       QWidget#scopeEditor, QWidget#scopeChannels { background: #1b252b; border-radius: 8px; }
@@ -189,7 +196,7 @@ ScopeWindow::ScopeWindow() {
         layoutChanged();
     });
     if (qEnvironmentVariableIntValue("BITMUSIC_SOFTWARE_SCOPES") != 1 && qEnvironmentVariable("QT_QUICK_BACKEND") != "software") {
-        gpu_ = new ScopeGpu(this); gpu_->lower();
+        gpu_ = new ScopeGpu(this, true); gpu_->lower();
         gpu_->failed = [this, effects](const QString &reason) {
             gpuFailed_ = true;
             auto failedGpu = gpu_; gpu_ = nullptr;
@@ -324,10 +331,18 @@ void ScopeWindow::updateList() {
     summary_->setText((preview ? "Preview: " : "") + QString("%1 shown / %2 overflow").arg(visible.size()).arg(enabled - visible.size()));
 }
 void ScopeWindow::updateVisibility() {
+    if (renderingVisible()) presentationTimer_->start(); else presentationTimer_->stop();
     if (gpu_) { gpu_->suspend(); gpu_->setVisible(renderingVisible() && !gpuFailed_); }
     frame_ = {}; output_ = {}; waveStates_ = {}; cancelDrag();
     if (onVisibilityChanged) onVisibilityChanged(renderingVisible());
     update();
+}
+void ScopeWindow::setFrameRate(int fps) {
+    fps = ScopePacing::normalize(fps);
+    if (frameRate_ == fps) return;
+    frameRate_ = fps;
+    presentationTimer_->setInterval(ScopePacing::interval(fps));
+    if (onFrameRateChanged) onFrameRateChanged(fps);
 }
 void ScopeWindow::showEvent(QShowEvent *event) { FrameWindow::showEvent(event); updateVisibility(); }
 void ScopeWindow::hideEvent(QHideEvent *event) { FrameWindow::hideEvent(event); updateVisibility(); }

@@ -17,6 +17,7 @@ See the [changelog](CHANGELOG.md) for version history.
 - Mono or stereo waveforms; optional Full mix showing the PCM sent to the audio
   device, including active voices, volume and shared effects.
 - Editable grid: hide, reorder and resize cards in whole grid cells.
+- Saved 30 / 60 / 120 FPS target, selectable in the scope editor's Waves dialog.
 - Per-card colors, HEX input, named INI themes and a configurable window background.
 - Smooth/instant/fixed amplitude, stable/rising/off trigger, GPU glow and fading
   trails. CPU rendering is available as a fallback.
