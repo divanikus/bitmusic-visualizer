@@ -17,6 +17,7 @@
 #include <QComboBox>
 #include <QDialogButtonBox>
 #include <QMouseEvent>
+#include <QKeyEvent>
 #include <QListWidget>
 #include <QTabWidget>
 #include <QLineEdit>
@@ -534,52 +535,50 @@ void checkWindowSettings(QApplication &app, const QString &directory, QTextStrea
             require(sizeButton && !sizeButton->isVisible(), "Window size must be available only in edit mode.");
             scopes.findChild<QPushButton *>("editLayout")->click(); pump(app, 30);
             const auto dpr = scopes.devicePixelRatioF();
-            auto editSize = [&](QSize pixels, bool apply) {
-                bool opened = false; QString failure;
-                QTimer::singleShot(20, &scopes, [&] {
-                    auto dialog = scopes.findChild<QDialog *>("scopeWindowSizeDialog");
-                    if (!dialog) { failure = "Window size dialog did not open."; return; }
-                    opened = true;
-                    try {
-                        auto width = dialog->findChild<QSpinBox *>("scopePixelWidth");
-                        auto height = dialog->findChild<QSpinBox *>("scopePixelHeight");
-                        require(width && height && QSize(width->value(), height->value()) == scopes.size()*dpr,
-                                "Size dialog does not show current screen pixels.");
-                        width->setValue(1); height->setValue(1);
-                        require(QSize(width->value(), height->value()) == scopes.minimumSize()*dpr,
-                                "Size input minimum does not account for display scaling.");
-                        width->setValue(pixels.width()); height->setValue(pixels.height());
-                        const QSize logical(qRound(pixels.width()/dpr), qRound(pixels.height()/dpr));
-                        require(dialog->findChild<QLabel *>("scopeSizeRounding")->text().isEmpty() == (logical*dpr == pixels),
-                                "Unrepresentable screen pixels need a rounding explanation.");
-                        dialog->grab().save(QDir(directory).filePath("native-window-size-dialog.png"));
-                        dialog->findChild<QDialogButtonBox *>()->button(apply ? QDialogButtonBox::Apply : QDialogButtonBox::Cancel)->click();
-                    } catch (const std::exception &error) { failure = error.what(); dialog->reject(); }
-                });
-                sizeButton->click(); pump(app, 60);
-                require(opened, "Window size button did not open its dialog.");
-                if (!failure.isEmpty()) throw std::runtime_error(failure.toStdString());
+            auto width = scopes.findChild<QSpinBox *>("scopePixelWidth");
+            auto height = scopes.findChild<QSpinBox *>("scopePixelHeight");
+            require(sizeButton->text().isEmpty() && width && height && !width->isVisible(), "Size fields should start collapsed behind an icon.");
+            const auto beforeExpand = scopes.geometry();
+            sizeButton->click(); pump(app, 30);
+            require(width->isVisible() && height->isVisible() && !QApplication::activeModalWidget() && scopes.geometry() == beforeExpand,
+                    "Size fields did not expand inline without changing the window.");
+            require(QSize(width->value(), height->value()) == scopes.size()*dpr, "Inline fields do not show screen pixels.");
+            auto typeKey = [&](int key, const QString &text = QString()) {
+                QKeyEvent press(QEvent::KeyPress, key, Qt::NoModifier, text);
+                QApplication::sendEvent(width, &press); pump(app, 20);
             };
+            width->setFocus(); width->selectAll();
+            for (const auto character : QString("128")) typeKey(character.unicode(), QString(character));
+            require(scopes.geometry() == beforeExpand, "Incomplete number changed the window size.");
+            typeKey(Qt::Key_2, "2");
+            require(width->value() == 1282 && width->findChild<QLineEdit *>()->text() == "1282 px" &&
+                    scopes.width() == qRound(1282/dpr), "Typing did not resize live or resizing overwrote the unfinished input.");
+            typeKey(Qt::Key_Up);
+            require(width->value() == 1283 && scopes.width() == qRound(1283/dpr), "Stepping did not resize immediately.");
+            typeKey(Qt::Key_Return);
+            require(width->value() == qRound(scopes.width()*dpr), "Finishing input did not normalize to actual pixels.");
+            const auto beforeCollapse = scopes.geometry();
+            sizeButton->click(); pump(app, 30);
+            require(!width->isVisible() && scopes.geometry() == beforeCollapse, "Collapsing fields changed the window size.");
+            scopes.grab().save(QDir(directory).filePath("native-window-size-collapsed.png"));
             const QSize requested(qRound(720*dpr)+1, qRound(480*dpr)+1);
-            const auto beforeCancel = scopes.geometry();
-            editSize(requested, false);
-            require(scopes.geometry() == beforeCancel, "Cancel changed the window size or position.");
             scopes.showMaximized(); pump(app, 60);
-            editSize(requested, false);
-            require(scopes.isMaximized(), "Cancel left maximized mode.");
-            editSize(requested, true);
-            require(!scopes.isMaximized(), "Applying a custom size did not leave maximized mode.");
+            sizeButton->click(); pump(app, 30);
+            require(scopes.isMaximized(), "Opening size controls left maximized mode.");
+            width->setValue(requested.width()); height->setValue(requested.height()); pump(app, 60);
+            require(!scopes.isMaximized(), "Changing a dimension did not leave maximized mode.");
             const QSize expected(qRound(requested.width()/dpr), qRound(requested.height()/dpr));
             require(scopes.size() == expected && scopes.grab().size() == expected*dpr,
                     "Requested screen-pixel size did not reach the rendered window.");
-            const auto actual = expected*dpr;
-            require(sizeButton->text() == QString("%1 \u00d7 %2").arg(actual.width()).arg(actual.height()),
-                    "Toolbar size did not update after applying.");
+            require(scopes.findChild<QLabel *>("scopeSizeRounding")->text().isEmpty() == (expected*dpr == requested),
+                    "Rounded live dimensions need an actual-size readout.");
             scopes.grab().save(QDir(directory).filePath("native-window-size-editor.png"));
-            scopes.resize(scopes.minimumSize()); pump(app, 30);
+            width->setValue(1); height->setValue(1); pump(app, 30);
+            require(scopes.size() == scopes.minimumSize() && QSize(width->value(), height->value()) == scopes.minimumSize()*dpr,
+                    "Inline size minimum does not account for display scaling.");
             auto editor = scopes.findChild<QWidget *>("scopeEditor");
             QVector<QRect> controls;
-            for (auto name : {"scopeWindowSize", "gridRows", "gridColumns", "channelNumbers", "channelNames", "scopeStereo", "keepGrid", "scopeWindowColor", "resetLayout", "applyLayout"}) {
+            for (auto name : {"scopeWindowSize", "scopePixelWidth", "scopePixelHeight", "gridRows", "gridColumns", "channelNumbers", "channelNames", "scopeStereo", "keepGrid", "scopeWindowColor", "resetLayout", "applyLayout"}) {
                 auto control = editor->findChild<QWidget *>(name);
                 require(control && control->isVisible(), "A toolbar control disappeared at the minimum window size.");
                 const QRect bounds(control->mapTo(editor, QPoint()), control->size());
@@ -589,6 +588,7 @@ void checkWindowSettings(QApplication &app, const QString &directory, QTextStrea
             }
             scopes.grab().save(QDir(directory).filePath("native-window-size-small.png"));
             scopes.resize(expected); pump(app, 30);
+            require(QSize(width->value(), height->value()) == expected*dpr, "External resizing did not update inline dimensions.");
             mainRect = first.geometry(); scopeRect = first.scopeWindow().geometry();
             first.scopeWindow().close(); require(first.isVisible(), "Scope close stopped player while saving layout.");
             first.close();
@@ -642,7 +642,7 @@ void checkWindowSettings(QApplication &app, const QString &directory, QTextStrea
             dismiss.start(20); blocked.close();
             require(warned && !blocked.isVisible() && !blocked.player().isRunning(), "Window save failure blocked exit or hid the error.");
         }
-        log << "Window settings: screen-pixel size dialog, Cancel/Apply/maximize, DPI rounding, narrow toolbar, both positions/sizes, hidden scopes, normal/maximized/minimized exit, offscreen recovery, corrupt defaults and save failure PASS\n"; log.flush();
+        log << "Window settings: inline icon toggle, live typing/stepping, incomplete input, maximize, DPI rounding, external resize, narrow toolbar, both positions/sizes, hidden scopes, normal/maximized/minimized exit, offscreen recovery, corrupt defaults and save failure PASS\n"; log.flush();
     } catch (...) { app.setProperty("settingsFileForTests", previousPath); throw; }
     app.setProperty("settingsFileForTests", previousPath);
 }

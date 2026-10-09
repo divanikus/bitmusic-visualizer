@@ -128,7 +128,8 @@ private:
     ScopeEffects effects_;
     void updateVisibility();
     void updateEditorGeometry();
-    void editWindowSize();
+    void applyWindowSize();
+    void updateWindowSizeControls();
     void layoutChanged();
     void resetChannels(bool resetGrid);
     void resetGrid();
@@ -162,6 +163,10 @@ private:
     TitleBar *titleBar_;
     QPushButton *edit_;
     QPushButton *windowSize_ = nullptr;
+    QWidget *windowSizeControls_;
+    QSpinBox *pixelWidth_, *pixelHeight_;
+    QLabel *sizeRounding_;
+    bool applyingWindowSize_ = false;
     QWidget *editor_, *channelPanel_;
     QWidget *gridControls_, *labelControls_, *editorActions_;
     QGridLayout *settings_;

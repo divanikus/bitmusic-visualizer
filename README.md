@@ -72,8 +72,9 @@ Apply finishes editing. Reset restores the grid and visibility, keeping colors.
 Keep grid retains only row/column counts when opening a new file. Layouts are
 session-local. Full mix starts hidden and can be enabled in Cards.
 Theme selection applies immediately; Save theme asks for a name.
-Click the size button (for example, **1280 \u00d7 720**) in the editor toolbar to set
-the whole window's width and height in screen pixels. Its size is saved on exit.
+Click the window-size icon in the editor toolbar to reveal inline **Width** and
+**Height** fields in screen pixels. Changes resize the whole window immediately;
+click the icon again to collapse the fields. The size is saved on exit.
 
 Select a card in the editor's **Cards** list, then change **View** to Waveform,
 Spectrum or Keyboard. **Add card…** creates another view of any voice or Full mix,

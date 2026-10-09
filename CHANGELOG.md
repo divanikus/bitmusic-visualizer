@@ -10,8 +10,8 @@ not published GitHub releases. Unreleased lists changes made after the latest ta
 
 ### Added
 
-- Window size controls in the scope editor: enter width and height in screen
-  pixels, with the size remembered on exit.
+- A window-size icon in the scope editor reveals inline width/height controls.
+  Changes resize the window immediately in screen pixels and are remembered on exit.
 
 ## [0.7.2](https://github.com/divanikus/bitmusic-visualizer/releases/tag/v0.7.2) — 2026-10-09
 

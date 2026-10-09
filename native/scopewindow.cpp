@@ -75,6 +75,25 @@ protected:
         }
     }
 };
+class WindowSizeButton : public QPushButton {
+public:
+    WindowSizeButton() {
+        setObjectName("scopeWindowSize"); setCheckable(true); setFixedSize(30, 28);
+        setAccessibleName("Window size"); setCursor(Qt::PointingHandCursor);
+    }
+protected:
+    void paintEvent(QPaintEvent *) override {
+        QPainter p(this); p.setRenderHint(QPainter::Antialiasing);
+        p.setPen(Qt::NoPen); p.setBrush(QColor(isChecked() ? "#a2e5d5" : underMouse() || hasFocus() ? "#385158" : "#293b41"));
+        p.drawRoundedRect(rect(), 5, 5);
+        p.setBrush(Qt::NoBrush);
+        p.setPen(QPen(QColor(isChecked() ? "#133c38" : "#b8cccf"), 1.4, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
+        p.drawRoundedRect(QRectF(5, 5, 20, 18), 2, 2);
+        p.drawLine(10, 18, 20, 10);
+        p.drawPolyline(QPolygonF{{10, 14}, {10, 18}, {14, 18}});
+        p.drawPolyline(QPolygonF{{16, 10}, {20, 10}, {20, 14}});
+    }
+};
 }
 
 ScopeWindow::ScopeWindow() {
@@ -119,10 +138,27 @@ ScopeWindow::ScopeWindow() {
     columns_ = new QSpinBox; columns_->setObjectName("gridColumns"); columns_->setRange(1, 8); columns_->setValue(1); columns_->setAccessibleName("Columns");
     grid->addWidget(new QLabel("Rows")); grid->addWidget(rows_);
     grid->addWidget(new QLabel("Columns")); grid->addWidget(columns_);
-    windowSize_ = new QPushButton; windowSize_->setObjectName("scopeWindowSize");
-    windowSize_->setToolTip("Set window size in screen pixels"); windowSize_->setAccessibleName("Window size");
+    windowSize_ = new WindowSizeButton;
     grid->addWidget(windowSize_);
-    connect(windowSize_, &QPushButton::clicked, this, [this] { editWindowSize(); });
+    windowSizeControls_ = new QWidget(editor_); windowSizeControls_->setObjectName("scopeWindowSizeControls");
+    auto dimensions = new QHBoxLayout(windowSizeControls_); dimensions->setContentsMargins(0, 0, 0, 0); dimensions->setSpacing(8);
+    pixelWidth_ = new QSpinBox; pixelWidth_->setObjectName("scopePixelWidth"); pixelWidth_->setAccessibleName("Width");
+    pixelHeight_ = new QSpinBox; pixelHeight_->setObjectName("scopePixelHeight"); pixelHeight_->setAccessibleName("Height");
+    for (auto input : {pixelWidth_, pixelHeight_}) {
+        input->setSuffix(" px"); input->setFixedWidth(100);
+        connect(input, &QSpinBox::valueChanged, this, [this] { applyWindowSize(); });
+        connect(input, &QSpinBox::editingFinished, this, [this] { updateWindowSizeControls(); });
+    }
+    dimensions->addWidget(new QLabel("Width")); dimensions->addWidget(pixelWidth_);
+    dimensions->addWidget(new QLabel("Height")); dimensions->addWidget(pixelHeight_);
+    sizeRounding_ = new QLabel; sizeRounding_->setObjectName("scopeSizeRounding");
+    sizeRounding_->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
+    dimensions->addWidget(sizeRounding_, 1);
+    windowSizeControls_->hide();
+    connect(windowSize_, &QPushButton::toggled, this, [this](bool expanded) {
+        windowSizeControls_->setVisible(expanded); cancelDrag(); updateEditorGeometry(); update();
+        if (expanded) { pixelWidth_->setFocus(); pixelWidth_->selectAll(); }
+    });
     keepGrid_ = new QCheckBox("Keep grid"); keepGrid_->setObjectName("keepGrid");
     keepGrid_->setToolTip("Keep rows and columns when opening another file. Card sizes, order and voice visibility reset.");
     auto actions = new QHBoxLayout(editorActions_); actions->setContentsMargins(0, 0, 0, 0); actions->setSpacing(6);
@@ -424,52 +460,41 @@ bool ScopeWindow::event(QEvent *event) {
     if (event->type() == QEvent::DevicePixelRatioChange && windowSize_) updateEditorGeometry();
     return handled;
 }
-void ScopeWindow::editWindowSize() {
-    QDialog dialog(this); dialog.setWindowTitle("Window size"); dialog.setObjectName("scopeWindowSizeDialog");
-    dialog.setMinimumWidth(340);
-    auto layout = new QVBoxLayout(&dialog);
-    auto form = new QFormLayout; layout->addLayout(form);
+void ScopeWindow::applyWindowSize() {
+    if (applyingWindowSize_) return;
+    // Resizing sends synchronous events. Do not overwrite the text/caret the
+    // user is still editing (especially when DPI rounding changes the result).
+    applyingWindowSize_ = true;
+    const QSize requested(pixelWidth_->value(), pixelHeight_->value());
+    if (isMaximized() || isFullScreen()) showNormal();
+    resize(QSize(qRound(requested.width()/devicePixelRatioF()), qRound(requested.height()/devicePixelRatioF()))
+        .expandedTo(minimumSize()).boundedTo(maximumSize()));
+    updateWindowSizeControls();
+    applyingWindowSize_ = false;
+}
+void ScopeWindow::updateWindowSizeControls() {
     const auto pixels = size()*devicePixelRatioF();
-    auto widthInput = new QSpinBox; widthInput->setObjectName("scopePixelWidth"); widthInput->setAccessibleName("Width");
-    auto heightInput = new QSpinBox; heightInput->setObjectName("scopePixelHeight"); heightInput->setAccessibleName("Height");
-    widthInput->setRange(qRound(minimumWidth()*devicePixelRatioF()), qRound(maximumWidth()*devicePixelRatioF()));
-    heightInput->setRange(qRound(minimumHeight()*devicePixelRatioF()), qRound(maximumHeight()*devicePixelRatioF()));
-    widthInput->setSuffix(" px"); heightInput->setSuffix(" px");
-    widthInput->setValue(pixels.width()); heightInput->setValue(pixels.height());
-    form->addRow("Width", widthInput); form->addRow("Height", heightInput);
-    auto note = new QLabel("Whole window, including the title bar.\nSize is remembered when the player closes.");
-    note->setObjectName("editorHint"); layout->addWidget(note);
-    auto rounding = new QLabel; rounding->setObjectName("scopeSizeRounding"); rounding->setWordWrap(true); layout->addWidget(rounding);
-    auto requestedSize = [=, this] {
-        return QSize(qRound(widthInput->value()/devicePixelRatioF()), qRound(heightInput->value()/devicePixelRatioF()))
-            .expandedTo(minimumSize()).boundedTo(maximumSize());
-    };
-    auto preview = [=, this] {
-        const auto actual = requestedSize()*devicePixelRatioF();
-        const bool rounded = actual != QSize(widthInput->value(), heightInput->value());
-        rounding->setText(rounded ? QString("At %1% display scaling, the nearest size is %2 \u00d7 %3 px.")
-            .arg(qRound(devicePixelRatioF()*100)).arg(actual.width()).arg(actual.height()) : QString());
-    };
-    connect(widthInput, &QSpinBox::valueChanged, &dialog, preview);
-    connect(heightInput, &QSpinBox::valueChanged, &dialog, preview);
-    auto buttons = new QDialogButtonBox(QDialogButtonBox::Apply | QDialogButtonBox::Cancel); layout->addWidget(buttons);
-    auto apply = buttons->button(QDialogButtonBox::Apply); apply->setDefault(true);
-    connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
-    connect(apply, &QPushButton::clicked, &dialog, [&] {
-        if (isMaximized() || isFullScreen()) showNormal();
-        resize(requestedSize());
-        dialog.accept();
-    });
-    preview(); widthInput->setFocus(); widthInput->selectAll();
-    dialog.exec();
+    if (!applyingWindowSize_) {
+        const QSignalBlocker blockWidth(pixelWidth_), blockHeight(pixelHeight_);
+        pixelWidth_->setRange(qRound(minimumWidth()*devicePixelRatioF()), qRound(maximumWidth()*devicePixelRatioF()));
+        pixelHeight_->setRange(qRound(minimumHeight()*devicePixelRatioF()), qRound(maximumHeight()*devicePixelRatioF()));
+        pixelWidth_->setValue(pixels.width()); pixelHeight_->setValue(pixels.height());
+    }
+    const auto actual = QString("%1 \u00d7 %2 px").arg(pixels.width()).arg(pixels.height());
+    windowSize_->setToolTip(QString("%1 window size controls (%2)").arg(windowSize_->isChecked() ? "Hide" : "Show", actual));
+    const auto hint = QString("Whole window in screen pixels, including the title bar. Changes apply immediately.\n"
+        "Actual size: %1 at %2% display scaling. Size is remembered on exit.").arg(actual).arg(qRound(devicePixelRatioF()*100));
+    for (auto widget : {static_cast<QWidget *>(pixelWidth_), static_cast<QWidget *>(pixelHeight_), static_cast<QWidget *>(sizeRounding_)})
+        widget->setToolTip(hint);
+    sizeRounding_->setText(pixels == QSize(pixelWidth_->value(), pixelHeight_->value()) ? QString() : "\u2248 " + actual);
 }
 void ScopeWindow::updateEditorGeometry() {
-    const auto pixels = size()*devicePixelRatioF();
-    windowSize_->setText(QString("%1 \u00d7 %2").arg(pixels.width()).arg(pixels.height()));
+    updateWindowSizeControls();
     titleBar_->setGeometry(14, 6, width() - 28, 30);
     const int inlineWidth = gridControls_->sizeHint().width() + labelControls_->sizeHint().width() + editorActions_->sizeHint().width() + 40;
     const int compactWidth = gridControls_->sizeHint().width() + editorActions_->sizeHint().width() + 30;
     const int lines = width() - 28 >= inlineWidth ? 1 : width() - 28 >= compactWidth ? 2 : 3;
+    settings_->removeWidget(windowSizeControls_);
     if (editorRows_ != lines) {
         editorRows_ = lines;
         for (auto widget : {gridControls_, labelControls_, editorActions_}) settings_->removeWidget(widget);
@@ -479,7 +504,8 @@ void ScopeWindow::updateEditorGeometry() {
         settings_->addWidget(labelControls_, lines == 1 ? 0 : 1, lines == 1 ? 1 : 0, 1, lines == 1 ? 1 : 2, Qt::AlignLeft);
         settings_->addWidget(editorActions_, lines == 3 ? 2 : 0, lines == 1 ? 2 : lines == 2 ? 1 : 0, Qt::AlignRight);
     }
-    editor_->setGeometry(14, 44, width() - 28, 42 + (lines-1)*38);
+    if (windowSize_->isChecked()) settings_->addWidget(windowSizeControls_, lines, 0, 1, lines == 1 ? 3 : 2);
+    editor_->setGeometry(14, 44, width() - 28, 42 + (lines-1 + int(windowSize_->isChecked()))*38);
     const int top = editor_->geometry().bottom() + 13;
     channelPanel_->setGeometry(width() - 214, top, 200, std::max(80, height() - top - 14));
 }
@@ -491,7 +517,7 @@ void ScopeWindow::closeEvent(QCloseEvent *event) { hide(); event->ignore(); }
 QByteArray ScopeWindow::chromeKey(bool dynamic) const {
     QByteArray key; QDataStream s(&key, QIODevice::WriteOnly);
     s << size() << devicePixelRatioF() << theme_.windowBackground << rows_->value() << columns_->value()
-      << edit_->isChecked() << numbers_->isChecked() << names_->isChecked() << stereo_->isChecked()
+      << edit_->isChecked() << windowSize_->isChecked() << numbers_->isChecked() << names_->isChecked() << stereo_->isChecked()
       << state_.info.stereoOutput << state_.info.tonalMask << state_.busy << (frame_.generation == state_.generation)
       << state_.muteMask << state_.outputMask << state_.scopeError << frame_.mask << hoveredColor_ << pressedColor_;
     s << channelReady(ScopeTheme::FullMix) << state_.playing;
