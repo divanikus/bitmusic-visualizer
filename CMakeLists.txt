@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.24)
-project(BitMusicVisualizer VERSION 0.7.2 LANGUAGES C CXX)
+project(BitMusicVisualizer VERSION 0.7.3 LANGUAGES C CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 find_package(Qt6 6.11 REQUIRED COMPONENTS Widgets Multimedia QuickWidgets)

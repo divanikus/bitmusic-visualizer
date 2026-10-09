@@ -1,4 +1,4 @@
-Bit Music Visualizer 0.7.2 - portable Windows x64 build
+Bit Music Visualizer 0.7.3 - portable Windows x64 build
 
 1. Extract the whole ZIP to a folder on Windows 10 or Windows 11 (64-bit).
 2. Run bitmusic_visualizer.exe from that folder.
@@ -22,6 +22,8 @@ Selection applies immediately; the default is 30. Actual rates depend on the
 track, audio device, renderer, system load and monitor. Higher rates use more
 CPU/GPU. Trail duration is preserved, including 999 ms at the 120 FPS target.
 Every scope card supports resizing in whole grid cells.
+The window-size icon next to the background eyedropper in edit mode reveals
+width/height fields. Changes resize the window immediately; size is saved on exit.
 Pencil -> Waves...: Smooth auto / Instant auto / Fixed amplitude; Hold and Release
 control how quickly a fading note grows back on screen. Trigger offers Stable,
 Rising edge and Off. These controls work with both GPU and CPU rendering.

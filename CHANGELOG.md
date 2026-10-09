@@ -8,6 +8,10 @@ not published GitHub releases. Unreleased lists changes made after the latest ta
 
 ## Unreleased
 
+No changes yet.
+
+## [0.7.3](https://github.com/divanikus/bitmusic-visualizer/releases/tag/v0.7.3) — 2026-10-09
+
 ### Added
 
 - A window-size icon beside the background eyedropper reveals width/height controls inline.
