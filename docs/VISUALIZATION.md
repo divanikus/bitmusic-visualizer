@@ -15,6 +15,19 @@ order, last for the current file/session. Opening another file or pressing Reset
 restores the original waveform cards. Keep grid preserves only rows and columns.
 Changing subsongs within a file keeps the layout. Themes remain color presets.
 
+## Window size
+
+Click the current dimensions (for example, **1280 \u00d7 720**) in the editor's top
+bar. Enter **Width** and **Height**, then **Apply**. Dimensions are screen pixels
+for the whole window, including its title bar and any visible editor controls.
+Cancel leaves the size unchanged. Applying a size exits maximized mode.
+
+Display scaling can make some pixel sizes unavailable: the dialog shows the
+nearest size before applying it, and the toolbar always shows the actual size.
+The existing minimum window size still applies. Size and position are remembered
+on player exit, independently of themes and the card grid. Moving to a display
+with a different scale may change the pixel dimensions.
+
 ## Spectrum
 
 Spectrum shows frequency content on a logarithmic 20 Hz–20 kHz axis, with a fixed

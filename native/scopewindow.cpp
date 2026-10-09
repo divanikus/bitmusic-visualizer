@@ -119,6 +119,10 @@ ScopeWindow::ScopeWindow() {
     columns_ = new QSpinBox; columns_->setObjectName("gridColumns"); columns_->setRange(1, 8); columns_->setValue(1); columns_->setAccessibleName("Columns");
     grid->addWidget(new QLabel("Rows")); grid->addWidget(rows_);
     grid->addWidget(new QLabel("Columns")); grid->addWidget(columns_);
+    windowSize_ = new QPushButton; windowSize_->setObjectName("scopeWindowSize");
+    windowSize_->setToolTip("Set window size in screen pixels"); windowSize_->setAccessibleName("Window size");
+    grid->addWidget(windowSize_);
+    connect(windowSize_, &QPushButton::clicked, this, [this] { editWindowSize(); });
     keepGrid_ = new QCheckBox("Keep grid"); keepGrid_->setObjectName("keepGrid");
     keepGrid_->setToolTip("Keep rows and columns when opening another file. Card sizes, order and voice visibility reset.");
     auto actions = new QHBoxLayout(editorActions_); actions->setContentsMargins(0, 0, 0, 0); actions->setSpacing(6);
@@ -415,20 +419,67 @@ void ScopeWindow::changeEvent(QEvent *event) {
     FrameWindow::changeEvent(event);
     if (event->type() == QEvent::WindowStateChange) updateVisibility();
 }
+bool ScopeWindow::event(QEvent *event) {
+    const bool handled = FrameWindow::event(event);
+    if (event->type() == QEvent::DevicePixelRatioChange && windowSize_) updateEditorGeometry();
+    return handled;
+}
+void ScopeWindow::editWindowSize() {
+    QDialog dialog(this); dialog.setWindowTitle("Window size"); dialog.setObjectName("scopeWindowSizeDialog");
+    dialog.setMinimumWidth(340);
+    auto layout = new QVBoxLayout(&dialog);
+    auto form = new QFormLayout; layout->addLayout(form);
+    const auto pixels = size()*devicePixelRatioF();
+    auto widthInput = new QSpinBox; widthInput->setObjectName("scopePixelWidth"); widthInput->setAccessibleName("Width");
+    auto heightInput = new QSpinBox; heightInput->setObjectName("scopePixelHeight"); heightInput->setAccessibleName("Height");
+    widthInput->setRange(qRound(minimumWidth()*devicePixelRatioF()), qRound(maximumWidth()*devicePixelRatioF()));
+    heightInput->setRange(qRound(minimumHeight()*devicePixelRatioF()), qRound(maximumHeight()*devicePixelRatioF()));
+    widthInput->setSuffix(" px"); heightInput->setSuffix(" px");
+    widthInput->setValue(pixels.width()); heightInput->setValue(pixels.height());
+    form->addRow("Width", widthInput); form->addRow("Height", heightInput);
+    auto note = new QLabel("Whole window, including the title bar.\nSize is remembered when the player closes.");
+    note->setObjectName("editorHint"); layout->addWidget(note);
+    auto rounding = new QLabel; rounding->setObjectName("scopeSizeRounding"); rounding->setWordWrap(true); layout->addWidget(rounding);
+    auto requestedSize = [=, this] {
+        return QSize(qRound(widthInput->value()/devicePixelRatioF()), qRound(heightInput->value()/devicePixelRatioF()))
+            .expandedTo(minimumSize()).boundedTo(maximumSize());
+    };
+    auto preview = [=, this] {
+        const auto actual = requestedSize()*devicePixelRatioF();
+        const bool rounded = actual != QSize(widthInput->value(), heightInput->value());
+        rounding->setText(rounded ? QString("At %1% display scaling, the nearest size is %2 \u00d7 %3 px.")
+            .arg(qRound(devicePixelRatioF()*100)).arg(actual.width()).arg(actual.height()) : QString());
+    };
+    connect(widthInput, &QSpinBox::valueChanged, &dialog, preview);
+    connect(heightInput, &QSpinBox::valueChanged, &dialog, preview);
+    auto buttons = new QDialogButtonBox(QDialogButtonBox::Apply | QDialogButtonBox::Cancel); layout->addWidget(buttons);
+    auto apply = buttons->button(QDialogButtonBox::Apply); apply->setDefault(true);
+    connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+    connect(apply, &QPushButton::clicked, &dialog, [&] {
+        if (isMaximized() || isFullScreen()) showNormal();
+        resize(requestedSize());
+        dialog.accept();
+    });
+    preview(); widthInput->setFocus(); widthInput->selectAll();
+    dialog.exec();
+}
 void ScopeWindow::updateEditorGeometry() {
+    const auto pixels = size()*devicePixelRatioF();
+    windowSize_->setText(QString("%1 \u00d7 %2").arg(pixels.width()).arg(pixels.height()));
     titleBar_->setGeometry(14, 6, width() - 28, 30);
     const int inlineWidth = gridControls_->sizeHint().width() + labelControls_->sizeHint().width() + editorActions_->sizeHint().width() + 40;
-    const int lines = width() - 28 >= inlineWidth ? 1 : 2;
+    const int compactWidth = gridControls_->sizeHint().width() + editorActions_->sizeHint().width() + 30;
+    const int lines = width() - 28 >= inlineWidth ? 1 : width() - 28 >= compactWidth ? 2 : 3;
     if (editorRows_ != lines) {
         editorRows_ = lines;
         for (auto widget : {gridControls_, labelControls_, editorActions_}) settings_->removeWidget(widget);
         settings_->setColumnStretch(1, lines == 1 ? 1 : 0);
-        settings_->setColumnStretch(0, lines == 2 ? 1 : 0);
+        settings_->setColumnStretch(0, lines > 1 ? 1 : 0);
         settings_->addWidget(gridControls_, 0, 0, Qt::AlignLeft);
         settings_->addWidget(labelControls_, lines == 1 ? 0 : 1, lines == 1 ? 1 : 0, 1, lines == 1 ? 1 : 2, Qt::AlignLeft);
-        settings_->addWidget(editorActions_, 0, lines == 1 ? 2 : 1, Qt::AlignRight);
+        settings_->addWidget(editorActions_, lines == 3 ? 2 : 0, lines == 1 ? 2 : lines == 2 ? 1 : 0, Qt::AlignRight);
     }
-    editor_->setGeometry(14, 44, width() - 28, lines == 1 ? 42 : 80);
+    editor_->setGeometry(14, 44, width() - 28, 42 + (lines-1)*38);
     const int top = editor_->geometry().bottom() + 13;
     channelPanel_->setGeometry(width() - 214, top, 200, std::max(80, height() - top - 14));
 }

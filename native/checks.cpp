@@ -20,6 +20,7 @@
 #include <QListWidget>
 #include <QTabWidget>
 #include <QLineEdit>
+#include <QLabel>
 #include <QSpinBox>
 #include <QPushButton>
 #include <QToolButton>
@@ -515,7 +516,7 @@ void checkScopeColors(QApplication &app, const QString &directory) {
     scopes.close();
     app.setPalette(originalPalette);
 }
-void checkWindowSettings(QApplication &app, QTextStream &log) {
+void checkWindowSettings(QApplication &app, const QString &directory, QTextStream &log) {
     const auto previousPath = app.property("settingsFileForTests");
     QTemporaryDir isolated; require(isolated.isValid(), "Cannot isolate window settings.");
     app.setProperty("settingsFileForTests", isolated.filePath("windows.ini"));
@@ -528,6 +529,66 @@ void checkWindowSettings(QApplication &app, QTextStream &log) {
             PlayerWindow first; first.player().setVolume(0); first.show(); first.scopeWindow().show();
             first.setGeometry(QRect(available.topLeft()+QPoint(30,60), QSize(420,440)));
             first.scopeWindow().setGeometry(QRect(available.topLeft()+QPoint(80,100), QSize(720,480))); pump(app, 60);
+            auto &scopes = first.scopeWindow();
+            auto sizeButton = scopes.findChild<QPushButton *>("scopeWindowSize");
+            require(sizeButton && !sizeButton->isVisible(), "Window size must be available only in edit mode.");
+            scopes.findChild<QPushButton *>("editLayout")->click(); pump(app, 30);
+            const auto dpr = scopes.devicePixelRatioF();
+            auto editSize = [&](QSize pixels, bool apply) {
+                bool opened = false; QString failure;
+                QTimer::singleShot(20, &scopes, [&] {
+                    auto dialog = scopes.findChild<QDialog *>("scopeWindowSizeDialog");
+                    if (!dialog) { failure = "Window size dialog did not open."; return; }
+                    opened = true;
+                    try {
+                        auto width = dialog->findChild<QSpinBox *>("scopePixelWidth");
+                        auto height = dialog->findChild<QSpinBox *>("scopePixelHeight");
+                        require(width && height && QSize(width->value(), height->value()) == scopes.size()*dpr,
+                                "Size dialog does not show current screen pixels.");
+                        width->setValue(1); height->setValue(1);
+                        require(QSize(width->value(), height->value()) == scopes.minimumSize()*dpr,
+                                "Size input minimum does not account for display scaling.");
+                        width->setValue(pixels.width()); height->setValue(pixels.height());
+                        const QSize logical(qRound(pixels.width()/dpr), qRound(pixels.height()/dpr));
+                        require(dialog->findChild<QLabel *>("scopeSizeRounding")->text().isEmpty() == (logical*dpr == pixels),
+                                "Unrepresentable screen pixels need a rounding explanation.");
+                        dialog->grab().save(QDir(directory).filePath("native-window-size-dialog.png"));
+                        dialog->findChild<QDialogButtonBox *>()->button(apply ? QDialogButtonBox::Apply : QDialogButtonBox::Cancel)->click();
+                    } catch (const std::exception &error) { failure = error.what(); dialog->reject(); }
+                });
+                sizeButton->click(); pump(app, 60);
+                require(opened, "Window size button did not open its dialog.");
+                if (!failure.isEmpty()) throw std::runtime_error(failure.toStdString());
+            };
+            const QSize requested(qRound(720*dpr)+1, qRound(480*dpr)+1);
+            const auto beforeCancel = scopes.geometry();
+            editSize(requested, false);
+            require(scopes.geometry() == beforeCancel, "Cancel changed the window size or position.");
+            scopes.showMaximized(); pump(app, 60);
+            editSize(requested, false);
+            require(scopes.isMaximized(), "Cancel left maximized mode.");
+            editSize(requested, true);
+            require(!scopes.isMaximized(), "Applying a custom size did not leave maximized mode.");
+            const QSize expected(qRound(requested.width()/dpr), qRound(requested.height()/dpr));
+            require(scopes.size() == expected && scopes.grab().size() == expected*dpr,
+                    "Requested screen-pixel size did not reach the rendered window.");
+            const auto actual = expected*dpr;
+            require(sizeButton->text() == QString("%1 \u00d7 %2").arg(actual.width()).arg(actual.height()),
+                    "Toolbar size did not update after applying.");
+            scopes.grab().save(QDir(directory).filePath("native-window-size-editor.png"));
+            scopes.resize(scopes.minimumSize()); pump(app, 30);
+            auto editor = scopes.findChild<QWidget *>("scopeEditor");
+            QVector<QRect> controls;
+            for (auto name : {"scopeWindowSize", "gridRows", "gridColumns", "channelNumbers", "channelNames", "scopeStereo", "keepGrid", "scopeWindowColor", "resetLayout", "applyLayout"}) {
+                auto control = editor->findChild<QWidget *>(name);
+                require(control && control->isVisible(), "A toolbar control disappeared at the minimum window size.");
+                const QRect bounds(control->mapTo(editor, QPoint()), control->size());
+                require(editor->rect().contains(bounds), "Minimum-size editor clips a toolbar control.");
+                for (const auto &other : controls) require(!bounds.intersects(other), "Minimum-size toolbar controls overlap.");
+                controls << bounds;
+            }
+            scopes.grab().save(QDir(directory).filePath("native-window-size-small.png"));
+            scopes.resize(expected); pump(app, 30);
             mainRect = first.geometry(); scopeRect = first.scopeWindow().geometry();
             first.scopeWindow().close(); require(first.isVisible(), "Scope close stopped player while saving layout.");
             first.close();
@@ -581,7 +642,7 @@ void checkWindowSettings(QApplication &app, QTextStream &log) {
             dismiss.start(20); blocked.close();
             require(warned && !blocked.isVisible() && !blocked.player().isRunning(), "Window save failure blocked exit or hid the error.");
         }
-        log << "Window settings: both positions/sizes, hidden scopes, normal/maximized/minimized exit, offscreen recovery, corrupt defaults and save failure PASS\n"; log.flush();
+        log << "Window settings: screen-pixel size dialog, Cancel/Apply/maximize, DPI rounding, narrow toolbar, both positions/sizes, hidden scopes, normal/maximized/minimized exit, offscreen recovery, corrupt defaults and save failure PASS\n"; log.flush();
     } catch (...) { app.setProperty("settingsFileForTests", previousPath); throw; }
     app.setProperty("settingsFileForTests", previousPath);
 }
@@ -645,7 +706,7 @@ int runChecks(QApplication &app, const QStringList &arguments) {
             for (int i = option + 2; i < arguments.size(); ++i) if (!arguments[i].startsWith('-')) paths << arguments[i];
             checkWaves(app, directory, log, paths); return 0;
         }
-        if (arguments.contains("--settings-only")) { checkWindowSettings(app, log); return 0; }
+        if (arguments.contains("--settings-only")) { checkWindowSettings(app, directory, log); return 0; }
         if (arguments.contains("--shutdown-only")) {
             QStringList paths;
             for (const auto &extension : {"nsf", "vgz", "spc"}) paths << QDir(directory).filePath(QString("demo.%1").arg(extension));
@@ -664,7 +725,7 @@ int runChecks(QApplication &app, const QStringList &arguments) {
         checkScopeColors(app, directory);
         log << "Scope themes: light-system popup contrast, 32-tile HEX/picker, unused tiles, reorder/file retention, INI roundtrip, immediate selection, invalid file rollback, Save/Cancel, startup restore/Default/missing/corrupt/unsaved behavior and layout Reset PASS\n"; log.flush();
         if (arguments.contains("--colors-only")) return 0;
-        checkWindowSettings(app, log);
+        checkWindowSettings(app, directory, log);
         QStringList seekPaths;
         for (int i = option + 2; i < arguments.size(); ++i)
             if (!arguments[i].startsWith('-')) seekPaths << arguments[i];

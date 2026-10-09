@@ -51,6 +51,7 @@ public:
     QRectF cardRect(int slot) const;
     QRectF panelRect(int channel) const;
 protected:
+    bool event(QEvent *) override;
     void paintEvent(QPaintEvent *) override;
     void closeEvent(QCloseEvent *) override;
     void showEvent(QShowEvent *) override;
@@ -127,6 +128,7 @@ private:
     ScopeEffects effects_;
     void updateVisibility();
     void updateEditorGeometry();
+    void editWindowSize();
     void layoutChanged();
     void resetChannels(bool resetGrid);
     void resetGrid();
@@ -159,6 +161,7 @@ private:
     void saveTheme();
     TitleBar *titleBar_;
     QPushButton *edit_;
+    QPushButton *windowSize_ = nullptr;
     QWidget *editor_, *channelPanel_;
     QWidget *gridControls_, *labelControls_, *editorActions_;
     QGridLayout *settings_;
