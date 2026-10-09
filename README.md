@@ -72,8 +72,8 @@ Apply finishes editing. Reset restores the grid and visibility, keeping colors.
 Keep grid retains only row/column counts when opening a new file. Layouts are
 session-local. Full mix starts hidden and can be enabled in Cards.
 Theme selection applies immediately; Save theme asks for a name.
-Click the window-size icon in the editor toolbar to reveal inline **Width** and
-**Height** fields in screen pixels. Changes resize the whole window immediately;
+Click the window-size icon next to the background eyedropper to reveal
+**width × height** fields beside it in screen pixels. Changes resize the whole window immediately;
 click the icon again to collapse the fields. The size is saved on exit.
 
 Select a card in the editor's **Cards** list, then change **View** to Waveform,

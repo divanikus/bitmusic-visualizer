@@ -17,8 +17,9 @@ Changing subsongs within a file keeps the layout. Themes remain color presets.
 
 ## Window size
 
-Click the window-size icon (a rectangle with diagonal arrows) in the editor's
-top bar to reveal **Width** and **Height** fields. Typing a valid number or using
+Click the window-size icon (a rectangle with diagonal arrows) next to the
+background eyedropper. **Width × height** fields expand beside it on the same
+row, without a separate size-control row. Typing a valid number or using
 the arrows resizes the window immediately. Click the icon again to collapse the
 fields. There is no dialog or separate Apply step. Incomplete numbers do not
 resize the window while you type. Changing a dimension exits maximized mode.
@@ -26,8 +27,8 @@ resize the window while you type. Changing a dimension exits maximized mode.
 Dimensions are screen pixels for the whole window, including its title bar and
 any visible editor controls. Dragging a window edge also updates the fields.
 
-Display scaling can make some pixel sizes unavailable: a small approximate-size
-readout shows the actual dimensions when rounding is needed. The fields keep
+Display scaling can make some pixel sizes unavailable: **≈** marks rounding;
+hover over it or either field to see the actual dimensions. The fields keep
 your input while you type and show the actual size when you finish editing.
 The existing minimum window size still applies. Size and position are remembered
 on player exit, independently of themes and the card grid. Moving to a display

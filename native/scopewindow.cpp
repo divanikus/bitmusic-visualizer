@@ -139,9 +139,8 @@ ScopeWindow::ScopeWindow() {
     grid->addWidget(new QLabel("Rows")); grid->addWidget(rows_);
     grid->addWidget(new QLabel("Columns")); grid->addWidget(columns_);
     windowSize_ = new WindowSizeButton;
-    grid->addWidget(windowSize_);
-    windowSizeControls_ = new QWidget(editor_); windowSizeControls_->setObjectName("scopeWindowSizeControls");
-    auto dimensions = new QHBoxLayout(windowSizeControls_); dimensions->setContentsMargins(0, 0, 0, 0); dimensions->setSpacing(8);
+    windowSizeControls_ = new QWidget(editorActions_); windowSizeControls_->setObjectName("scopeWindowSizeControls");
+    auto dimensions = new QHBoxLayout(windowSizeControls_); dimensions->setContentsMargins(0, 0, 0, 0); dimensions->setSpacing(4);
     pixelWidth_ = new QSpinBox; pixelWidth_->setObjectName("scopePixelWidth"); pixelWidth_->setAccessibleName("Width");
     pixelHeight_ = new QSpinBox; pixelHeight_->setObjectName("scopePixelHeight"); pixelHeight_->setAccessibleName("Height");
     for (auto input : {pixelWidth_, pixelHeight_}) {
@@ -149,11 +148,9 @@ ScopeWindow::ScopeWindow() {
         connect(input, &QSpinBox::valueChanged, this, [this] { applyWindowSize(); });
         connect(input, &QSpinBox::editingFinished, this, [this] { updateWindowSizeControls(); });
     }
-    dimensions->addWidget(new QLabel("Width")); dimensions->addWidget(pixelWidth_);
-    dimensions->addWidget(new QLabel("Height")); dimensions->addWidget(pixelHeight_);
+    dimensions->addWidget(pixelWidth_); dimensions->addWidget(new QLabel("\u00d7")); dimensions->addWidget(pixelHeight_);
     sizeRounding_ = new QLabel; sizeRounding_->setObjectName("scopeSizeRounding");
-    sizeRounding_->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
-    dimensions->addWidget(sizeRounding_, 1);
+    sizeRounding_->setFixedWidth(12); dimensions->addWidget(sizeRounding_);
     windowSizeControls_->hide();
     connect(windowSize_, &QPushButton::toggled, this, [this](bool expanded) {
         windowSizeControls_->setVisible(expanded); cancelDrag(); updateEditorGeometry(); update();
@@ -164,6 +161,7 @@ ScopeWindow::ScopeWindow() {
     auto actions = new QHBoxLayout(editorActions_); actions->setContentsMargins(0, 0, 0, 0); actions->setSpacing(6);
     auto background = new WindowColorButton; actions->addWidget(background);
     connect(background, &QPushButton::clicked, this, [this] { editWindowBackground(); });
+    actions->addWidget(windowSize_); actions->addWidget(windowSizeControls_);
     auto reset = new QPushButton("Reset"); reset->setObjectName("resetLayout"); reset->setToolTip("Restore the grid, channel order, visibility and labels. Keep the current theme."); actions->addWidget(reset);
     auto apply = new QPushButton("Apply"); apply->setObjectName("applyLayout"); apply->setToolTip("Finish editing this layout"); actions->addWidget(apply);
     apply->setStyleSheet("QPushButton { background: #a2e5d5; color: #133c38; } QPushButton:hover { background: #baf0e3; }");
@@ -484,9 +482,9 @@ void ScopeWindow::updateWindowSizeControls() {
     windowSize_->setToolTip(QString("%1 window size controls (%2)").arg(windowSize_->isChecked() ? "Hide" : "Show", actual));
     const auto hint = QString("Whole window in screen pixels, including the title bar. Changes apply immediately.\n"
         "Actual size: %1 at %2% display scaling. Size is remembered on exit.").arg(actual).arg(qRound(devicePixelRatioF()*100));
-    for (auto widget : {static_cast<QWidget *>(pixelWidth_), static_cast<QWidget *>(pixelHeight_), static_cast<QWidget *>(sizeRounding_)})
-        widget->setToolTip(hint);
-    sizeRounding_->setText(pixels == QSize(pixelWidth_->value(), pixelHeight_->value()) ? QString() : "\u2248 " + actual);
+    for (auto input : {pixelWidth_, pixelHeight_}) input->setToolTip(input->accessibleName() + ": " + hint);
+    sizeRounding_->setToolTip(hint);
+    sizeRounding_->setText(pixels == QSize(pixelWidth_->value(), pixelHeight_->value()) ? QString() : "\u2248");
 }
 void ScopeWindow::updateEditorGeometry() {
     updateWindowSizeControls();
@@ -494,7 +492,6 @@ void ScopeWindow::updateEditorGeometry() {
     const int inlineWidth = gridControls_->sizeHint().width() + labelControls_->sizeHint().width() + editorActions_->sizeHint().width() + 40;
     const int compactWidth = gridControls_->sizeHint().width() + editorActions_->sizeHint().width() + 30;
     const int lines = width() - 28 >= inlineWidth ? 1 : width() - 28 >= compactWidth ? 2 : 3;
-    settings_->removeWidget(windowSizeControls_);
     if (editorRows_ != lines) {
         editorRows_ = lines;
         for (auto widget : {gridControls_, labelControls_, editorActions_}) settings_->removeWidget(widget);
@@ -504,8 +501,7 @@ void ScopeWindow::updateEditorGeometry() {
         settings_->addWidget(labelControls_, lines == 1 ? 0 : 1, lines == 1 ? 1 : 0, 1, lines == 1 ? 1 : 2, Qt::AlignLeft);
         settings_->addWidget(editorActions_, lines == 3 ? 2 : 0, lines == 1 ? 2 : lines == 2 ? 1 : 0, Qt::AlignRight);
     }
-    if (windowSize_->isChecked()) settings_->addWidget(windowSizeControls_, lines, 0, 1, lines == 1 ? 3 : 2);
-    editor_->setGeometry(14, 44, width() - 28, 42 + (lines-1 + int(windowSize_->isChecked()))*38);
+    editor_->setGeometry(14, 44, width() - 28, 42 + (lines-1)*38);
     const int top = editor_->geometry().bottom() + 13;
     channelPanel_->setGeometry(width() - 214, top, 200, std::max(80, height() - top - 14));
 }

@@ -538,6 +538,16 @@ void checkWindowSettings(QApplication &app, const QString &directory, QTextStrea
             auto width = scopes.findChild<QSpinBox *>("scopePixelWidth");
             auto height = scopes.findChild<QSpinBox *>("scopePixelHeight");
             require(sizeButton->text().isEmpty() && width && height && !width->isVisible(), "Size fields should start collapsed behind an icon.");
+            auto background = scopes.findChild<QPushButton *>("scopeWindowColor");
+            require(sizeButton->parentWidget() == background->parentWidget() && sizeButton->x() > background->geometry().right(),
+                    "Window size icon is not next to the background pipette.");
+            scopes.resize(1120, 480); pump(app, 30);
+            const auto compactHeight = scopes.findChild<QWidget *>("scopeEditor")->height();
+            sizeButton->click(); pump(app, 30);
+            require(scopes.findChild<QWidget *>("scopeEditor")->height() == compactHeight,
+                    "Expanding dimensions added a dedicated toolbar row.");
+            scopes.grab().save(QDir(directory).filePath("native-window-size-wide.png"));
+            sizeButton->click(); scopes.resize(720, 480); pump(app, 30);
             const auto beforeExpand = scopes.geometry();
             sizeButton->click(); pump(app, 30);
             require(width->isVisible() && height->isVisible() && !QApplication::activeModalWidget() && scopes.geometry() == beforeExpand,
@@ -587,6 +597,11 @@ void checkWindowSettings(QApplication &app, const QString &directory, QTextStrea
                 controls << bounds;
             }
             scopes.grab().save(QDir(directory).filePath("native-window-size-small.png"));
+            const int sizeY = sizeButton->mapTo(editor, sizeButton->rect().center()).y();
+            require(std::abs(width->mapTo(editor, width->rect().center()).y()-sizeY) <= 2 &&
+                    std::abs(height->mapTo(editor, height->rect().center()).y()-sizeY) <= 2 &&
+                    width->mapTo(editor, QPoint()).x() > sizeButton->mapTo(editor, sizeButton->rect().topRight()).x(),
+                    "Size fields did not expand sideways in the icon's row.");
             scopes.resize(expected); pump(app, 30);
             require(QSize(width->value(), height->value()) == expected*dpr, "External resizing did not update inline dimensions.");
             mainRect = first.geometry(); scopeRect = first.scopeWindow().geometry();
