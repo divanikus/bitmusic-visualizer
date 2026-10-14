@@ -158,6 +158,12 @@ void ScopeWindow::mousePressEvent(QMouseEvent *event) {
     }
     FrameWindow::mousePressEvent(event);
 }
+void ScopeWindow::mouseDoubleClickEvent(QMouseEvent *event) {
+    if (event->button() == Qt::LeftButton && event->modifiers() == Qt::NoModifier && !edit_->isChecked()) {
+        toggleFullscreen(); event->accept(); return;
+    }
+    FrameWindow::mouseDoubleClickEvent(event);
+}
 void ScopeWindow::mouseMoveEvent(QMouseEvent *event) {
     if (presentationFullscreen() && event->position().y() < 48) revealFullscreenExit();
     if (pressedColor_ >= 0) { event->accept(); return; }

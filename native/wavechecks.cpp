@@ -346,6 +346,19 @@ void checkPresentation(QApplication &app, const QString &directory) {
     scope.showNormal(); pump(app); scope.toggleFullscreen(); pump(app);
     scope.findChild<QPushButton *>("exitFullscreen")->click(); pump(app);
     require(!scope.presentationFullscreen(), "Full-screen exit button failed.");
+    auto doubleClick = [&](Qt::MouseButton button = Qt::LeftButton) {
+        const auto point = scope.panelRect(0).center();
+        QMouseEvent click(QEvent::MouseButtonDblClick, point, scope.mapToGlobal(point.toPoint()), button, button, Qt::NoModifier);
+        QApplication::sendEvent(&scope, &click); pump(app);
+    };
+    scope.findChild<QPushButton *>("editLayout")->setChecked(true); pump(app);
+    doubleClick(); require(!scope.presentationFullscreen(), "Editor double-click unexpectedly entered fullscreen.");
+    scope.findChild<QPushButton *>("applyLayout")->click(); pump(app);
+    doubleClick(Qt::RightButton); require(!scope.presentationFullscreen(), "Right double-click entered fullscreen.");
+    const auto beforeDoubleClick = scope.geometry();
+    doubleClick(); require(scope.presentationFullscreen(), "Double-click did not enter fullscreen.");
+    doubleClick(); require(!scope.presentationFullscreen() && scope.geometry() == beforeDoubleClick,
+        "Double-click did not restore window geometry.");
     options(1.6, false);
 }
 void checkLiveOutput(QApplication &app, const QString &path) {

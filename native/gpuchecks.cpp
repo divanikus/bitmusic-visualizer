@@ -177,6 +177,56 @@ void checkRendererSettings(QApplication &app, QTextStream &log, const QDir &outp
       ini.remove("Renderer"); }
     log << "Renderer choice: save/restore, Cancel, deferred activation, CPU-to-GPU selection, invalid fallback and settings coexistence PASS\n";
 }
+void checkPresentationTrail(QApplication &app, const QDir &dir, QTextStream &log) {
+    // Exercise the complete window at a thin stroke/high refresh rate, including
+    // independently advancing Full mix captures and fullscreen transitions.
+    const QMap<QString, QVariant> options = {{"Waveforms/LineWidth", .5}, {"Waveforms/FrameRate", 120},
+        {"Waveforms/Scale", "fixed"}, {"Waveforms/Trigger", "off"}, {"Waveforms/LevelMeters", true}, {"Waveforms/OutputMix", false},
+        {"Effects/TrailEnabled", true}, {"Effects/TrailDurationMs", 400}, {"Effects/TrailBrightness", 35},
+        {"Effects/GlowEnabled", true}, {"Effects/GlowBrightness", 30}};
+    QSettings ini(playerSettingsPath(), playerSettingsFormat()); QMap<QString, QVariant> previous;
+    for (auto it = options.begin(); it != options.end(); ++it) { previous[it.key()] = ini.value(it.key()); ini.setValue(it.key(), it.value()); }
+    ini.sync(); ScopeWindow scopes;
+    scopes.resize(900, 650); scopes.show();
+    PlayerState state; state.valid = state.playing = true; state.generation = 1;
+    state.info.voices = {"Trail check"}; state.info.stereoOutput = true;
+    ScopeFrame frame; frame.generation = 1; frame.mask = 1;
+    frame.channels = frame.left = frame.right = {QVector<float>(ScopeFrames, 16000)};
+    OutputFrame output; output.generation = 1; output.left = output.right = frame.channels[0];
+    scopes.present(state, frame, output); scopes.toggleSourceVisibility(ScopeTheme::FullMix);
+    scopes.findChild<QSpinBox *>("gridRows")->setValue(2);
+    require(scopes.outputEnabled(), "Presentation trail did not enable Full mix capture.");
+    auto gpu = dynamic_cast<ScopeGpu *>(scopes.findChild<QQuickWidget *>("scopeGpu"));
+    require(gpu, "Presentation trail has no GPU canvas.");
+    auto capture = [&] { auto image = gpu->grabFramebuffer(); image.setDevicePixelRatio(scopes.devicePixelRatioF()); return image; };
+    auto advance = [&](float sample, int count) {
+        frame.channels[0].fill(sample); frame.left = frame.right = frame.channels;
+        output.left = output.right = frame.channels[0];
+        for (int i = 0; i < count; ++i) {
+            frame.positionMs += 8; output.positionMs = frame.positionMs; ++output.sequence;
+            scopes.present(state, frame, output); pump(app, 8);
+        }
+    };
+    for (bool full : {false, true, false}) {
+        if (full != scopes.presentationFullscreen()) scopes.toggleFullscreen();
+        advance(16000, 28); advance(-16000, 2);
+        require(gpu->historySize() > 2, "Presentation discarded trail history on each frame.");
+        const auto early = capture();
+        const auto plot = scopes.panelRect(0).adjusted(42, 32, -12, -10);
+        const double y = plot.center().y()-16000*plot.height()*.44/32768;
+        const QRectF oldLine(plot.left()+20, y-4, plot.width()-40, 8);
+        early.save(dir.filePath(full ? "gpu-fullscreen-trail.png" : "gpu-windowed-trail.png"));
+        advance(-16000, 60); const auto late = capture();
+        const int delta = brightness(early, oldLine)-brightness(late, oldLine);
+        log << "Presentation trail " << (full ? "fullscreen" : "windowed") << ": faded green delta=" << delta << '\n'; log.flush();
+        require(delta > 1000, "Thin high-rate trail is missing from the actual framebuffer.");
+    }
+    for (auto it = previous.begin(); it != previous.end(); ++it) {
+        if (it.value().isValid()) ini.setValue(it.key(), it.value()); else ini.remove(it.key());
+    }
+    ini.sync();
+    log << "Presentation trail: 0.5 px, 120 FPS target, Levels/Full mix and window/fullscreen/return PASS\n"; log.flush();
+}
 }
 
 int runGpuChecks(QApplication &app, const QStringList &arguments) {
@@ -284,6 +334,7 @@ int runGpuChecks(QApplication &app, const QStringList &arguments) {
         require(canvas.historySize() == 0 && rendered == canvas.renderedFrames(), "Hidden canvas continues rendering.");
         log << "Actual framebuffer: core/glow, elapsed-time trail, seek/layout reset, pause, bounded history, hidden suspension PASS\n"; log.flush();
 
+        checkPresentationTrail(app, dir, log);
         TimedScopes scopes; scopes.resize(940,650); scopes.show();
         auto integratedGpu = dynamic_cast<ScopeGpu *>(scopes.findChild<QQuickWidget *>("scopeGpu"));
         require(integratedGpu, "Integrated GPU canvas absent: check BITMUSIC_SOFTWARE_SCOPES / QT_QUICK_BACKEND.");

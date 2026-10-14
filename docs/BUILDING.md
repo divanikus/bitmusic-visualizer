@@ -41,6 +41,8 @@ plus rendered line thickness, L/R/mono level meters, settings, and fullscreen
 entry/exit with restored window/editor state. Run with and without
 `--software-scopes`. `--gpu-checks test-output` also verifies thick GPU ribbons
 and instantaneous meter fills without glow or stale trails.
+It also checks visible trail decay with a 0.5 px stroke, a 120 FPS target,
+Levels and Full mix enabled, before/during/after fullscreen.
 GPU and window-settings checks isolate their settings under the output directory
 so restricted system temporary folders do not trigger modal write warnings.
 

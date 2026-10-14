@@ -144,6 +144,7 @@ to cards: L/R for stereo sources, M for mono. **Waves… → Line width** change
 waveform and spectrum line thickness. Both choices are remembered independently
 of themes and layout presets.
 The full-screen icon beside the pencil, or **F11**, shows only the card grid.
+Double-click the visualization outside edit mode to enter or leave full screen.
 Press **Esc/F11** to return; moving to the top edge reveals an exit button.
 The previous window size, position and maximized state are preserved.
 Click the window-size icon next to the background eyedropper to reveal
