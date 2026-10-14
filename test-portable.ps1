@@ -12,7 +12,8 @@ $playerRoot = (Get-ChildItem -LiteralPath $unpackRoot -Directory | Select-Object
 $executable = Join-Path $playerRoot 'bitmusic_visualizer.exe'
 if (!(Test-Path -LiteralPath $executable)) { throw 'Archive has no player executable.' }
 foreach ($required in @('COPYING','licenses/GPL-3.0.txt','licenses/libsidplayfp-NOTICES.txt',
-    'third-party-sources/libsidplayfp-2.16.1.tar.gz','third-party-sources/bitmusic-visualizer-source.tar.xz')) {
+    'third-party-sources/libsidplayfp-2.16.1.tar.gz','third-party-sources/bitmusic-visualizer-source.tar.xz',
+    'licenses/ymfm-BSD-3-Clause.txt','third-party-sources/ymfm-81aec25ccbb98f4873a255f7551ac4dadac59b4a.tar.gz')) {
     if (!(Test-Path -LiteralPath (Join-Path $playerRoot $required))) { throw "Missing corresponding source/license: $required" }
 }
 foreach ($line in Get-Content -LiteralPath "$playerRoot/SHA256SUMS.txt") {

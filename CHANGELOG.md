@@ -17,6 +17,8 @@ not published GitHub releases. Unreleased lists changes made after the latest ta
 - Optional C64 ROMs in roms/c64; a missing file is reported only when needed.
 - Atari POKEY playback in VGM/VGZ, with four mono channel cards and mute/Solo.
 - Clear messages for unsupported sound chips declared in VGM/VGZ files.
+- VGM/VGZ playback for YM2203, YM2151 and OPL/OPL2/OPL3, with one mix card per
+  chip, stereo where available, and chip mute/Solo.
 
 ### Distribution
 

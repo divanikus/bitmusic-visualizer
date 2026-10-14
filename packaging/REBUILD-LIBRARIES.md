@@ -7,7 +7,7 @@ The exact upstream source archives are included here; URLs and SHA256 values are
 ## Application and SID engine
 
 The combined player with libsidplayfp is GPLv3 (COPYING). Extract
-`bitmusic-visualizer-source.tar.xz` and put the supplied libgme, libsidplayfp and
+`bitmusic-visualizer-source.tar.xz` and put the supplied libgme, libsidplayfp, ymfm and
 zlib archives into its `.runtime/sources/` directory. Follow `docs/BUILDING.md`
 inside it with the Qt 6.11.2 SDK. CMake checks hashes, reapplies the included
 GME/SID patches and builds the application. `SOURCE-SHA256SUMS.txt` records every
@@ -21,6 +21,11 @@ application. The exact complete upstream archive is
 driver arrays. The CMake build does not need xa unless those drivers are changed;
 upstream's Makefile.am documents regeneration using xa. Current local changes
 only affect C++ capture/mute/dither handling, not the drivers.
+
+The BSD-3-Clause ymfm cores are also statically linked. Their complete pinned
+`ymfm-81aec25ccbb98f4873a255f7551ac4dadac59b4a.tar.gz` archive is included;
+`cmake/Ymfm.cmake` selects the unmodified source files. Rebuild the application
+to replace them. No libvgm dependency is needed.
 
 ## Game Music Emu
 

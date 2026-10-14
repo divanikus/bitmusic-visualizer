@@ -1,5 +1,6 @@
 #include "vgm.h"
 #include <QtEndian>
+#include <algorithm>
 #include <stdexcept>
 
 VgmHeader inspectVgm(const QByteArray &data) {
@@ -33,13 +34,57 @@ VgmHeader inspectVgm(const QByteArray &data) {
     };
     for (const auto &chip : chips) {
         if (h.version < chip.version || chip.offset+4 > h.headerEnd || !word(chip.offset)) continue;
-        if (chip.offset == 0xb0) h.pokeyClock = word(chip.offset);
+        const int id = chip.offset == 0x30 ? 3 : chip.offset == 0x44 ? 6 :
+            chip.offset == 0x50 ? 9 : chip.offset == 0x54 ? 10 : chip.offset == 0x5c ? 12 : -1;
+        if (id >= 0) {
+            const auto raw = word(chip.offset), clock = raw & 0x3fffffffu;
+            const bool dual = raw & 0x40000000u, variant = raw & 0x80000000u;
+            if (clock < 100000 || clock > 20000000 || (variant && !(id == 9 && dual)))
+                h.unsupported << QString::fromLatin1(chip.name) + " clock/variant";
+            for (int n = 0; n < (dual ? 2 : 1); ++n)
+                h.yamaha.push_back({id, n, clock, QString::fromLatin1(chip.name), id == 3 || id == 12 || variant,
+                                   variant ? (n ? 1 : -1) : 0});
+        } else if (chip.offset == 0xb0) h.pokeyClock = word(chip.offset);
         else if (chip.offset == 0x0c || chip.offset == 0x10 || chip.offset == 0x2c) h.sega = true;
         else h.unsupported << QString::fromLatin1(chip.name);
     }
     if (h.pokeyClock & 0xc0000000u) h.unsupported << "dual/variant POKEY";
     if (h.pokeyClock && h.sega) h.unsupported << "POKEY combined with other chips";
+    if (!h.yamaha.isEmpty() && (h.sega || h.pokeyClock)) h.unsupported << "Yamaha combined with Sega/POKEY chips";
     if (word(0x10) && word(0x2c) && h.version >= 0x110) h.unsupported << "YM2413 + YM2612 together";
+    // Extended clocks and volumes are relative to their own offset fields.
+    if (!h.yamaha.isEmpty() && h.headerEnd < h.dataOffset) {
+        const auto at = h.headerEnd;
+        auto valid = [&](bool ok) { if (!ok) throw std::runtime_error("Invalid VGM chip clock/volume header."); };
+        valid(at + 4 <= h.dataOffset);
+        const auto size = word(int(at));
+        valid(size >= 4 && size <= quint64(h.dataOffset-at));
+        for (int kind = 0; kind < 2; ++kind) {
+            const int field = 4 + 4*kind;
+            if (size < quint32(field+4) || !word(int(at+field))) continue;
+            const quint64 table = quint64(at+field)+word(int(at+field));
+            valid(table >= quint64(at)+size && table < quint64(h.dataOffset));
+            const int count = quint8(data[qsizetype(table)]), stride = kind ? 4 : 5;
+            valid(table+1+count*stride <= quint64(h.dataOffset));
+            for (int i = 0; i < count; ++i) {
+                const auto p = qsizetype(table+1+i*stride);
+                const int id = quint8(data[p]);
+                const int instance = kind ? quint8(data[p+1]) & 1 : 1;
+                auto found = std::find_if(h.yamaha.begin(), h.yamaha.end(), [&](const auto &c) {
+                    return c.id == (id & 0x7f) && c.instance == instance;
+                });
+                valid(found != h.yamaha.end());
+                if (!kind) {
+                    found->clock = word(int(p+1)); valid(found->clock >= 100000 && found->clock <= 20000000);
+                } else {
+                    valid(!(quint8(data[p+1]) & ~1) && (!(id & 0x80) || found->id == 6));
+                    const auto volume = qFromLittleEndian<quint16>(data.constData()+p+2);
+                    auto &gain = (id & 0x80) ? found->ssgGain : found->gain;
+                    gain = (volume & 0x8000) ? gain * (volume & 0x7fff) / 256.0 : volume / 256.0;
+                }
+            }
+        }
+    }
     return h;
 }
 void requireSupportedVgm(const VgmHeader &h) {

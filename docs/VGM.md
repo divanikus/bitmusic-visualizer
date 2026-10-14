@@ -16,7 +16,49 @@ seeks are supported. Independent audio and scope workers each use one decoder;
 adding four cards does not run four emulators. Backward seek resets the complete
 chip/buffer state and replays commands. Source files are never changed.
 
-## Limits
+## Yamaha chip mixes
+
+The separate ymfm backend accepts YM2203, YM2151, YM3526 (OPL), YM3812 (OPL2)
+and YMF262 (OPL3). Each complete chip is one source with a `mix` label. These
+types may be combined, with up to two instances of each. Existing Sega files
+retain their detailed GME voice cards. Mixed new-Yamaha/Sega/POKEY streams are
+explicitly rejected rather than partially played.
+
+YM2203 combines FM and its three SSG outputs into mono. OPL/OPL2 are mono;
+YM2151 uses native L/R. OPL3's A+C outputs map to left and B+D to right.
+The dual-OPL2 header flag hard-pans chip 1 left and chip 2 right. Ordinary dual
+mono chips remain mono. Chip identity includes type/instance/pan convention,
+with stable source keys for presets. Keyboard uses estimated pitch, not notes
+read from registers; a chip mix may contain many simultaneous pitches.
+
+Register writes use VGM's 44.1 kHz timeline. Native synthesis uses exact clock
+dividers and scheduled timer callbacks, including CSM. A causal 64-tap,
+128-phase windowed-sinc filter converts native chip outputs to 44.1 kHz.
+Its short rate-dependent delay is identical in audible PCM and captured samples.
+YM2203 uses ymfm's minimum-output-rate mode (clock/24), with the core's internal
+FM/SSG rate conversion. This is not a claim of cycle-perfect hardware output.
+
+All chips keep running when muted; capture precedes chip mutes. Fixed mix
+headroom and file-specified relative/absolute volumes are applied consistently,
+including YM2203's paired SSG volume and alternate clocks for second chips.
+Master clipping happens after summing enabled chip cards. The gain does not
+change when Solo/mutes change. Full mix retains the normal final-output stage.
+
+GD3 metadata, compressed input, repeat, rewind/replay and cancellable seeks are
+supported. At a finite command-stream end output becomes silent. Unsupported
+commands, undeclared chip targets, mismatched duration and malformed extended
+headers are errors; no source file is rewritten. This subset needs no ROMs and
+accepts no sample data blocks/stream commands. YM2608/YM2610, sample-based chips,
+MDX and other non-VGM containers remain separate work.
+
+Authored tests cover the five chip types, dual and mixed clocks, native stereo,
+dual-OPL2 panning, FM/SSG and timer-driven CSM, expected SSG pitch, exact
+PCM/chip-mix alignment, mute preservation, chunking/rewind, one-minute looping
+history, concurrency, extra clocks/volumes, malformed input and live transport.
+These are adapter checks; real music and hardware-fidelity comparisons are not
+part of the redistributable fixtures.
+
+## POKEY and common limits
 
 - One POKEY, mono. Dual/variant POKEY and POKEY combined with other chips are
   rejected explicitly, as are commands outside the POKEY/wait/end subset.
@@ -27,7 +69,7 @@ chip/buffer state and replays commands. Source files are never changed.
   suppression of pure tones above its 12 kHz cutoff. Special SKCTL modes,
   including serial/two-tone operation and SKCTL reset, are rejected. Standard
   SKCTL value 3 and non-audio register writes are accepted.
-- Unsupported declared chips, such as YM2203, WonderSwan and NES APU inside VGM,
+- Unsupported declared chips, such as YM2608, WonderSwan and NES APU inside VGM,
   are reported before playback. NSF support does not imply NES VGM support.
   Partial playback that silently drops a declared unsupported chip is rejected.
 - Header inspection respects file version, command-data start and the extra

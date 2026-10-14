@@ -129,6 +129,7 @@ GmeTrack::GmeTrack(const QString &path, int song, bool readPlaylist, bool captur
     if (data.startsWith("Vgm ")) {
         const auto header = inspectVgm(data); requireSupportedVgm(header);
         if (header.pokeyClock) throw std::runtime_error("POKEY VGM requires the POKEY decoder.");
+        if (!header.yamaha.isEmpty()) throw std::runtime_error("This VGM requires the Yamaha decoder.");
     }
     const bool psgNotes = data.startsWith("Vgm ") && data.size() >= 0x40 &&
         !((qFromLittleEndian<quint32>(data.constData()+12) | qFromLittleEndian<quint32>(data.constData()+16) |

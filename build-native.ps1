@@ -19,6 +19,7 @@ if ($Deploy) {
     New-Item -ItemType Directory -Force -Path $licenseRoot | Out-Null
     Copy-Item -LiteralPath "$buildRoot/_deps/gme-src/license.txt" -Destination "$licenseRoot/libgme-LGPL-2.1.txt"
     Copy-Item -LiteralPath "$buildRoot/_deps/zlib-src/LICENSE" -Destination "$licenseRoot/zlib.txt"
+    Copy-Item -LiteralPath "$PSScriptRoot/LICENSES/ymfm-BSD-3-Clause.txt" -Destination $licenseRoot
     Copy-Item -LiteralPath "$PSScriptRoot/THIRD-PARTY.md" -Destination "$licenseRoot/THIRD-PARTY.md"
 }
 Write-Output "Built: $buildRoot/bitmusic_visualizer.exe"

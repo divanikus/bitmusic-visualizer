@@ -6,7 +6,7 @@ with the final audio mix.
 
 ![Bit Music Visualizer playing a Sega Genesis track with stereo channel oscilloscopes and the full mix.](docs/images/player-and-oscilloscopes.png)
 
-Built with C++17, Qt 6, Game Music Emu and libsidplayfp. Music is not included.
+Built with C++17, Qt 6, Game Music Emu, libsidplayfp and ymfm. Music is not included.
 
 See the [changelog](CHANGELOG.md) for version history.
 
@@ -43,6 +43,7 @@ See the [changelog](CHANGELOG.md) for version history.
 | ZX Spectrum | AY (ZXAYEMUL) | AY A/B/C and beeper; mono output |
 | Commodore 64 | SID (PSID / RSID, up to three chips) | Three pre-filter voices per chip; filter and volume-register samples in Full mix |
 | Atari 400/800 / 5200 | VGM, VGZ with one POKEY | Four mono hardware voices, mute/Solo and Full mix |
+| Yamaha FM systems | VGM, VGZ with YM2203, YM2151, YM3526, YM3812 or YMF262 | One complete chip-mix card per chip; supported chips can be combined or doubled |
 
 VGM is a container: accepting it does **not** mean every chip is supported. PT3,
 VTX, YM, Amiga/tracker modules and MIDI are not supported yet. There are no
@@ -51,6 +52,12 @@ stopped. Cold seeks can require emulation from an earlier point. Voice traces
 are not guaranteed to be exact separately audible stems after shared effects.
 
 Unsupported declared VGM chips are reported by name instead of silently skipped.
+New Yamaha cards are labeled **mix**: they contain the whole chip, including the
+SSG section of YM2203. Mute/Solo controls the whole chip. YM2151 and YMF262 support
+stereo; YM2203 and ordinary OPL/OPL2 are mono. Mixing these new chips with the
+existing Sega/POKEY paths is not supported yet. YM2608/YM2610 and other sample-based
+chips remain unsupported. This does not add MDX or other non-VGM formats.
+
 POKEY uses GME's SAP sound core: ordinary tones, polynomial noise, volume-only
 audio, joined dividers and high-pass effects. One POKEY is supported; dual POKEY,
 mixed POKEY/other chips and special SKCTL/serial modes are rejected. SAP files are

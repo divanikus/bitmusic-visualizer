@@ -31,6 +31,16 @@ SoundConfiguration soundConfiguration(const QByteArray &data, const QStringList 
                 {32,3,"s5b","5B"}, {4,1,"fds","FDS"}, {8,3,"mmc5","MMC5"}, {2,6,"vrc7","VRC7"}})
             if (flags >= 0 && (flags & e.bit)) { add(QString("nes.")+e.key, e.count); c.name += QString(" + ")+e.name; }
         if (flags < 0 || (flags & ~63)) c.sources.clear();
+    } else if (data.startsWith("Vgm ") && !inspectVgm(data).yamaha.isEmpty()) {
+        const auto chips = inspectVgm(data).yamaha;
+        QStringList names;
+        c.family = "yamaha-vgm";
+        for (const auto &chip : chips) {
+            names << chip.name;
+            c.sources << chip.name.toLower() + ".mix:" + QString::number(chip.instance);
+            hardware += QString("%1:%2:%3;").arg(chip.id).arg(chip.instance).arg(chip.pan);
+        }
+        c.name = names.join(" + ");
     } else if (data.startsWith("Vgm ") && inspectVgm(data).pokeyClock) {
         c.family = "pokey"; c.name = "POKEY"; add("pokey.voice", 4);
     } else if (data.startsWith("Vgm ")) {

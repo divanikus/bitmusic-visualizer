@@ -21,7 +21,8 @@ def bundle(destination):
     required = {'CMakeLists.txt', 'native/sidtrack.cpp', 'native/sid-taps/patches.json',
                 'cmake/Sid.cmake', 'cmake/PatchSid.cmake', 'COPYING', 'LICENSE',
                 'native/pokeytrack.cpp', 'native/vgm.cpp', 'native/gme-taps/pokey.cpp',
-                'native/gme-taps/pokey.h', 'cmake/PatchGme.cmake'}
+                'native/gme-taps/pokey.h', 'cmake/PatchGme.cmake',
+                'native/yamahatrack.cpp', 'cmake/Ymfm.cmake', 'LICENSES/ymfm-BSD-3-Clause.txt'}
     if not required.issubset(paths):
         raise RuntimeError('Application source bundle is incomplete.')
     forbidden = {'.sid', '.nsf', '.nsfe', '.vgm', '.vgz', '.spc', '.gbs', '.ay',

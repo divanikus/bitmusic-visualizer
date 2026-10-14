@@ -1,5 +1,6 @@
 #include "sidtrack.h"
 #include "pokeytrack.h"
+#include "yamahatrack.h"
 #include "vgm.h"
 #include "sid-taps/taps.h"
 #include "romfiles.h"
@@ -167,6 +168,7 @@ std::unique_ptr<MusicTrack> openMusicTrack(const QString &path, int song, bool p
     auto data = readMusicFile(path);
     if (data.startsWith("Vgm ")) {
         const auto header = inspectVgm(data); requireSupportedVgm(header);
+        if (!header.yamaha.isEmpty()) return std::make_unique<YamahaTrack>(path, std::move(data), song, playlist, capture);
         if (header.pokeyClock) return std::make_unique<PokeyTrack>(path, std::move(data), song, playlist, capture);
     }
     return std::make_unique<GmeTrack>(path, song, playlist, capture, std::move(data));

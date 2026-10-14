@@ -41,6 +41,8 @@ void checkAy(QApplication &app, const QString &directory, QTextStream &log);
 void checkSid(QApplication &app, const QString &directory, QTextStream &log, bool decoderOnly = false);
 void checkSidFiles(QApplication &app, const QStringList &paths, QTextStream &log);
 void checkPokey(QApplication &app, const QString &directory, QTextStream &log, bool decoderOnly);
+void checkYamaha(QApplication &app, const QString &directory, QTextStream &log, bool decoderOnly);
+void checkYamahaFiles(QApplication &app, const QStringList &paths, QTextStream &log, bool decoderOnly);
 void checkPokeyFiles(QApplication &app, const QStringList &paths, QTextStream &log, bool decoderOnly);
 void checkWaves(QApplication &app, const QString &directory, QTextStream &log, const QStringList &musicPaths = {});
 void checkViews(QApplication &app, const QString &directory, QTextStream &log);
@@ -740,6 +742,14 @@ int runChecks(QApplication &app, const QStringList &arguments) {
         }
         if (arguments.contains("--gbs-only")) { checkGbs(app, directory, log); return 0; }
         if (arguments.contains("--ay-only")) { checkAy(app, directory, log); return 0; }
+        if (arguments.contains("--yamaha-only")) {
+            const bool decoderOnly = arguments.contains("--decoder-only");
+            checkYamaha(app, directory, log, decoderOnly);
+            QStringList paths;
+            for (int i = option+2; i < arguments.size(); ++i) if (!arguments[i].startsWith('-')) paths << arguments[i];
+            checkYamahaFiles(app, paths, log, decoderOnly);
+            return 0;
+        }
         if (arguments.contains("--pokey-only")) {
             const bool decoderOnly = arguments.contains("--decoder-only");
             checkPokey(app, directory, log, decoderOnly);
@@ -775,6 +785,7 @@ int runChecks(QApplication &app, const QStringList &arguments) {
         checkGbs(app, directory, log);
         checkAy(app, directory, log);
         checkPokey(app, directory, log, false);
+        checkYamaha(app, directory, log, false);
         checkSid(app, directory, log);
         checkWaves(app, directory, log);
         checkFrameRates(app, directory, log);
