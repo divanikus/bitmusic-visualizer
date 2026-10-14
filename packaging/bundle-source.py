@@ -28,11 +28,13 @@ def bundle(destination):
                 'native/ymfm-voices/voices.h', 'native/voicemask.h',
                 'native/yamahaallvoicechecks.cpp',
                 'native/yamahavoicechecks.cpp', 'LICENSES/ymfm-voices-BSD-3-Clause.txt',
-                'packaging/YAMAHA-ROMS.txt', 'cmake/Ymfm.cmake', 'LICENSES/ymfm-BSD-3-Clause.txt'}
+                'packaging/YAMAHA-ROMS.txt', 'cmake/Ymfm.cmake', 'LICENSES/ymfm-BSD-3-Clause.txt',
+                'native/miditrack.cpp', 'native/midisequence.cpp', 'native/midichecks.cpp',
+                'cmake/FluidSynth.cmake', 'packaging/SOUNDFONTS.txt', 'LICENSES/FluidSynth-LGPL-2.1.txt'}
     if not required.issubset(paths):
         raise RuntimeError('Application source bundle is incomplete.')
     forbidden = {'.sid', '.nsf', '.nsfe', '.vgm', '.vgz', '.spc', '.gbs', '.ay',
-                 '.mdx', '.pdx', '.mid', '.rom', '.wav', '.exe', '.dll', '.pdb'}
+                 '.mdx', '.pdx', '.mid', '.midi', '.syx', '.sf2', '.sf3', '.rom', '.wav', '.exe', '.dll', '.pdb'}
     sources = destination / 'third-party-sources'
     sources.mkdir(parents=True, exist_ok=True)
     target = sources / 'bitmusic-visualizer-source.tar.xz'

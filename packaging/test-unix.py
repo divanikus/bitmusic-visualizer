@@ -35,7 +35,7 @@ def main():
         subprocess.run([str(image.resolve()), '--appimage-extract'], cwd=test,
                        stdout=subprocess.DEVNULL, check=True, timeout=120)
         stage = test / 'squashfs-root'
-    forbidden = {'.nsf', '.nsfe', '.vgm', '.vgz', '.spc', '.ay', '.gbs', '.sid', '.wav', '.pdb', '.obj', '.rom', '.sf2', '.sf3'}
+    forbidden = {'.nsf', '.nsfe', '.vgm', '.vgz', '.spc', '.ay', '.gbs', '.sid', '.wav', '.pdb', '.obj', '.rom', '.sf2', '.sf3', '.mid', '.midi', '.syx'}
     for path in stage.rglob('*'):
         if path.is_symlink() and not path.resolve().is_relative_to(stage.resolve()):
             raise RuntimeError(f'Escaping bundle symlink: {path}')
@@ -131,6 +131,7 @@ def main():
         if dependency_errors:
             raise RuntimeError('\n'.join(dependency_errors))
     subprocess.run([str(executable), '--tap-checks', str(fixtures), '--decoder-only'], env=env, check=True, timeout=120)
+    subprocess.run([str(executable), '--midi-checks', str(fixtures), '--decoder-only'], env=env, check=True, timeout=120)
     if platform.system() == 'Linux':
         subprocess.run([str(image.resolve()), '--appimage-extract-and-run', '--tap-checks',
                         str(fixtures.resolve()), '--decoder-only'], env=env, check=True, timeout=180)

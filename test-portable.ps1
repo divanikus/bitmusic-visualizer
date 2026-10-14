@@ -25,7 +25,7 @@ foreach ($line in Get-Content -LiteralPath "$playerRoot/SHA256SUMS.txt") {
     if (!$filePath.StartsWith($playerRoot + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase)) { throw 'Manifest path escapes package.' }
     if ((Get-FileHash -LiteralPath $filePath -Algorithm SHA256).Hash -ne $expectedHash) { throw "Package checksum mismatch: $filePath" }
 }
-if (Get-ChildItem -LiteralPath $playerRoot -Recurse -File | Where-Object { $_.Extension -in '.nsf','.nsfe','.vgm','.vgz','.spc','.sid','.gbs','.ay','.mdx','.obj','.pdb','.rom','.sf2','.sf3' }) {
+if (Get-ChildItem -LiteralPath $playerRoot -Recurse -File | Where-Object { $_.Extension -in '.nsf','.nsfe','.vgm','.vgz','.spc','.sid','.gbs','.ay','.mdx','.obj','.pdb','.rom','.sf2','.sf3','.mid','.midi','.syx' }) {
     throw 'The runtime package includes music or development output.'
 }
 if (Test-Path -LiteralPath (Join-Path $playerRoot 'BitMusicVisualizer.ini')) {
@@ -72,6 +72,11 @@ try {
     $null = $process.Handle
     if (!$process.WaitForExit(60000)) { throw 'Portable tap checks timed out.' }
     if ($process.ExitCode -ne 0) { throw "Portable tap checks failed: $fixtureRoot/tap-checks.txt (exit $($process.ExitCode))" }
+    $process = Start-Process -FilePath $executable -WorkingDirectory $playerRoot -ArgumentList @('--midi-checks', ('"' + $fixtureRoot + '"')) `
+        -PassThru -WindowStyle Hidden -RedirectStandardOutput "$checkRoot/midi-stdout.txt" -RedirectStandardError "$checkRoot/midi-stderr.txt"
+    $null = $process.Handle
+    if (!$process.WaitForExit(60000)) { throw 'Portable MIDI checks timed out.' }
+    if ($process.ExitCode -ne 0) { throw "Portable MIDI checks failed (exit $($process.ExitCode))" }
     $process = Start-Process -FilePath $executable -WorkingDirectory $playerRoot -ArgumentList @('--gpu-checks', ('"' + $fixtureRoot + '"')) `
         -PassThru -WindowStyle Hidden -RedirectStandardOutput "$checkRoot/gpu-stdout.txt" -RedirectStandardError "$checkRoot/gpu-stderr.txt"
     $null = $process.Handle

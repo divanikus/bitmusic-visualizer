@@ -8,6 +8,13 @@ No installer, administrator rights, Qt SDK or Python installation is needed.
 Keep the EXE, DLLs, platforms folder and qt.conf together. Do not run directly
 from inside the ZIP. Music files are not included or modified by the player.
 
+General MIDI (.mid/.midi, formats 0/1) needs your SF2 bank; see SOUNDFONTS.txt
+or soundfonts/README.txt. The saved SoundFont selector appears on MIDI load.
+Sixteen cards represent MIDI channels, including channel 10 percussion. MIDI
+tracks play together. Full mix includes enabled channels and their effects.
+The duration includes two seconds for release/effects after the sequence end.
+MT-32 and full GS/XG hardware emulation are not part of this increment.
+
 Supported formats: NSF, NSFE, VGM, VGZ, SPC, Game Boy GBS and Spectrum AY (ZXAYEMUL).
 The platform and sound configuration appear below the track title.
 Hover over the title to see the full title and filename.

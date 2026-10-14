@@ -6,7 +6,7 @@ with the final audio mix.
 
 ![Bit Music Visualizer playing a Sega Genesis track with stereo channel oscilloscopes and the full mix.](docs/images/player-and-oscilloscopes.png)
 
-Built with C++17, Qt 6, Game Music Emu, libsidplayfp and ymfm. Music is not included.
+Built with C++17, Qt 6, Game Music Emu, libsidplayfp, ymfm and FluidSynth. Music is not included.
 
 See the [changelog](CHANGELOG.md) for version history.
 
@@ -23,7 +23,8 @@ See the [changelog](CHANGELOG.md) for version history.
   between related configurations, such as NES and NES + VRC6.
 - Waveform, frequency spectrum and keyboard cards; add multiple views of a source.
   Keyboard can highlight several notes at once. NES pulse/triangle, Sega PSG,
-  Game Boy Square/Wave and AY A/B/C use chip pitches; other voices and Full mix
+  Game Boy Square/Wave and AY A/B/C use chip pitches; General MIDI uses note data.
+  Other voices and Full mix
   use experimental single-pitch estimates.
 - Saved 30 / 60 / 120 FPS target, selectable in the scope editor's Waves dialog.
 - Per-card colors, HEX input, named INI themes and a configurable window background.
@@ -44,12 +45,19 @@ See the [changelog](CHANGELOG.md) for version history.
 | Commodore 64 | SID (PSID / RSID, up to three chips) | Three pre-filter voices per chip; filter and volume-register samples in Full mix |
 | Atari 400/800 / 5200 | VGM, VGZ with one POKEY | Four mono hardware voices, mute/Solo and Full mix |
 | Yamaha FM/sample systems | VGM, VGZ with YM2203, YM2151, YM2608, YM2610/2610B, YM3526, YM3812, Y8950 or YMF262 | Individual FM, PSG and sample voices, with mute/Solo. Supported chips can be combined or doubled |
+| General MIDI | MID, MIDI (SMF 0/1) + your SF2 SoundFont | Sixteen stereo channel cards, MIDI notes and mute/Solo; effects in Full mix |
 
 VGM is a container: accepting it does **not** mean every chip is supported. PT3,
-VTX, YM, Amiga/tracker modules and MIDI are not supported yet. There are no
+VTX, YM, Amiga/tracker modules and MT-32 are not supported yet. There are no
 invented durations or titles: files without duration data keep playing until
 stopped. Cold seeks can require emulation from an earlier point. Voice traces
 are not guaranteed to be exact separately audible stems after shared effects.
+
+For General MIDI, put an SF2 bank in the [SoundFonts folder](packaging/SOUNDFONTS.txt).
+Opening a MIDI shows a compact bank selector in the main player; the choice is
+saved. MIDI file tracks play together as one song, with cards per MIDI channel.
+The duration includes a two-second release/effects tail. See [MIDI details and
+limits](docs/MIDI.md). No SoundFont is bundled or downloaded.
 
 Unsupported declared VGM chips are reported by name instead of silently skipped.
 Yamaha cards follow hardware voices: FM channels, PSG A/B/C, rhythm or ADPCM-A

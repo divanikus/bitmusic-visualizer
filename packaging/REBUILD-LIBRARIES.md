@@ -96,6 +96,12 @@ Use Qt's platform build prerequisites and the package's Qt version. On Linux,
 `packaging/package-unix.py` uses Qt's CMake deployment API; on macOS it uses
 `macdeployqt`. Both package scripts accept `--qt-root` for a replacement SDK.
 Zlib can be replaced by rebuilding the application against the changed source.
+FluidSynth and GCEM are also rebuilt with the complete application. Their archives
+are listed in sources.json; place them in .runtime/sources/ in the extracted
+application source tree for an offline build. For modified sources, override
+FETCHCONTENT_SOURCE_DIR_FLUIDSYNTH / FETCHCONTENT_SOURCE_DIR_GCEM at CMake
+configuration. The original CMake adapter is cmake/FluidSynth.cmake. No separate
+GLib installation is required. Keep the license notices with modified builds.
 
 After changing libraries in a macOS bundle, renew its local ad-hoc signature:
 

@@ -17,6 +17,10 @@ BitMusicVisualizer.ini
 themes/
 presets/
 roms/
+soundfonts/
+*.mid
+*.midi
+*.syx
 *.rom
 *.sf2
 *.sf3

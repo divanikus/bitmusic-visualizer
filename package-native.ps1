@@ -101,6 +101,8 @@ try {
     Copy-Item -LiteralPath "$PSScriptRoot/packaging/ROMS.txt" -Destination "$stageRoot/roms/c64/README.txt"
     New-Item -ItemType Directory -Force -Path "$stageRoot/roms/ymfm" | Out-Null
     Copy-Item -LiteralPath "$PSScriptRoot/packaging/YAMAHA-ROMS.txt" -Destination "$stageRoot/roms/ymfm/README.txt"
+    New-Item -ItemType Directory -Force -Path "$stageRoot/soundfonts" | Out-Null
+    Copy-Item -LiteralPath "$PSScriptRoot/packaging/SOUNDFONTS.txt" -Destination "$stageRoot/soundfonts/README.txt"
     Copy-Item -LiteralPath "$PSScriptRoot/THIRD-PARTY.md" -Destination $licenseRoot
 
     # Fail packaging if a binary imports a DLL that is neither shipped nor a Windows component.
@@ -122,7 +124,7 @@ try {
     $revision = & git -c "safe.directory=$($PSScriptRoot.Replace('\','/'))" -C $PSScriptRoot rev-parse HEAD
     $changes = & git -c "safe.directory=$($PSScriptRoot.Replace('\','/'))" -C $PSScriptRoot status --porcelain --untracked-files=no
     @("Version: $version", "Platform: Windows x64", "Source revision: $revision", "Tracked working tree changed: $([bool]$changes)",
-      "Qt: 6.11.2 (DLLs)", 'libgme: 0.6.5 + Bit Music taps/YM2413, Nuked OPN2 (DLL)', 'libsidplayfp: 2.16.1 + Bit Music taps (static, combined GPLv3)', 'ymfm: 81aec25 (static, BSD-3-Clause)', 'zlib: 1.3.2 (static)',
+      "Qt: 6.11.2 (DLLs)", 'libgme: 0.6.5 + Bit Music taps/YM2413, Nuked OPN2 (DLL)', 'libsidplayfp: 2.16.1 + Bit Music taps (static, combined GPLv3)', 'ymfm: 81aec25 (static, BSD-3-Clause)', 'FluidSynth: 2.5.4 (static, LGPL-2.1-or-later), GCEM: 012ae73 (Apache-2.0)', 'zlib: 1.3.2 (static)',
       "Built UTC: $([DateTime]::UtcNow.ToString('u'))") | Set-Content -LiteralPath "$stageRoot/BUILD.txt" -Encoding UTF8
     $manifest = foreach ($file in Get-ChildItem -LiteralPath $stageRoot -Recurse -File | Sort-Object FullName) {
         $relative = $file.FullName.Substring($stageRoot.Length + 1).Replace('\','/')

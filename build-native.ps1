@@ -15,12 +15,14 @@ if ($LASTEXITCODE -ne 0) { throw 'C++ build failed.' }
 if ($Deploy) {
     & "$QtRoot/bin/windeployqt.exe" --release --no-translations --no-system-d3d-compiler --no-opengl-sw "$buildRoot/bitmusic_visualizer.exe"
     if ($LASTEXITCODE -ne 0) { throw 'Qt runtime deployment failed.' }
+    Copy-Item -LiteralPath "$QtRoot/plugins/platforms/qoffscreen.dll" -Destination "$buildRoot/platforms"
     $licenseRoot = Join-Path $buildRoot 'licenses'
     New-Item -ItemType Directory -Force -Path $licenseRoot | Out-Null
     Copy-Item -LiteralPath "$buildRoot/_deps/gme-src/license.txt" -Destination "$licenseRoot/libgme-LGPL-2.1.txt"
     Copy-Item -LiteralPath "$buildRoot/_deps/zlib-src/LICENSE" -Destination "$licenseRoot/zlib.txt"
     Copy-Item -LiteralPath "$PSScriptRoot/LICENSES/ymfm-BSD-3-Clause.txt" -Destination $licenseRoot
     Copy-Item -LiteralPath "$PSScriptRoot/LICENSES/ymfm-voices-BSD-3-Clause.txt" -Destination $licenseRoot
+    Copy-Item -Path "$PSScriptRoot/LICENSES/FluidSynth-*.txt","$PSScriptRoot/LICENSES/GCEM-*.txt" -Destination $licenseRoot
     Copy-Item -LiteralPath "$PSScriptRoot/THIRD-PARTY.md" -Destination "$licenseRoot/THIRD-PARTY.md"
 }
 Write-Output "Built: $buildRoot/bitmusic_visualizer.exe"

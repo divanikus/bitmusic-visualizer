@@ -135,7 +135,7 @@ their first release is described as tested.
 
 ## Dependencies and sources
 
-CMake fetches hash-pinned libgme, libsidplayfp, ymfm and zlib source archives. `.runtime/sources/`
+CMake fetches hash-pinned libgme, libsidplayfp, ymfm, FluidSynth, GCEM and zlib source archives. `.runtime/sources/`
 caches them. Packaging additionally downloads the exact Qt source archives in
 `packaging/sources.json`, verifies hashes and includes them with notices generated
 from the installed SDK's `sbom/` files. Missing source or notices fails packaging.
@@ -144,6 +144,13 @@ The SID modifications follow the same approach. libsidplayfp 2.16.1 uses a local
 CMake adapter and the release's generated 6502 driver; no autotools or xa is needed
 unless changing that driver. SID is statically linked on all three platforms.
 The combined binary is GPLv3; original MIT/LGPL source licenses are retained.
+FluidSynth 2.5.4 uses its C++ OS abstraction and links statically without GLib or
+extra audio drivers. GCEM is separately pinned for compile-time tables. SF2 is
+enabled; libsndfile/SF3 and DLS are not. Run `--midi-checks <fixtures>` (or add
+`--decoder-only`) after generating fixtures for MIDI timing, stereo channel
+capture, sustain/chords, SoundFont snapshots, mutes, seeking and live controls.
+The fixture generator authors its own sine bank; no user bank is needed for CI.
+Development deployment includes Qt's offscreen plugin for headless decoder tests.
 Packages include full corresponding application/build sources as well as the
 dependency archives. New source files must be tracked before packaging; source
 bundling refuses untracked inputs to avoid silently incomplete source archives.

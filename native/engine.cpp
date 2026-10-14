@@ -91,8 +91,8 @@ QByteArray readMusicFile(const QString &path) {
         data = std::move(decoded);
     }
     if (!(data.startsWith("NESM\x1a") || data.startsWith("NSFE") ||
-          data.startsWith("Vgm ") || data.startsWith("SNES-SPC700") || data.startsWith("GBS") || data.startsWith("ZXAYEMUL")))
-        throw std::runtime_error("Supported formats: NSF, NSFE, VGM, VGZ, SPC, GBS, AY (ZXAYEMUL), SID (PSID/RSID).");
+          data.startsWith("Vgm ") || data.startsWith("SNES-SPC700") || data.startsWith("GBS") || data.startsWith("ZXAYEMUL") || data.startsWith("MThd")))
+        throw std::runtime_error("Supported formats: NSF, NSFE, VGM, VGZ, SPC, GBS, AY (ZXAYEMUL), SID (PSID/RSID), MIDI (SMF 0/1).");
     return data;
 }
 
@@ -494,6 +494,7 @@ void NativePlayer::scopeLoop() {
     std::unique_ptr<MusicTrack> shared;
     std::shared_ptr<const SidRoms> scopeRoms;
     std::shared_ptr<const YamahaRoms> scopeYamahaRoms;
+    std::shared_ptr<const MidiResources> scopeMidiResources;
     QString path;
     int song = -1;
     QThreadPool preparationPool;
@@ -519,12 +520,13 @@ void NativePlayer::scopeLoop() {
                 const auto cancelled = [&] { return closing_ || !scopesEnabled_ || revision != scopeRevision_ || current.generation != generation_; };
                 const qint64 target = qint64(current.positionMs) * SampleRate / 1000;
                 if (path != current.info.path || song != current.info.song || scopeRoms != current.info.sidRoms ||
-                    scopeYamahaRoms != current.info.yamahaRoms) {
+                    scopeYamahaRoms != current.info.yamahaRoms || scopeMidiResources != current.info.midiResources) {
                     voices.clear(); voices.resize(current.info.voices.size());
                     path = current.info.path; song = current.info.song;
                     scopeRoms = current.info.sidRoms;
                     scopeYamahaRoms = current.info.yamahaRoms;
-                    shared = openMusicTrack(path, song, false, true, current.info.sidRoms, current.info.yamahaRoms);
+                    scopeMidiResources = current.info.midiResources;
+                    shared = openMusicTrack(path, song, false, true, current.info.sidRoms, current.info.yamahaRoms, current.info.midiResources);
                     if (!shared->hasTaps()) shared.reset();
                     sharedScopes_ = bool(shared);
                 }
@@ -604,7 +606,7 @@ void NativePlayer::scopeLoop() {
                         try {
                             auto &voice = voices[i];
                             if (!voice.track) {
-                                voice.track = openMusicTrack(path, song, false, true, current.info.sidRoms, current.info.yamahaRoms);
+                                voice.track = openMusicTrack(path, song, false, true, current.info.sidRoms, current.info.yamahaRoms, current.info.midiResources);
                                 voice.track->mute(~bit); voice.track->dry();
                             }
                             if (voice.track->frame() > target) voice.track->seek(0, cancelled);

@@ -1,6 +1,7 @@
 #include "sidtrack.h"
 #include "pokeytrack.h"
 #include "yamahatrack.h"
+#include "miditrack.h"
 #include "vgm.h"
 #include "sid-taps/taps.h"
 #include "romfiles.h"
@@ -160,13 +161,16 @@ bool SidTrack::readTap(int channel, QVector<float> &left, QVector<float> &right)
 }
 
 std::unique_ptr<MusicTrack> openMusicTrack(const QString &path, int song, bool playlist, bool capture,
-                                        std::shared_ptr<const SidRoms> roms, std::shared_ptr<const YamahaRoms> yamahaRoms) {
+                                        std::shared_ptr<const SidRoms> roms, std::shared_ptr<const YamahaRoms> yamahaRoms,
+                                        std::shared_ptr<const MidiResources> midiResources) {
+    if (midiResources) return std::make_unique<MidiTrack>(path,QByteArray{},song,playlist,capture,std::move(midiResources));
     QFile file(path);
     if (file.open(QIODevice::ReadOnly)) {
         const auto magic = file.read(4);
         if (magic == "PSID" || magic == "RSID") return std::make_unique<SidTrack>(path, song, playlist, capture, std::move(roms));
     }
     auto data = readMusicFile(path);
+    if (data.startsWith("MThd")) return std::make_unique<MidiTrack>(path,std::move(data),song,playlist,capture);
     if (data.startsWith("Vgm ")) {
         const auto header = inspectVgm(data); requireSupportedVgm(header);
         if (!header.yamaha.isEmpty()) return std::make_unique<YamahaTrack>(path, std::move(data), song, playlist, capture, std::move(yamahaRoms));

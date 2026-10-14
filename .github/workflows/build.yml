@@ -46,6 +46,8 @@ jobs:
           $env:PATH = "$env:SystemRoot/System32;$env:SystemRoot"
           $process = Start-Process 'test-output/relocated package/BitMusicVisualizer/bitmusic_visualizer.exe' -ArgumentList '--tap-checks test-output --decoder-only' -PassThru -Wait -WindowStyle Hidden
           if ($process.ExitCode -ne 0) { throw 'Decoder checks failed.' }
+          $process = Start-Process 'test-output/relocated package/BitMusicVisualizer/bitmusic_visualizer.exe' -ArgumentList '--midi-checks test-output --decoder-only' -PassThru -Wait -WindowStyle Hidden
+          if ($process.ExitCode -ne 0) { throw 'MIDI decoder checks failed.' }
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: windows-x64

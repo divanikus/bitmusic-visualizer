@@ -12,6 +12,7 @@
 #include <QElapsedTimer>
 #include <QColor>
 class QLabel;
+class QComboBox;
 class QPushButton;
 class QListWidget;
 class QTabWidget;
@@ -242,6 +243,7 @@ private:
     void playSong(int song);
     void setupShortcutsHelp(TitleBar *bar);
     void showShortcutsHelp();
+    void refreshSoundFonts();
     NativePlayer player_;
     ScopeWindow scopes_;
     QLabel *title_, *subtitle_, *clock_, *total_, *status_;
@@ -250,6 +252,9 @@ private:
     Timeline *timeline_;
     QListWidget *songs_;
     QTabWidget *tabs_;
+    QWidget *midiControls_;
+    QComboBox *soundFont_;
+    QString midiPath_;
     QGridLayout *channels_;
     QString shownPath_;
     int shownSong_ = -1;

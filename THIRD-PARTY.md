@@ -17,6 +17,8 @@ available under MIT. This applies to both static and dynamic SID integration.
 | libsidplayfp / bundled reSIDfp | 2.16.1 + local patches | GPL-2.0-or-later; static, combined application GPLv3 |
 | ymfm | 81aec25ccbb98f4873a255f7551ac4dadac59b4a + local voice capture | BSD-3-Clause; static |
 | zlib | 1.3.2 | zlib license; static |
+| FluidSynth | 2.5.4, unchanged core | LGPL-2.1-or-later; static, combined application GPLv3 |
+| GCEM | 012ae73c6d0a2cb09ffe86475f5c6fba3926e200 | Apache-2.0; FluidSynth table-generation headers |
 | ICU (Linux Qt runtime) | 73.2 | Unicode/ICU permissive licenses; shared |
 | AppImage type-2 runtime (Linux) | 20251108 | MIT runtime; static libfuse LGPL-2.1, other permissive runtime components |
 | MinGW GCC runtimes (Windows) | 13.1.0 | GPL-3.0 with GCC Runtime Library Exception 3.1 |
@@ -44,7 +46,27 @@ MIT license. appimagetool 1.9.1 is a build tool and is not shipped in the player
 The selected YM2612 core is **Nuked OPN2** (LGPL-2.1-or-later). The backend also
 contains third-party emulation code, including emu2413 with its upstream notices.
 Complete libgme sources retain those notices. No emulator ROMs, game soundtracks,
-MIDI ROMs or sound banks are bundled.
+MIDI ROMs or runtime sound banks are bundled. The unmodified FluidSynth source
+archive includes its upstream test banks and their own notices; these are not
+installed into the player's SoundFonts folder.
+
+## General MIDI
+
+[FluidSynth 2.5.4](https://github.com/FluidSynth/fluidsynth/tree/v2.5.4) is built
+statically with its C++ OS abstraction, SF2 loader and effects, without GLib,
+external audio drivers, libsndfile or DLS. Its source is unchanged; CMake omits
+the unnecessary static-library Windows version resource for MinGW paths with
+spaces. Public APIs supply separate channel and effect buses.
+See [license](LICENSES/FluidSynth-LGPL-2.1.txt) and
+[authors](LICENSES/FluidSynth-AUTHORS.txt).
+
+GCEM generates numerical tables during compilation. Its pinned complete source,
+[Apache license](LICENSES/GCEM-Apache-2.0.txt) and
+[notice](LICENSES/GCEM-NOTICES.txt) are included. `native/midisequence.*` and
+`native/miditrack.*` are original MIT application code. Full corresponding
+application/dependency sources and rebuild instructions accompany the GPLv3
+combined executable. User-supplied banks retain their own terms and are excluded
+from source control and release packages.
 
 ## Yamaha playback and voice capture
 
@@ -97,7 +119,7 @@ Every binary archive includes:
 - the application MIT LICENSE;
 - GPLv3 COPYING for the combined program;
 - library license texts and notices in `licenses/`;
-- complete corresponding Qt/libgme/libsidplayfp/ymfm/zlib source archives, exact URLs and hashes,
+- complete corresponding Qt/libgme/libsidplayfp/ymfm/FluidSynth/GCEM/zlib source archives, exact URLs and hashes,
   and all local libgme patches in `third-party-sources/`;
 - `third-party-sources/bitmusic-visualizer-source.tar.xz`, containing the complete
   application source, all SID patches, build and packaging scripts used for the

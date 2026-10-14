@@ -1,6 +1,10 @@
 #include "window.h"
 #include "shortcuts.h"
 #include "appsettings.h"
+#include "miditrack.h"
+#include <QDesktopServices>
+#include <QComboBox>
+#include <QFile>
 #include <QApplication>
 #include <QCloseEvent>
 #include <QDragEnterEvent>
@@ -219,9 +223,30 @@ PlayerWindow::PlayerWindow() {
     all->setObjectName("enableAllChannels"); none->setObjectName("disableAllChannels");
     auto channelActions = new QHBoxLayout; channelActions->addWidget(all); channelActions->addWidget(none); channelActions->addStretch(); channelLayout->addLayout(channelActions);
     tabs_->addTab(channelPage, QString::fromUtf8("Channels")); root->addWidget(tabs_, 1);
+    midiControls_=new QWidget; midiControls_->setObjectName("midiControls");
+    auto midiRow=new QHBoxLayout(midiControls_); midiRow->setContentsMargins(0,0,0,0);
+    midiRow->addWidget(new QLabel("SoundFont"));
+    soundFont_=new QComboBox; soundFont_->setObjectName("soundFont");
+    soundFont_->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);
+    soundFont_->setMinimumContentsLength(12);
+    soundFont_->setToolTip("General MIDI bank. Changing it restarts the current MIDI.");
+    midiRow->addWidget(soundFont_,1);
+    auto bankFolder=new IconButton(Symbol::Open,"soundFontFolder","Open SoundFonts folder"); midiRow->addWidget(bankFolder);
+    auto bankRefresh=new QToolButton; bankRefresh->setText(QString::fromUtf8("↻"));
+    bankRefresh->setObjectName("refreshSoundFonts"); bankRefresh->setToolTip("Refresh SoundFont list"); midiRow->addWidget(bankRefresh);
+    root->addWidget(midiControls_); midiControls_->hide();
+    connect(bankFolder,&QPushButton::clicked,this,[] {
+        QDir().mkpath(playerSoundFontsDirectory()); QDesktopServices::openUrl(QUrl::fromLocalFile(playerSoundFontsDirectory()));
+    });
+    connect(bankRefresh,&QToolButton::clicked,this,[this] { refreshSoundFonts(); });
+    connect(soundFont_,&QComboBox::activated,this,[this](int index) {
+        if(index<0 || soundFont_->itemData(index).toString().isEmpty()) return;
+        try { selectSoundFont(soundFont_->itemData(index).toString()); if(!midiPath_.isEmpty()) loadFile(midiPath_); }
+        catch(const std::exception &e) { QMessageBox::warning(this,"SoundFont",QString::fromUtf8(e.what())); }
+    });
     status_ = new QLabel; status_->setObjectName("status"); status_->setWordWrap(true); status_->hide(); root->addWidget(status_);
     connect(open, &QPushButton::clicked, this, [this] {
-        const auto path = QFileDialog::getOpenFileName(this, QString::fromUtf8("Open music"), {}, "Chiptunes (*.nsf *.nsfe *.vgm *.vgz *.spc *.gbs *.ay *.sid);;All files (*)");
+        const auto path = QFileDialog::getOpenFileName(this, QString::fromUtf8("Open music"), {}, "Music (*.nsf *.nsfe *.vgm *.vgz *.spc *.gbs *.ay *.sid *.mid *.midi);;All files (*)");
         if (!path.isEmpty()) loadFile(path);
     });
     connect(showScopes_, &QPushButton::clicked, this, [this] { setScopesVisible(!scopes_.renderingVisible()); });
@@ -278,10 +303,21 @@ void PlayerWindow::setScopesVisible(bool visible) {
     } else scopes_.hide();
 }
 void PlayerWindow::loadFile(const QString &path, int song) {
+    QFile input(path); const bool midi=input.open(QIODevice::ReadOnly) && input.read(4)=="MThd";
+    midiPath_=midi?path:QString(); midiControls_->setVisible(midi);
+    if(midi) refreshSoundFonts();
     player_.load(path, song);
     scopes_.beginFile();
     // Open with the first file, then respect the user's visibility choice across tracks/files.
     if (!openedOnce_) { openedOnce_ = true; setScopesVisible(true); }
+}
+void PlayerWindow::refreshSoundFonts() {
+    const QSignalBlocker blocked(soundFont_); soundFont_->clear();
+    const auto selected=selectedSoundFont();
+    for(const auto &name:availableSoundFonts()) soundFont_->addItem(QFileInfo(name).completeBaseName(),name);
+    int at=soundFont_->findData(selected);
+    if(at<0) { soundFont_->insertItem(0,selected.isEmpty()?"No SoundFonts found":"Missing: "+selected,QString()); at=0; }
+    soundFont_->setCurrentIndex(at);
 }
 void PlayerWindow::playSong(int song) { player_.load(player_.state().info.path, song); }
 void PlayerWindow::closeEvent(QCloseEvent *event) {
@@ -360,7 +396,7 @@ void PlayerWindow::refreshControls() {
         QSignalBlocker block(timeline_); timeline_->setRange(0, s.info.durationMs > 0 ? std::min(3600000, s.info.durationMs) : unknownRangeMs_); timeline_->setValue(s.positionMs); clock_->setText(timeText(s.positionMs));
     }
     total_->setText(s.info.durationMs > 0 ? timeText(s.info.durationMs) : QString::fromUtf8("—"));
-    total_->setToolTip(s.info.durationMs > 0 ? QString::fromUtf8("Duration from file") : QString::fromUtf8("No duration provided; playback continues indefinitely"));
+    total_->setToolTip(s.info.midiResources ? "MIDI sequence duration plus 2 seconds for release and effects" : s.info.durationMs > 0 ? QString::fromUtf8("Duration from file") : QString::fromUtf8("No duration provided; playback continues indefinitely"));
     timeline_->setToolTip(s.info.durationMs > 0 ? QString::fromUtf8("Seek") : QString::fromUtf8("Seek: range expands during playback"));
     for (int i = 0; i < songs_->count(); ++i) {
         auto item = songs_->item(i);
@@ -376,9 +412,9 @@ void PlayerWindow::refreshControls() {
     }
     const auto message = !s.error.isEmpty() ? s.error : !s.scopeError.isEmpty() ? s.scopeError : s.busy ? QString::fromUtf8("Loading…") : QString();
     status_->setText(message.section('\n', 0, 0)); status_->setToolTip(message); status_->setVisible(!message.isEmpty());
-    if ((s.error.startsWith("C64 ROM required:") || s.error.startsWith("YM2608 ROM required:")) && romWarningGeneration_ != s.generation) {
+    if ((s.error.startsWith("C64 ROM required:") || s.error.startsWith("YM2608 ROM required:") || s.error.startsWith("SoundFont required:")) && romWarningGeneration_ != s.generation) {
         romWarningGeneration_ = s.generation;
-        auto warning = new QMessageBox(QMessageBox::Warning, "ROM required", s.error, QMessageBox::Ok, this);
+        auto warning = new QMessageBox(QMessageBox::Warning, s.error.startsWith("SoundFont required:") ? "SoundFont required" : "ROM required", s.error, QMessageBox::Ok, this);
         warning->setObjectName("romWarning"); warning->setTextFormat(Qt::PlainText);
         warning->setAttribute(Qt::WA_DeleteOnClose); warning->open();
     }

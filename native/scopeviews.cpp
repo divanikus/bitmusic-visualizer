@@ -57,7 +57,7 @@ void ScopeWindow::updateViewEditor() {
     const bool valid = id >= 0 && id < cards_.size();
     QSignalBlocker block(cardView_);
     cardView_->setEnabled(valid); cardView_->setCurrentIndex(valid ? int(cards_[id].kind) : 0);
-    cardView_->setToolTip("Keyboard shows all pitches supplied by a source. Chip notes are used where available; other sources estimate one pitch from audio.");
+    cardView_->setToolTip("Keyboard shows pitches from chip or MIDI data where available; other sources estimate one pitch from audio.");
     const QSignalBlocker styleBlock(spectrumStyle_), gridBlock(spectrumGrid_);
     spectrumControls_->setVisible(valid && cards_[id].kind == ViewKind::Spectrum);
     spectrumStyle_->setCurrentIndex(valid && cards_[id].spectrumBars ? 1 : 0);
@@ -65,7 +65,7 @@ void ScopeWindow::updateViewEditor() {
     const int source = valid ? sourceFor(id) : -1;
     const bool exact = source >= 0 && source < VoiceMask::Capacity && (state_.info.tonalMask & (VoiceMask::bit(source)));
     keyboardHint_->setVisible(valid && cards_[id].kind == ViewKind::Keyboard);
-    keyboardHint_->setText(exact ? "Notes from chip oscillators. All active tonal pitches are shown." : "Estimated from audio: one pitch. Chords, noise and drums may be inaccurate.");
+    keyboardHint_->setText(exact ? (state_.info.midiResources ? "MIDI notes, sustain and channel pitch bend. Sample tuning and synthesis modulation are not measured." : "Notes from chip oscillators. All active tonal pitches are shown.") : "Estimated from audio: one pitch. Chords, noise and drums may be inaccurate.");
     addCard_->setEnabled(state_.valid && order_.size() < 512);
     removeCard_->setEnabled(valid);
     removeCard_->setToolTip("Remove this card without muting its source. Add card... or Reset can bring it back.");
@@ -85,7 +85,7 @@ void ScopeWindow::addCard() {
     for (auto type : {ViewKind::Waveform, ViewKind::Spectrum, ViewKind::Keyboard}) kind->addItem(viewName(type), int(type));
     kind->setCurrentIndex((sourceFor(selectedId) < VoiceMask::Capacity && (state_.info.tonalMask & (VoiceMask::bit(sourceFor(selectedId))))) ? 2 : 1);
     form->addRow("View", kind);
-    auto note = new QLabel("Add another view of a channel or the final mix.\nCards share their source's colors.\nKeyboard shows all available chip notes, or estimates one pitch from audio.");
+    auto note = new QLabel("Add another view of a channel or the final mix.\nCards share their source's colors.\nKeyboard uses chip/MIDI notes, or estimates one pitch from audio.");
     note->setWordWrap(true); layout->addWidget(note);
     auto buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel); layout->addWidget(buttons);
     buttons->button(QDialogButtonBox::Ok)->setText("Add");
