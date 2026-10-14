@@ -1,0 +1,42 @@
+[
+  {
+    "file": "Synth.h",
+    "sha256": "7f2aa4ae934ecb2b3fc4f3f30d3b833b7575e9899054b98cfcade1d343357a6e",
+    "edits": [
+      [
+        "\tMT32EMU_EXPORT explicit Synth(ReportHandler *useReportHandler = NULL);",
+        "\t// Bit Music Visualizer: dry part taps and mix gates, Float renderer only.\n\t// Callback timestamp is in native 32 kHz samples, before DAC/reverb/analogue.\n\tvoid (*bitmusicPartSample)(void *, unsigned int, Bit32u, float, float);\n\tvoid *bitmusicPartContext;\n\tBit32u bitmusicMuteMask;\n\tBit32u bitmusicRandom; // Per-synth jitter state; no shared libc rand().\n\tMT32EMU_EXPORT explicit Synth(ReportHandler *useReportHandler = NULL);"
+      ]
+    ]
+  },
+  {
+    "file": "Synth.cpp",
+    "sha256": "0364c8b9f4e502dcfc7932f702d821aa7806925aa0e748dfac6a6038fc78eb46",
+    "edits": [
+      [
+        "\topened = false;\n\treverbOverridden = false;",
+        "\tbitmusicPartSample = NULL;\n\tbitmusicPartContext = NULL;\n\tbitmusicMuteMask = 0;\n\tbitmusicRandom = 1;\n\topened = false;\n\treverbOverridden = false;"
+      ]
+    ]
+  },
+  {
+    "file": "Partial.cpp",
+    "sha256": "9a76e57a9fa31623912b9f0eaa97bb7149e21f64e3abef7804a4e3e25add1391",
+    "edits": [
+      [
+        "\tFloatSample rightOut = (sample * rightPanValue) / 14.0f;\n\t*(leftBuf++) += leftOut;",
+        "\tFloatSample rightOut = (sample * rightPanValue) / 14.0f;\n\tif (synth->bitmusicPartSample != NULL) {\n\t\tsynth->bitmusicPartSample(synth->bitmusicPartContext, ownerPart,\n\t\t\tsynth->getInternalRenderedSampleCount() + sampleNum, leftOut, rightOut);\n\t}\n\tif ((synth->bitmusicMuteMask & (1u << ownerPart)) != 0) {\n\t\tleftOut = rightOut = 0.0f;\n\t}\n\t*(leftBuf++) += leftOut;"
+      ]
+    ]
+  },
+  {
+    "file": "TVP.cpp",
+    "sha256": "b49e742a0bac8b1d40c9238368da53117e61cfb2ba675544f25d91a4e86fc488",
+    "edits": [
+      [
+        "\t\tcounter = NOMINAL_PROCESS_TIMER_PERIOD_SAMPLES + (rand() & 3);",
+        "\t\t// Independent deterministic jitter keeps audio and scopes synchronized.\n\t\tSynth *synth = partial->getSynth();\n\t\tsynth->bitmusicRandom = synth->bitmusicRandom * 1664525u + 1013904223u;\n\t\tcounter = NOMINAL_PROCESS_TIMER_PERIOD_SAMPLES + ((synth->bitmusicRandom >> 16) & 3);"
+      ]
+    ]
+  }
+]

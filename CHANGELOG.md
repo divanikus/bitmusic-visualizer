@@ -10,6 +10,8 @@ not published GitHub releases. Unreleased lists changes made after the latest ta
 
 ### Added
 
+- Roland MT-32 playback with your Control/PCM ROMs: eight melodic parts and
+  rhythm, stereo cards, instrument names, mute/Solo and a saved MIDI engine selector.
 - General MIDI playback with your SF2 SoundFont: sixteen stereo channel cards,
   instrument names, MIDI keyboard notes, mute/Solo and fast seeking. A saved
   SoundFont selector appears in the main player when opening MIDI.

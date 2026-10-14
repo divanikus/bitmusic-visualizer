@@ -65,7 +65,7 @@ void ScopeWindow::updateViewEditor() {
     const int source = valid ? sourceFor(id) : -1;
     const bool exact = source >= 0 && source < VoiceMask::Capacity && (state_.info.tonalMask & (VoiceMask::bit(source)));
     keyboardHint_->setVisible(valid && cards_[id].kind == ViewKind::Keyboard);
-    keyboardHint_->setText(exact ? (state_.info.midiResources ? "MIDI notes, sustain and channel pitch bend. Sample tuning and synthesis modulation are not measured." : "Notes from chip oscillators. All active tonal pitches are shown.") : "Estimated from audio: one pitch. Chords, noise and drums may be inaccurate.");
+    keyboardHint_->setText(exact ? (state_.info.mt32Resources ? "MT-32 played keys. Timbre tuning, pitch bend and modulation are not measured." : state_.info.midiResources ? "MIDI notes, sustain and channel pitch bend. Sample tuning and synthesis modulation are not measured." : "Notes from chip oscillators. All active tonal pitches are shown.") : "Estimated from audio: one pitch. Chords, noise and drums may be inaccurate.");
     addCard_->setEnabled(state_.valid && order_.size() < 512);
     removeCard_->setEnabled(valid);
     removeCard_->setToolTip("Remove this card without muting its source. Add card... or Reset can bring it back.");

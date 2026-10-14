@@ -48,5 +48,10 @@
     "file": "gcem-012ae73c6d0a2cb09ffe86475f5c6fba3926e200.zip",
     "url": "https://codeload.github.com/kthohr/gcem/zip/012ae73c6d0a2cb09ffe86475f5c6fba3926e200",
     "sha256": "28159274c54e9640354852e172d10d88eb159f4e7f2fea42edbcd20105ed3526"
+  },
+  {
+    "file": "munt-libmt32emu-2.8.3.tar.gz",
+    "url": "https://codeload.github.com/munt/munt/tar.gz/refs/tags/libmt32emu_2_8_3",
+    "sha256": "81f8c462f46bc8901618762ae34cf9de93894ff81f41db73c79472fa3baef875"
   }
 ]

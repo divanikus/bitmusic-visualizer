@@ -253,7 +253,7 @@ private:
     QListWidget *songs_;
     QTabWidget *tabs_;
     QWidget *midiControls_;
-    QComboBox *soundFont_;
+    QComboBox *soundFont_, *midiEngine_;
     QString midiPath_;
     QGridLayout *channels_;
     QString shownPath_;

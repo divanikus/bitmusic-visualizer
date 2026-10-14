@@ -35,7 +35,7 @@ fluid_long_long_t sfTell(void *handle) { return static_cast<Cursor *>(handle)->p
 int sfClose(void *handle) { delete static_cast<Cursor *>(handle); return FLUID_OK; }
 std::shared_ptr<const MidiResources> loadResources(const QByteArray &data) {
     auto r=std::make_shared<MidiResources>(); r->sequence=MidiSequence::parse(data,SampleRate);
-    require(!r->sequence.mt32,"This file contains Roland MT-32 SysEx. MT-32 playback is the next milestone; General MIDI cannot reproduce these patches.");
+    require(!r->sequence.mt32,"This file contains Roland MT-32 SysEx. Select Auto or MT-32; General MIDI cannot reproduce these patches.");
     r->soundFontName=selectedSoundFont();
     QFile file(QDir(playerSoundFontsDirectory()).filePath(r->soundFontName));
     if (r->soundFontName.isEmpty() || !file.open(QIODevice::ReadOnly))

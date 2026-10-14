@@ -59,7 +59,10 @@ int runMidiChecks(QApplication &app,const QStringList &args) {
         const auto smpte=MidiSequence::parse(smf(QByteArray::fromHex("009045641980450000ff2f00"),0xe728),SampleRate);
         require(smpte.endFrame==1103,"SMPTE MIDI timing failed.");
         require(rejects(smf(QByteArray::fromHex("00010100ff2f00"))),"Invalid running status accepted.");
-        require(rejects(smf(QByteArray::fromHex("00ff21010100ff2f00"))),"Multiple MIDI ports accepted.");
+        require(!rejects(smf(QByteArray::fromHex("00ff2101010090456400ff2f00"))),"Single nonzero MIDI port rejected.");
+        require(rejects(smf(QByteArray::fromHex("0090456400ff2101010091456400ff2f00"))),"Multiple MIDI ports accepted.");
+        require(!rejects(smf(QByteArray::fromHex("00f00541101612f700ff2101010091456400ff2f00"))),"Unaddressed SysEx did not follow the sole MIDI port.");
+        require(rejects(smf(QByteArray::fromHex("00ff21010000f00541101612f700ff2101010091456400ff2f00"))),"Explicit SysEx port conflict accepted.");
         const auto mt=smf(QByteArray::fromHex("00f00541101612f700ff2f00"));
         require(MidiSequence::parse(mt,SampleRate).mt32,"MT-32 SysEx was not recognized.");
         bool rejectedMt=false; try { MidiTrack track("test.mid",mt,0,false,false); }

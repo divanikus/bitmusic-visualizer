@@ -22,7 +22,7 @@ if ($Deploy) {
     Copy-Item -LiteralPath "$buildRoot/_deps/zlib-src/LICENSE" -Destination "$licenseRoot/zlib.txt"
     Copy-Item -LiteralPath "$PSScriptRoot/LICENSES/ymfm-BSD-3-Clause.txt" -Destination $licenseRoot
     Copy-Item -LiteralPath "$PSScriptRoot/LICENSES/ymfm-voices-BSD-3-Clause.txt" -Destination $licenseRoot
-    Copy-Item -Path "$PSScriptRoot/LICENSES/FluidSynth-*.txt","$PSScriptRoot/LICENSES/GCEM-*.txt" -Destination $licenseRoot
+    Copy-Item -Path "$PSScriptRoot/LICENSES/FluidSynth-*.txt","$PSScriptRoot/LICENSES/GCEM-*.txt","$PSScriptRoot/LICENSES/Munt-*.txt" -Destination $licenseRoot
     Copy-Item -LiteralPath "$PSScriptRoot/THIRD-PARTY.md" -Destination "$licenseRoot/THIRD-PARTY.md"
 }
 Write-Output "Built: $buildRoot/bitmusic_visualizer.exe"

@@ -508,6 +508,7 @@ void NativePlayer::scopeLoop() {
     std::shared_ptr<const SidRoms> scopeRoms;
     std::shared_ptr<const YamahaRoms> scopeYamahaRoms;
     std::shared_ptr<const MidiResources> scopeMidiResources;
+    std::shared_ptr<const Mt32Resources> scopeMt32Resources;
     QString path;
     int song = -1;
     QThreadPool preparationPool;
@@ -533,18 +534,19 @@ void NativePlayer::scopeLoop() {
                 const auto cancelled = [&] { return closing_ || !scopesEnabled_ || revision != scopeRevision_ || current.generation != generation_; };
                 const qint64 target = qint64(current.positionMs) * SampleRate / 1000;
                 if (path != current.info.path || song != current.info.song || scopeRoms != current.info.sidRoms ||
-                    scopeYamahaRoms != current.info.yamahaRoms || scopeMidiResources != current.info.midiResources) {
+                    scopeYamahaRoms != current.info.yamahaRoms || scopeMidiResources != current.info.midiResources || scopeMt32Resources != current.info.mt32Resources) {
                     voices.clear(); voices.resize(current.info.voices.size());
                     path = current.info.path; song = current.info.song;
                     scopeRoms = current.info.sidRoms;
                     scopeYamahaRoms = current.info.yamahaRoms;
                     scopeMidiResources = current.info.midiResources;
-                    shared = openMusicTrack(path, song, false, true, current.info.sidRoms, current.info.yamahaRoms, current.info.midiResources);
+                    scopeMt32Resources = current.info.mt32Resources;
+                    shared = openMusicTrack(path, song, false, true, current.info.sidRoms, current.info.yamahaRoms, current.info.midiResources, current.info.mt32Resources);
                     if (!shared->hasTaps()) shared.reset();
                     sharedScopes_ = bool(shared);
                 }
                 if (shared) {
-                    if (current.info.midiResources && (shared->frame() > target || target-shared->frame() > 2*SampleRate)) {
+                    if ((current.info.midiResources || current.info.mt32Resources) && (shared->frame() > target || target-shared->frame() > 2*SampleRate)) {
                         if (!shared->seek(target, cancelled)) continue;
                     } else if (shared->frame() > target) shared->seek(0, cancelled);
                     const auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(8);
@@ -622,7 +624,7 @@ void NativePlayer::scopeLoop() {
                         try {
                             auto &voice = voices[i];
                             if (!voice.track) {
-                                voice.track = openMusicTrack(path, song, false, true, current.info.sidRoms, current.info.yamahaRoms, current.info.midiResources);
+                                voice.track = openMusicTrack(path, song, false, true, current.info.sidRoms, current.info.yamahaRoms, current.info.midiResources, current.info.mt32Resources);
                                 voice.track->mute(~bit); voice.track->dry();
                             }
                             if (voice.track->frame() > target) voice.track->seek(0, cancelled);

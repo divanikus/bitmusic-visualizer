@@ -59,7 +59,8 @@ def main():
                      'third-party-sources/libsidplayfp-2.16.1.tar.gz',
                      'licenses/ymfm-BSD-3-Clause.txt', 'licenses/ymfm-voices-BSD-3-Clause.txt',
                      'third-party-sources/ymfm-81aec25ccbb98f4873a255f7551ac4dadac59b4a.tar.gz',
-                     'third-party-sources/bitmusic-visualizer-source.tar.xz', 'YAMAHA-ROMS.txt'):
+                     'third-party-sources/bitmusic-visualizer-source.tar.xz', 'YAMAHA-ROMS.txt', 'MT32-ROMS.txt', 'licenses/Munt-LGPL-2.1.txt',
+                     'third-party-sources/munt-libmt32emu-2.8.3.tar.gz'):
         if required not in listed:
             raise RuntimeError('Missing notices: ' + required)
     if platform.system() == 'Linux':
@@ -132,6 +133,7 @@ def main():
             raise RuntimeError('\n'.join(dependency_errors))
     subprocess.run([str(executable), '--tap-checks', str(fixtures), '--decoder-only'], env=env, check=True, timeout=120)
     subprocess.run([str(executable), '--midi-checks', str(fixtures), '--decoder-only'], env=env, check=True, timeout=120)
+    subprocess.run([str(executable), '--mt32-checks', str(fixtures), '--decoder-only'], env=env, check=True, timeout=120)
     if platform.system() == 'Linux':
         subprocess.run([str(image.resolve()), '--appimage-extract-and-run', '--tap-checks',
                         str(fixtures.resolve()), '--decoder-only'], env=env, check=True, timeout=180)

@@ -30,7 +30,10 @@ def bundle(destination):
                 'native/yamahavoicechecks.cpp', 'LICENSES/ymfm-voices-BSD-3-Clause.txt',
                 'packaging/YAMAHA-ROMS.txt', 'cmake/Ymfm.cmake', 'LICENSES/ymfm-BSD-3-Clause.txt',
                 'native/miditrack.cpp', 'native/midisequence.cpp', 'native/midichecks.cpp',
-                'cmake/FluidSynth.cmake', 'packaging/SOUNDFONTS.txt', 'LICENSES/FluidSynth-LGPL-2.1.txt'}
+                'cmake/FluidSynth.cmake', 'packaging/SOUNDFONTS.txt', 'LICENSES/FluidSynth-LGPL-2.1.txt',
+                'native/mt32track.cpp', 'native/mt32checks.cpp', 'native/munt-taps/patches.json',
+                'native/munt-taps/README.md', 'cmake/Munt.cmake', 'cmake/PatchMunt.cmake',
+                'packaging/MT32-ROMS.txt', 'LICENSES/Munt-LGPL-2.1.txt'}
     if not required.issubset(paths):
         raise RuntimeError('Application source bundle is incomplete.')
     forbidden = {'.sid', '.nsf', '.nsfe', '.vgm', '.vgz', '.spc', '.gbs', '.ay',

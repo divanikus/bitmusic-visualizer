@@ -18,6 +18,7 @@ int runTapChecks(QApplication &app, const QStringList &arguments);
 int runGpuChecks(QApplication &app, const QStringList &arguments);
 int runGpuSoak(QApplication &app, const QStringList &arguments);
 int runMidiChecks(QApplication &app, const QStringList &arguments);
+int runMt32Checks(QApplication &app, const QStringList &arguments);
 
 int main(int argc, char **argv) {
     for (int i = 1; i < argc; ++i)
@@ -32,16 +33,18 @@ int main(int argc, char **argv) {
     // Test runners isolate settings themselves; never inherit a user's saved
     // renderer when exercising the explicitly selected test backend.
     const bool testing = arguments.contains("--tap-checks") || arguments.contains("--gpu-checks") ||
-        arguments.contains("--gpu-soak") || arguments.contains("--self-test") || arguments.contains("--midi-checks");
+        arguments.contains("--gpu-soak") || arguments.contains("--self-test") || arguments.contains("--midi-checks") || arguments.contains("--mt32-checks");
     if (!testing) configureScopeRenderer();
     DiagnosticLog diagnostics(arguments.contains("--diagnostics"));
     if (arguments.contains("--tap-checks")) return runTapChecks(app, arguments);
     if (arguments.contains("--midi-checks")) return runMidiChecks(app, arguments);
+    if (arguments.contains("--mt32-checks")) return runMt32Checks(app, arguments);
     if (arguments.contains("--gpu-checks")) return runGpuChecks(app, arguments);
     if (arguments.contains("--gpu-soak")) return runGpuSoak(app, arguments);
     if (arguments.contains("--self-test")) return runChecks(app, arguments);
     QDir().mkpath(QDir(playerRomsDirectory()).filePath("c64"));
     QDir().mkpath(QDir(playerRomsDirectory()).filePath("ymfm"));
+    QDir().mkpath(QDir(playerRomsDirectory()).filePath("mt32"));
     PlayerWindow window;
     window.show();
     if (arguments.contains("--diagnostics") && !diagnostics.active())

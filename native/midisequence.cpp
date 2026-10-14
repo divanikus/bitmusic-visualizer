@@ -34,11 +34,17 @@ MidiSequence MidiSequence::parse(const QByteArray &bytes, int rate) {
     QVector<TickEvent> events;
     MidiSequence result;
     quint64 endTick = 0;
+    int outputPort=-1;
+    const auto usePort=[&](int port) {
+        if(port<0) return; // Unaddressed conductor SysEx follows the selected output.
+        require(outputPort<0 || outputPort==port,"Multiple MIDI ports are not supported yet.");
+        outputPort=port;
+    };
     for (quint32 track = 0; track < tracks; ++track) {
         require(r.take(4) == "MTrk", "Expected MIDI track chunk.");
         const auto size = r.word(4); r.need(size);
         Reader t{bytes,r.pos,r.pos+size}; r.pos += size;
-        quint64 tick = 0; int running = 0; bool ended = false; QByteArray sysex;
+        quint64 tick = 0; int running = 0, port = -1, sysexPort = -1; bool ended = false; QByteArray sysex;
         while (t.pos < t.end) {
             tick += t.vlq();
             require(events.size() < 2000000, "MIDI has too many events.");
@@ -50,7 +56,7 @@ MidiSequence MidiSequence::parse(const QByteArray &bytes, int rate) {
                 QByteArray msg(1,char(status));
                 const int count = (status & 0xe0) == 0xc0 ? 1 : 2;
                 for (int i=0;i<count;++i) { int b=t.byte(); require(b<128,"Invalid MIDI event data."); msg += char(b); }
-                events.push_back({tick,0,msg});
+                usePort(port<0?0:port); events.push_back({tick,0,msg});
             } else if (status == 0xff) {
                 running = 0;
                 const int type=t.byte(); const auto data=t.take(t.vlq());
@@ -63,17 +69,19 @@ MidiSequence MidiSequence::parse(const QByteArray &bytes, int rate) {
                     const int tempo=(quint8(data[0])<<16)|(quint8(data[1])<<8)|quint8(data[2]);
                     require(tempo>0,"Invalid MIDI tempo."); events.push_back({tick,tempo,{}});
                 } else if (type==3 && result.title.isEmpty()) result.title=QString::fromUtf8(data).trimmed().left(512);
-                else if (type==0x21) require(data.size()==1 && data[0]==0,"Multiple MIDI ports are not supported yet.");
+                else if (type==0x21) {
+                    require(data.size()==1,"Invalid MIDI port prefix."); port=quint8(data[0]);
+                }
             } else if (status == 0xf0 || status == 0xf7) {
                 running = 0;
-                if (status==0xf0) { require(sysex.isEmpty(),"Nested MIDI SysEx."); sysex += char(0xf0); }
+                if (status==0xf0) { require(sysex.isEmpty(),"Nested MIDI SysEx."); sysex += char(0xf0); sysexPort=port; }
                 require(!sysex.isEmpty(),"Standalone MIDI escape events are not supported yet.");
                 sysex += t.take(t.vlq());
                 require(sysex.size()<=1024*1024,"MIDI SysEx exceeds 1 MiB.");
                 if (sysex.endsWith(char(0xf7))) {
                     for (qsizetype i=1;i<sysex.size()-1;++i) require(quint8(sysex[i])<128,"Invalid MIDI SysEx data.");
                     result.mt32 |= sysex.size()>=5 && quint8(sysex[1])==0x41 && quint8(sysex[3])==0x16;
-                    events.push_back({tick,0,sysex}); sysex.clear();
+                    usePort(sysexPort); events.push_back({tick,0,sysex}); sysex.clear();
                 }
             } else throw std::runtime_error("Unsupported system event in MIDI file.");
         }

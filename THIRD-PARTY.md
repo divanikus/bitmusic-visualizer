@@ -1,7 +1,7 @@
 # Licenses and third-party components
 
 The application's own code, scripts, original artwork and test fixture generator
-are MIT, except for the LGPL libgme, GPL SID and BSD ymfm-derived integrations below. The top-level
+are MIT, except for the LGPL libgme/Munt, GPL SID and BSD ymfm-derived integrations below. The top-level
 LICENSE does not relicense dependencies or modified upstream code.
 
 The combined executable containing libsidplayfp is distributed under **GPLv3**
@@ -18,6 +18,7 @@ available under MIT. This applies to both static and dynamic SID integration.
 | ymfm | 81aec25ccbb98f4873a255f7551ac4dadac59b4a + local voice capture | BSD-3-Clause; static |
 | zlib | 1.3.2 | zlib license; static |
 | FluidSynth | 2.5.4, unchanged core | LGPL-2.1-or-later; static, combined application GPLv3 |
+| Munt / libmt32emu | 2.8.3 + local part capture/mute and deterministic jitter patches | LGPL-2.1-or-later; static, combined application GPLv3 |
 | GCEM | 012ae73c6d0a2cb09ffe86475f5c6fba3926e200 | Apache-2.0; FluidSynth table-generation headers |
 | ICU (Linux Qt runtime) | 73.2 | Unicode/ICU permissive licenses; shared |
 | AppImage type-2 runtime (Linux) | 20251108 | MIT runtime; static libfuse LGPL-2.1, other permissive runtime components |
@@ -49,6 +50,18 @@ Complete libgme sources retain those notices. No emulator ROMs, game soundtracks
 MIDI ROMs or runtime sound banks are bundled. The unmodified FluidSynth source
 archive includes its upstream test banks and their own notices; these are not
 installed into the player's SoundFonts folder.
+
+## Roland MT-32
+
+[Munt/libmt32emu 2.8.3](https://github.com/munt/munt/tree/libmt32emu_2_8_3)
+(commit `3b05ec276f9e605af86b0eaef7f5eda43477a31f`) is linked statically.
+The [LGPL-2.1-or-later patch](native/munt-taps/README.md) adds part capture/mute
+and deterministic per-synth timer jitter. Upstream headers and copyright notices
+remain intact. The Float renderer is used; no Munt Qt frontend is built or shipped.
+See [LGPL](LICENSES/Munt-LGPL-2.1.txt), [accompanying GPL text](LICENSES/Munt-GPL-2.0.txt)
+and [authors](LICENSES/Munt-AUTHORS.txt). The pinned complete upstream archive and
+all modifications accompany distributions. `native/mt32track.*` is original MIT
+adapter code. User ROMs retain their own terms and are excluded from Git/packages.
 
 ## General MIDI
 
@@ -119,7 +132,7 @@ Every binary archive includes:
 - the application MIT LICENSE;
 - GPLv3 COPYING for the combined program;
 - library license texts and notices in `licenses/`;
-- complete corresponding Qt/libgme/libsidplayfp/ymfm/FluidSynth/GCEM/zlib source archives, exact URLs and hashes,
+- complete corresponding Qt/libgme/libsidplayfp/ymfm/FluidSynth/GCEM/Munt/zlib source archives, exact URLs and hashes,
   and all local libgme patches in `third-party-sources/`;
 - `third-party-sources/bitmusic-visualizer-source.tar.xz`, containing the complete
   application source, all SID patches, build and packaging scripts used for the

@@ -20,6 +20,7 @@ class OutputHistory;
 struct SidRoms;
 struct YamahaRoms;
 struct MidiResources;
+struct Mt32Resources;
 QByteArray readMusicFile(const QString &path);
 
 constexpr int SampleRate = 44100;
@@ -51,6 +52,7 @@ struct TrackInfo {
     std::shared_ptr<const SidRoms> sidRoms; // Same ROM bytes in audio and scopes, including cold seeks.
     std::shared_ptr<const YamahaRoms> yamahaRoms;
     std::shared_ptr<const MidiResources> midiResources;
+    std::shared_ptr<const Mt32Resources> mt32Resources;
     SoundConfiguration configuration;
     QString path, title, system;
     QStringList voices;
@@ -79,7 +81,7 @@ public:
 };
 std::unique_ptr<MusicTrack> openMusicTrack(const QString &path, int song = 0, bool readPlaylist = true, bool capture = false,
                                           std::shared_ptr<const SidRoms> roms = {}, std::shared_ptr<const YamahaRoms> yamahaRoms = {},
-                                          std::shared_ptr<const MidiResources> midiResources = {});
+                                          std::shared_ptr<const MidiResources> midiResources = {}, std::shared_ptr<const Mt32Resources> mt32Resources = {});
 
 class GmeTrack : public MusicTrack {
 public:

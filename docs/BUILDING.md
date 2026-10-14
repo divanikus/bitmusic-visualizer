@@ -135,7 +135,7 @@ their first release is described as tested.
 
 ## Dependencies and sources
 
-CMake fetches hash-pinned libgme, libsidplayfp, ymfm, FluidSynth, GCEM and zlib source archives. `.runtime/sources/`
+CMake fetches hash-pinned libgme, libsidplayfp, ymfm, FluidSynth, GCEM, Munt and zlib source archives. `.runtime/sources/`
 caches them. Packaging additionally downloads the exact Qt source archives in
 `packaging/sources.json`, verifies hashes and includes them with notices generated
 from the installed SDK's `sbom/` files. Missing source or notices fails packaging.
@@ -187,3 +187,13 @@ Before publishing a release:
 
 There is no installer or automatic update service. Future releases follow the
 same process; source changes after an initial public import use normal commits.
+
+
+Munt/libmt32emu 2.8.3 is a static headless C++ library (LGPL-2.1-or-later).
+CMake applies hash-checked part capture/mute and per-synth jitter patches before
+upstream configuration copies public headers. No additional audio driver or
+runtime DLL is needed. ROMs are not build dependencies and are excluded from
+packaging. `--mt32-checks <output>` without `--roms` runs resource/selection tests
+and explicitly skips synthesis; `--roms <directory>` enables real ROM validation,
+part isolation and transport checks. See [MT-32](MT32.md) for commands and limits.
+Hosted CI never receives user ROMs. Linux/macOS synthesis needs local validation.

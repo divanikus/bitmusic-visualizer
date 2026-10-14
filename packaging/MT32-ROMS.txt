@@ -1,0 +1,20 @@
+Roland MT-32 ROMs (not included)
+==============================
+Place a compatible pair of full ROM images in roms/mt32:
+  MT32_CONTROL.ROM
+  MT32_PCM.ROM
+
+Use your own legally obtained dumps. Names are case-sensitive on Linux.
+Munt checks their contents against its known ROM hashes. Both old/new MT-32
+control ROMs and compatible CM-32L ROM pairs are supported under these names.
+Do not mix an MT-32 control ROM with a CM-32L PCM ROM (or vice versa).
+The model is identified from the ROM contents. Split ROMs are not supported.
+
+Windows: roms/mt32 is beside the executable.
+Linux: ~/.local/share/BitMusicVisualizer/roms/mt32 (or XDG_DATA_HOME).
+macOS: ~/Library/Application Support/BitMusicVisualizer/roms/mt32.
+The MIDI row's folder button opens the appropriate directory in MT-32 mode.
+
+Auto detects Roland MT-32 SysEx inside MIDI files. For MT-32 arrangements
+without SysEx, select MT-32 manually. General MIDI uses SF2 banks instead.
+ROMs are checked only when opening an MT-32 file. They are never bundled.

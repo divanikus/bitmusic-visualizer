@@ -2,6 +2,7 @@
 #include "shortcuts.h"
 #include "appsettings.h"
 #include "miditrack.h"
+#include "mt32track.h"
 #include <QDesktopServices>
 #include <QComboBox>
 #include <QFile>
@@ -225,7 +226,15 @@ PlayerWindow::PlayerWindow() {
     tabs_->addTab(channelPage, QString::fromUtf8("Channels")); root->addWidget(tabs_, 1);
     midiControls_=new QWidget; midiControls_->setObjectName("midiControls");
     auto midiRow=new QHBoxLayout(midiControls_); midiRow->setContentsMargins(0,0,0,0);
-    midiRow->addWidget(new QLabel("SoundFont"));
+    midiEngine_=new QComboBox; midiEngine_->setObjectName("midiEngine");
+    midiEngine_->addItem("Auto","auto"); midiEngine_->addItem("General MIDI","gm"); midiEngine_->addItem("MT-32","mt32");
+    midiEngine_->setCurrentIndex(midiEngine_->findData(selectedMidiEngine()));
+    midiEngine_->setToolTip("MIDI engine. Auto recognizes MT-32 SysEx; select MT-32 manually for arrangements without it. Changing the engine restarts playback.");
+    midiRow->addWidget(midiEngine_);
+    connect(midiEngine_,&QComboBox::activated,this,[this](int index) {
+        try { selectMidiEngine(midiEngine_->itemData(index).toString()); if(!midiPath_.isEmpty()) loadFile(midiPath_); }
+        catch(const std::exception &e) { QMessageBox::warning(this,"MIDI engine",QString::fromUtf8(e.what())); }
+    });
     soundFont_=new QComboBox; soundFont_->setObjectName("soundFont");
     soundFont_->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);
     soundFont_->setMinimumContentsLength(12);
@@ -235,8 +244,11 @@ PlayerWindow::PlayerWindow() {
     auto bankRefresh=new QToolButton; bankRefresh->setText(QString::fromUtf8("↻"));
     bankRefresh->setObjectName("refreshSoundFonts"); bankRefresh->setToolTip("Refresh SoundFont list"); midiRow->addWidget(bankRefresh);
     root->addWidget(midiControls_); midiControls_->hide();
-    connect(bankFolder,&QPushButton::clicked,this,[] {
-        QDir().mkpath(playerSoundFontsDirectory()); QDesktopServices::openUrl(QUrl::fromLocalFile(playerSoundFontsDirectory()));
+    connect(bankFolder,&QPushButton::clicked,this,[this] {
+        const auto s=player_.state();
+        const bool mt32=midiEngine_->currentData()=="mt32" || (midiEngine_->currentData()=="auto" && ((s.valid && s.info.mt32Resources) || s.error.contains("MT-32")));
+        const auto dir=mt32?playerMt32Directory():playerSoundFontsDirectory();
+        QDir().mkpath(dir); QDesktopServices::openUrl(QUrl::fromLocalFile(dir));
     });
     connect(bankRefresh,&QToolButton::clicked,this,[this] { refreshSoundFonts(); });
     connect(soundFont_,&QComboBox::activated,this,[this](int index) {
@@ -396,7 +408,11 @@ void PlayerWindow::refreshControls() {
         QSignalBlocker block(timeline_); timeline_->setRange(0, s.info.durationMs > 0 ? std::min(3600000, s.info.durationMs) : unknownRangeMs_); timeline_->setValue(s.positionMs); clock_->setText(timeText(s.positionMs));
     }
     total_->setText(s.info.durationMs > 0 ? timeText(s.info.durationMs) : QString::fromUtf8("—"));
-    total_->setToolTip(s.info.midiResources ? "MIDI sequence duration plus 2 seconds for release and effects" : s.info.durationMs > 0 ? QString::fromUtf8("Duration from file") : QString::fromUtf8("No duration provided; playback continues indefinitely"));
+    const bool mt32=midiEngine_->currentData()=="mt32" || (midiEngine_->currentData()=="auto" && ((s.valid && s.info.mt32Resources) || s.error.contains("MT-32")));
+    soundFont_->setVisible(!mt32);
+    findChild<QToolButton *>("refreshSoundFonts")->setVisible(!mt32);
+    findChild<QPushButton *>("soundFontFolder")->setToolTip(mt32?"Open MT-32 ROM folder":"Open SoundFonts folder");
+    total_->setToolTip((s.info.midiResources || s.info.mt32Resources) ? "MIDI sequence duration plus 2 seconds for release and effects" : s.info.durationMs > 0 ? QString::fromUtf8("Duration from file") : QString::fromUtf8("No duration provided; playback continues indefinitely"));
     timeline_->setToolTip(s.info.durationMs > 0 ? QString::fromUtf8("Seek") : QString::fromUtf8("Seek: range expands during playback"));
     for (int i = 0; i < songs_->count(); ++i) {
         auto item = songs_->item(i);
@@ -419,7 +435,7 @@ void PlayerWindow::refreshControls() {
     }
     const auto message = !s.error.isEmpty() ? s.error : !s.scopeError.isEmpty() ? s.scopeError : s.busy ? QString::fromUtf8("Loading…") : QString();
     status_->setText(message.section('\n', 0, 0)); status_->setToolTip(message); status_->setVisible(!message.isEmpty());
-    if ((s.error.startsWith("C64 ROM required:") || s.error.startsWith("YM2608 ROM required:") || s.error.startsWith("SoundFont required:")) && romWarningGeneration_ != s.generation) {
+    if ((s.error.startsWith("C64 ROM required:") || s.error.startsWith("YM2608 ROM required:") || s.error.startsWith("SoundFont required:") || s.error.startsWith("MT-32 ROM required:")) && romWarningGeneration_ != s.generation) {
         romWarningGeneration_ = s.generation;
         auto warning = new QMessageBox(QMessageBox::Warning, s.error.startsWith("SoundFont required:") ? "SoundFont required" : "ROM required", s.error, QMessageBox::Ok, this);
         warning->setObjectName("romWarning"); warning->setTextFormat(Qt::PlainText);

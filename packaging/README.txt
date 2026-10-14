@@ -13,9 +13,14 @@ or soundfonts/README.txt. The saved SoundFont selector appears on MIDI load.
 Sixteen cards represent MIDI channels, including channel 10 percussion. MIDI
 tracks play together. Full mix includes enabled channels and their effects.
 The duration includes two seconds for release/effects after the sequence end.
-MT-32 and full GS/XG hardware emulation are not part of this increment.
+Roland MT-32 uses your Control/PCM ROM pair; see roms/mt32/README.txt on Windows
+or MT32-ROMS.txt in Unix packages. The MIDI engine selector offers Auto, General
+MIDI and MT-32. Auto recognizes MT-32 SysEx; files without it need manual choice.
+MT-32 has eight melodic part cards plus rhythm, with shared reverb in Full mix.
+The engine choice is saved. ROMs are checked only for MT-32 playback, never bundled.
+Full GS/XG hardware emulation is not part of this increment.
 
-Supported formats: NSF, NSFE, VGM, VGZ, SPC, Game Boy GBS and Spectrum AY (ZXAYEMUL).
+Supported formats: NSF, NSFE, VGM, VGZ, SPC, GBS, AY (ZXAYEMUL), SID and MID/MIDI.
 The platform and sound configuration appear below the track title.
 Hover over the title to see the full title and filename.
 Pencil -> Cards -> View changes the selected card; Add card... adds another view

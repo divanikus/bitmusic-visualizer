@@ -1,5 +1,8 @@
 # General MIDI
 
+The MIDI row offers Auto, General MIDI and MT-32. Auto recognizes Roland MT-32
+SysEx; see [MT-32 playback](MT32.md) for ROMs, parts and its limitations.
+
 Open a Standard MIDI file (.mid or .midi, format 0 or 1) with a user-provided
 uncompressed SF2 SoundFont. The SoundFont row appears only for MIDI in the main
 player. Selection is remembered and changing the bank restarts the current song.
@@ -57,12 +60,16 @@ sample-cache identity includes its content hash to prevent stale samples.
 - Standard MIDI formats 0/1, one MIDI port, maximum one-hour sequence, 64 MiB
   input, two million retained events and 1 MiB per SysEx message. Format 2,
   RIFF/RMID, XMI, live MIDI input and standalone .syx loading are not implemented.
+- A sole used output may have a nonzero MIDI port prefix; unaddressed conductor
+  SysEx follows it. Empty tracks do not create extra outputs. Conflicting
+  explicit output ports are rejected.
 - Split SysEx packets are joined at their completion time; unsupported system
   escape events and malformed tracks are reported, not repaired.
 - GM-compatible arrangements are the target. FluidSynth handles its supported
   SysEx subset; full Roland GS/Yamaha XG device behavior is not promised.
-  Recognized MT-32 SysEx produces an explicit unsupported-message error. MIDI
-  without identifying SysEx cannot be reliably classified as MT-32 versus GM.
+  Auto routes recognized MT-32 SysEx to Munt. Explicit General MIDI rejects it
+  with a request to select Auto/MT-32. MIDI without identifying SysEx cannot be
+  reliably classified; choose MT-32 manually for those arrangements.
 - SF3/compressed samples and DLS are not enabled. Maximum SF2 input is 1 GiB;
   decoded samples and the source snapshot also require memory.
 - Polyphony is limited to 256 synthesis voices per decoder. SoundFont layers
@@ -73,7 +80,7 @@ sample-cache identity includes its content hash to prevent stale samples.
 ## Implementation and verification
 
 The original MIT `midisequence` parser/timeline is independent of the synth,
-so a subsequent MT-32 backend can reuse it. `MidiTrack` uses FluidSynth 2.5.4
+and is shared with the MT-32 backend. `MidiTrack` uses FluidSynth 2.5.4
 through its public APIs without core patches. CMake selects its C++ OS layer,
 static library, SF2 loader and built-in effects; Qt still owns audio devices.
 GCEM is separately hash-pinned. Both complete sources and license notices are
