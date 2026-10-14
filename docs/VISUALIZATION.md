@@ -121,6 +121,7 @@ in Waves resets line width but preserves the toolbar's Levels choice.
 
 The full-screen icon beside the pencil, or **F11** from either player window,
 expands the visualizer on its current display and hides the title bar/editor.
+The themed window background fills the screen edges without an outer window border.
 **Esc/F11** restores the previous window size, position, maximized state and editor.
 Move the pointer to the top edge to reveal a temporary exit button. Playback
 shortcuts remain available; fullscreen does not change audio or the card layout.

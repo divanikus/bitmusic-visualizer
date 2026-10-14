@@ -740,7 +740,7 @@ void ScopeWindow::editEffects() {
     if (edited) rememberEffects();
 }
 void ScopeWindow::paintEvent(QPaintEvent *event) {
-    FrameWindow::paintEvent(event);
+    if (!presentationFullscreen()) FrameWindow::paintEvent(event);
     updateKeyboardNotes();
     // During a drag the floating card can cover another card's waveform. Use the
     // original painter for this brief animation so its complete stacking stays exact.
@@ -766,7 +766,7 @@ void ScopeWindow::paintEvent(QPaintEvent *event) {
 void ScopeWindow::paintContents(QPainter &p, bool waves) {
     const auto lanes = waves ? waveLanes() : QVector<ScopeLane>();
     const auto meters = waves ? meterFills() : QVector<ScopeMeter>();
-    p.fillRect(rect().adjusted(1, 1, -1, -1), theme_.windowBackground);
+    p.fillRect(presentationFullscreen() ? rect() : rect().adjusted(1, 1, -1, -1), theme_.windowBackground);
     // Keep the title and window controls legible on arbitrary canvas colors.
     if (!presentationFullscreen()) {
         p.setPen(Qt::NoPen); p.setBrush(QColor("#171e24")); p.drawRoundedRect(titleBar_->geometry(), 6, 6);
