@@ -50,6 +50,7 @@ target_sources(bitmusic_visualizer PRIVATE native/pacingchecks.cpp native/spectr
 target_sources(bitmusic_visualizer PRIVATE native/psgnoteschecks.cpp native/chipnoteschecks.cpp)
 target_sources(bitmusic_visualizer PRIVATE native/shortcuts.cpp native/shortcutchecks.cpp)
 target_sources(bitmusic_visualizer PRIVATE native/sidtrack.cpp native/sidchecks.cpp native/romfiles.cpp)
+target_sources(bitmusic_visualizer PRIVATE native/pokeytrack.cpp native/vgm.cpp native/pokeychecks.cpp)
 target_link_libraries(bitmusic_visualizer PRIVATE bitmusic_sid)
 target_sources(bitmusic_visualizer PRIVATE native/soundconfig.cpp native/scopepreset.cpp native/scopepresets.cpp native/presetchecks.cpp)
 if(WIN32)

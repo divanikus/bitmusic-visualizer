@@ -54,6 +54,12 @@ It also runs in the complete native suite.
 seeking, Full mix and cancellation. Add `--decoder-only` for headless tests.
 See [SID boundaries and checks](SID.md).
 
+`--self-test test-output --pokey-only` checks single-POKEY VGM/VGZ playback,
+clock-derived pitch, all four synchronized signals, mutes/Solo, seeks/loops,
+mono UI and named unsupported-chip errors. Add `--decoder-only` for headless
+checks; optional additional POKEY file paths are read only. The decoder portion
+also runs under `--tap-checks`. See [VGM boundaries](VGM.md).
+
 ## Linux / macOS
 
 Set `QT_ROOT_DIR` to the Qt kit (Linux `gcc_64`, macOS `macos`). With the compiler,

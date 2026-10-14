@@ -42,12 +42,19 @@ See the [changelog](CHANGELOG.md) for version history.
 | Game Boy | GBS | Square 1, Square 2, Wave and Noise, with L/R routing |
 | ZX Spectrum | AY (ZXAYEMUL) | AY A/B/C and beeper; mono output |
 | Commodore 64 | SID (PSID / RSID, up to three chips) | Three pre-filter voices per chip; filter and volume-register samples in Full mix |
+| Atari 400/800 / 5200 | VGM, VGZ with one POKEY | Four mono hardware voices, mute/Solo and Full mix |
 
 VGM is a container: accepting it does **not** mean every chip is supported. PT3,
 VTX, YM, Amiga/tracker modules and MIDI are not supported yet. There are no
 invented durations or titles: files without duration data keep playing until
 stopped. Cold seeks can require emulation from an earlier point. Voice traces
 are not guaranteed to be exact separately audible stems after shared effects.
+
+Unsupported declared VGM chips are reported by name instead of silently skipped.
+POKEY uses GME's SAP sound core: ordinary tones, polynomial noise, volume-only
+audio, joined dividers and high-pass effects. One POKEY is supported; dual POKEY,
+mixed POKEY/other chips and special SKCTL/serial modes are rejected. SAP files are
+not yet accepted. These Atari VGM files need no ROM. See [VGM boundaries](docs/VGM.md).
 
 SID uses the file's 6581/8580 and PAL/NTSC flags, with 6581/PAL defaults when
 unspecified. Each chip exposes three hardware voices, with subsongs, seeking,

@@ -19,7 +19,9 @@ def bundle(destination):
         raise RuntimeError('Stage or remove untracked release inputs before packaging.')
     paths = [p.decode('utf-8') for p in git('ls-files', '-z').split(b'\0') if p]
     required = {'CMakeLists.txt', 'native/sidtrack.cpp', 'native/sid-taps/patches.json',
-                'cmake/Sid.cmake', 'cmake/PatchSid.cmake', 'COPYING', 'LICENSE'}
+                'cmake/Sid.cmake', 'cmake/PatchSid.cmake', 'COPYING', 'LICENSE',
+                'native/pokeytrack.cpp', 'native/vgm.cpp', 'native/gme-taps/pokey.cpp',
+                'native/gme-taps/pokey.h', 'cmake/PatchGme.cmake'}
     if not required.issubset(paths):
         raise RuntimeError('Application source bundle is incomplete.')
     forbidden = {'.sid', '.nsf', '.nsfe', '.vgm', '.vgz', '.spc', '.gbs', '.ay',

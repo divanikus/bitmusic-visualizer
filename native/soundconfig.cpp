@@ -1,4 +1,5 @@
 #include "soundconfig.h"
+#include "vgm.h"
 #include <QCryptographicHash>
 
 SoundConfiguration soundConfiguration(const QByteArray &data, const QStringList &voices) {
@@ -30,6 +31,8 @@ SoundConfiguration soundConfiguration(const QByteArray &data, const QStringList 
                 {32,3,"s5b","5B"}, {4,1,"fds","FDS"}, {8,3,"mmc5","MMC5"}, {2,6,"vrc7","VRC7"}})
             if (flags >= 0 && (flags & e.bit)) { add(QString("nes.")+e.key, e.count); c.name += QString(" + ")+e.name; }
         if (flags < 0 || (flags & ~63)) c.sources.clear();
+    } else if (data.startsWith("Vgm ") && inspectVgm(data).pokeyClock) {
+        c.family = "pokey"; c.name = "POKEY"; add("pokey.voice", 4);
     } else if (data.startsWith("Vgm ")) {
         const auto psg = word(12), opll = word(16), opn2 = word(44), other = word(48);
         c.family = opn2 ? "opn2" : "psg-opll";

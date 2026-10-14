@@ -1,4 +1,6 @@
 #include "sidtrack.h"
+#include "pokeytrack.h"
+#include "vgm.h"
 #include "sid-taps/taps.h"
 #include "romfiles.h"
 #include <sidplayfp/sidplayfp.h>
@@ -162,5 +164,10 @@ std::unique_ptr<MusicTrack> openMusicTrack(const QString &path, int song, bool p
         const auto magic = file.read(4);
         if (magic == "PSID" || magic == "RSID") return std::make_unique<SidTrack>(path, song, playlist, capture, std::move(roms));
     }
-    return std::make_unique<GmeTrack>(path, song, playlist, capture);
+    auto data = readMusicFile(path);
+    if (data.startsWith("Vgm ")) {
+        const auto header = inspectVgm(data); requireSupportedVgm(header);
+        if (header.pokeyClock) return std::make_unique<PokeyTrack>(path, std::move(data), song, playlist, capture);
+    }
+    return std::make_unique<GmeTrack>(path, song, playlist, capture, std::move(data));
 }

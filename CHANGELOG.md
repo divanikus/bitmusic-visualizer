@@ -15,6 +15,8 @@ not published GitHub releases. Unreleased lists changes made after the latest ta
 - Commodore 64 SID playback: PSID/RSID with up to three chips, individual voice
   cards, Full mix, subsongs, seeking and mute/Solo. Supports 6581 and 8580.
 - Optional C64 ROMs in roms/c64; a missing file is reported only when needed.
+- Atari POKEY playback in VGM/VGZ, with four mono channel cards and mute/Solo.
+- Clear messages for unsupported sound chips declared in VGM/VGZ files.
 
 ### Distribution
 

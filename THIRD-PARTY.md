@@ -54,6 +54,9 @@ per-voice capture, timestamped NES, Sega PSG, Game Boy and AY pitch-state captur
 hardware channel grouping and YM2413 support. Patch application
 is hash-checked by `cmake/PatchGme.cmake`; that original build script is MIT.
 The LGPL text is in [LICENSES/LGPL-2.1.txt](LICENSES/LGPL-2.1.txt).
+The POKEY adapter in the same directory exposes the existing LGPL SAP sound core
+with four simultaneously advancing voice buffers. The application's original
+VGM parser, transport and mixing code remains MIT. No libvgm code is incorporated.
 
 ## Redistribution and replacement
 

@@ -1,4 +1,5 @@
 #include "engine.h"
+#include "vgm.h"
 #include "outputhistory.h"
 #include "gme-taps/taps.h"
 #include "gme-taps/notes.h"
@@ -63,7 +64,8 @@ bool psgHasStereoRouting(const QByteArray &data) {
     }
     return false;
 }
-QByteArray readMusic(const QString &path) {
+}
+QByteArray readMusicFile(const QString &path) {
     constexpr int limit = 64 * 1024 * 1024;
     QFile file(path);
     if (!file.open(QIODevice::ReadOnly)) throw std::runtime_error(file.errorString().toStdString());
@@ -92,7 +94,6 @@ QByteArray readMusic(const QString &path) {
           data.startsWith("Vgm ") || data.startsWith("SNES-SPC700") || data.startsWith("GBS") || data.startsWith("ZXAYEMUL")))
         throw std::runtime_error("Supported formats: NSF, NSFE, VGM, VGZ, SPC, GBS, AY (ZXAYEMUL), SID (PSID/RSID).");
     return data;
-}
 }
 
 void applyOutputGain(short *samples, size_t count, float volume, uint32_t outputMask) {
@@ -123,8 +124,12 @@ size_t PcmRing::pop(short *destination, size_t count) {
 }
 void PcmRing::reset() { read_.store(0); write_.store(0); }
 
-GmeTrack::GmeTrack(const QString &path, int song, bool readPlaylist, bool capture) {
-    const auto data = readMusic(path);
+GmeTrack::GmeTrack(const QString &path, int song, bool readPlaylist, bool capture, QByteArray data) {
+    if (data.isEmpty()) data = readMusicFile(path);
+    if (data.startsWith("Vgm ")) {
+        const auto header = inspectVgm(data); requireSupportedVgm(header);
+        if (header.pokeyClock) throw std::runtime_error("POKEY VGM requires the POKEY decoder.");
+    }
     const bool psgNotes = data.startsWith("Vgm ") && data.size() >= 0x40 &&
         !((qFromLittleEndian<quint32>(data.constData()+12) | qFromLittleEndian<quint32>(data.constData()+16) |
            qFromLittleEndian<quint32>(data.constData()+44)) & 0xc0000000u);

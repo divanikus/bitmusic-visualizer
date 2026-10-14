@@ -17,6 +17,7 @@ struct BmTaps;
 struct BmNotes;
 class OutputHistory;
 struct SidRoms;
+QByteArray readMusicFile(const QString &path);
 
 constexpr int SampleRate = 44100;
 constexpr int BlockFrames = 1024;
@@ -74,7 +75,7 @@ std::unique_ptr<MusicTrack> openMusicTrack(const QString &path, int song = 0, bo
 
 class GmeTrack : public MusicTrack {
 public:
-    GmeTrack(const QString &path, int song = 0, bool readPlaylist = true, bool capture = false);
+    GmeTrack(const QString &path, int song = 0, bool readPlaylist = true, bool capture = false, QByteArray data = {});
     ~GmeTrack();
     GmeTrack(const GmeTrack &) = delete;
     GmeTrack &operator=(const GmeTrack &) = delete;
