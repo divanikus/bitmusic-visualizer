@@ -9,3 +9,7 @@ inline QString channelShortcutHint(int source) {
     return QString("%1: cycle view; %2: mute/unmute; %3: show/hide.\nF1: all shortcuts.")
         .arg(source+1).arg(shortcutLabel(Qt::ControlModifier, key), shortcutLabel(Qt::AltModifier, key));
 }
+inline QString fullMixShortcutHint() {
+    return QString("0: cycle view; %1: show/hide.\nF1: all shortcuts.")
+        .arg(shortcutLabel(Qt::AltModifier, Qt::Key_0));
+}

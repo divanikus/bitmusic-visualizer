@@ -109,6 +109,8 @@ window, to open the shortcut guide.
 | 1–9 | Cycle that channel's cards: Waveform → Spectrum → Keyboard |
 | Ctrl+1–9 | Mute / unmute that channel |
 | Alt+1–9 | Hide / show that channel's cards |
+| 0 / Alt+0 | Full mix: cycle view / hide or show |
+| Ctrl+← / Ctrl+→ | Toggle left / right audio output |
 | F2 / F3 / F4 | Set all cards to Waveform / Spectrum / Keyboard |
 | F5 | Play the current track from the beginning |
 | F7 / F8 | Resume / pause |

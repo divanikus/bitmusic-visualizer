@@ -22,6 +22,8 @@ a channel, a digit cycles them together based on its original card's current
 view (or the first remaining card if the original was removed). Alt+digit hides
 all of that channel's cards when any are enabled, and shows them when all are
 hidden. Removed cards stay removed until added again or reset.
+**0 / Alt+0** applies the same view/visibility actions to Full mix cards.
+**Ctrl+Left / Ctrl+Right** toggles the left/right audio output, like the player's L/R buttons.
 F2–F4 also change hidden cards and Full mix, preserving their visibility and size.
 **Ctrl+Shift+R** additionally unmutes all voices and both audio outputs; the editor's
 **Reset** button continues to reset only the layout.

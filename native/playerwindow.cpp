@@ -314,7 +314,9 @@ void PlayerWindow::refreshControls() {
     for (auto button : {leftOutput_, rightOutput_}) {
         const bool audible = (s.outputMask & (1u << side)) != 0;
         QSignalBlocker block(button); button->setChecked(audible); button->setEnabled(s.valid);
-        button->setToolTip(QString("%1 output: %2").arg(side ? "Right" : "Left", audible ? "on (click to mute)" : "muted (click to enable)"));
+        button->setToolTip(QString("%1 output: %2\n%3: toggle output")
+            .arg(side ? "Right" : "Left", audible ? "on (click to mute)" : "muted (click to enable)",
+                shortcutLabel(Qt::ControlModifier, side ? Qt::Key_Right : Qt::Key_Left)));
         ++side;
     }
     repeat_->setToolTip(s.info.durationMs > 0 ? QString::fromUtf8("Repeat current track: ") + (s.repeat ? QString::fromUtf8("on") : QString::fromUtf8("off"))

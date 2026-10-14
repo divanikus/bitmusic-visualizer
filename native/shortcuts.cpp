@@ -55,11 +55,13 @@ void PlayerWindow::showShortcutsHelp() {
       <tr><td><b>1–9</b></td><td>Cycle Waveform → Spectrum → Keyboard</td></tr>
       <tr><td><b>%1–9</b></td><td>Mute / unmute channel</td></tr>
       <tr><td><b>%2–9</b></td><td>Hide / show channel cards</td></tr>
+      <tr><td><b>0 / %4</b></td><td>Full mix: cycle view / hide or show</td></tr>
       <tr><td><b>F2 / F3 / F4</b></td><td>All cards: Waveform / Spectrum / Keyboard</td></tr>
       <tr><td><b>%3</b></td><td>Reset channels and layout</td></tr>
       </table>
       <h3>Playback</h3>
       <table cellspacing="8">
+      <tr><td><b>%5 / %6</b></td><td>Toggle left / right audio output</td></tr>
       <tr><td><b>F5</b></td><td>Play the current track from the beginning</td></tr>
       <tr><td><b>F7</b></td><td>Resume playback</td></tr>
       <tr><td><b>F8</b></td><td>Pause playback</td></tr>
@@ -75,7 +77,10 @@ void PlayerWindow::showShortcutsHelp() {
       F1 also works from fields. No global system shortcuts are registered.</p>
     )").arg(shortcutLabel(Qt::ControlModifier, Qt::Key_1).toHtmlEscaped(),
         shortcutLabel(Qt::AltModifier, Qt::Key_1).toHtmlEscaped(),
-        shortcutLabel(Qt::ControlModifier | Qt::ShiftModifier, Qt::Key_R).toHtmlEscaped()));
+        shortcutLabel(Qt::ControlModifier | Qt::ShiftModifier, Qt::Key_R).toHtmlEscaped(),
+        shortcutLabel(Qt::AltModifier, Qt::Key_0).toHtmlEscaped(),
+        shortcutLabel(Qt::ControlModifier, Qt::Key_Left).toHtmlEscaped(),
+        shortcutLabel(Qt::ControlModifier, Qt::Key_Right).toHtmlEscaped()));
     layout->addWidget(text);
     auto buttons = new QDialogButtonBox(QDialogButtonBox::Close); layout->addWidget(buttons);
     connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
@@ -98,22 +103,26 @@ bool PlayerWindow::eventFilter(QObject *object, QEvent *event) {
         return FrameWindow::eventFilter(object, event);
     const bool digit = key >= Qt::Key_1 && key <= Qt::Key_9 &&
         (modifiers == Qt::NoModifier || modifiers == Qt::ControlModifier || modifiers == Qt::AltModifier);
+    const bool mix = key == Qt::Key_0 && (modifiers == Qt::NoModifier || modifiers == Qt::AltModifier);
+    const bool output = modifiers == Qt::ControlModifier && (key == Qt::Key_Left || key == Qt::Key_Right);
     const bool reset = key == Qt::Key_R && modifiers == (Qt::ControlModifier | Qt::ShiftModifier);
     const bool function = modifiers == Qt::NoModifier &&
         ((key >= Qt::Key_F2 && key <= Qt::Key_F5) || key == Qt::Key_F7 || key == Qt::Key_F8);
-    if (!help && !digit && !reset && !function) return FrameWindow::eventFilter(object, event);
+    if (!help && !digit && !mix && !output && !reset && !function) return FrameWindow::eventFilter(object, event);
     event->accept();
     if (event->type() == QEvent::ShortcutOverride || keyEvent->isAutoRepeat()) return true;
     if (help) { showShortcutsHelp(); return true; }
     const auto state = player_.state();
     if (!state.valid || state.busy) return true;
     refreshScopes(); // Keep source indices current even when scopes are hidden.
-    if (digit) {
-        const int source = key - Qt::Key_1;
-        if (source >= state.info.voices.size()) return true;
+    if (digit || mix) {
+        const int source = mix ? ScopeTheme::FullMix : key - Qt::Key_1;
+        if (!mix && source >= state.info.voices.size()) return true;
         if (modifiers == Qt::ControlModifier) player_.setMuteMask(state.muteMask ^ (uint32_t(1) << source));
         else if (modifiers == Qt::AltModifier) scopes_.toggleSourceVisibility(source);
         else scopes_.cycleSourceView(source);
+    } else if (output) {
+        player_.setOutputMask(state.outputMask ^ (key == Qt::Key_Left ? 1u : 2u));
     } else if (reset) {
         player_.setMuteMask(0); player_.setOutputMask(3); scopes_.resetLayout();
     } else if (key >= Qt::Key_F2 && key <= Qt::Key_F4) {

@@ -443,7 +443,7 @@ void ScopeWindow::updateList() {
         item->setText(label + (span == QSize(1, 1) ? QString() : "  [" + size + "]"));
         item->setToolTip(label + " - " + status + "\nSize: " + size + " cells (columns x rows).\nMove earlier, hide another card or enlarge the grid if it overflows.");
         if (source < 9) item->setToolTip(item->toolTip() + '\n' + channelShortcutHint(source));
-        if (source == ScopeTheme::FullMix) item->setToolTip(item->toolTip() + "\nFinal audio after volume, voice mutes and effects.");
+        if (source == ScopeTheme::FullMix) item->setToolTip(item->toolTip() + "\nFinal audio after volume, voice mutes and effects.\n" + fullMixShortcutHint());
         item->setForeground(QColor(visible.contains(channel) ? "#c3f1e7" : "#81969f"));
         item->setCheckState(hidden_[channel] ? Qt::Unchecked : Qt::Checked);
     }

@@ -11,6 +11,7 @@ not published GitHub releases. Unreleased lists changes made after the latest ta
 ### Added
 
 - Keyboard shortcuts for channel views, mute and visibility, playback and layout reset.
+  Use 0 / Alt+0 for Full mix and Ctrl+Left / Ctrl+Right to toggle the L/R outputs.
 - A shortcut guide via the keyboard icon in the main player or F1 in either window.
 - Layout presets save the grid, card views, sizes, visibility and stereo display.
   Select, save and set or clear a default in the editor sidebar; presets from

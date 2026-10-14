@@ -32,7 +32,7 @@ bool ScopeWindow::outputEnabled() const {
     return false;
 }
 void ScopeWindow::cycleSourceView(int source) {
-    if (!state_.valid || source < 0 || source >= state_.info.voices.size()) return;
+    if (!state_.valid || (source != ScopeTheme::FullMix && (source < 0 || source >= state_.info.voices.size()))) return;
     int first = order_.contains(source) ? source : -1;
     if (first < 0) for (int id : order_) if (sourceFor(id) == source) { first = id; break; }
     if (first < 0) return;
@@ -41,7 +41,7 @@ void ScopeWindow::cycleSourceView(int source) {
     layoutChanged(); updateViewEditor();
 }
 void ScopeWindow::toggleSourceVisibility(int source) {
-    if (!state_.valid || source < 0 || source >= state_.info.voices.size()) return;
+    if (!state_.valid || (source != ScopeTheme::FullMix && (source < 0 || source >= state_.info.voices.size()))) return;
     bool hide = false;
     for (int id : order_) if (sourceFor(id) == source && !hidden_[id]) hide = true;
     for (int id : order_) if (sourceFor(id) == source) hidden_[id] = hide;

@@ -38,7 +38,8 @@ Add `--software-scopes` for CPU rendering. These checks also run in the complete
 
 `--self-test test-output --shortcuts-only` exercises keyboard events in both
 windows, number-row/numpad mapping, duplicate/reordered/hidden cards, independent
-mute and visibility, input/dialog protection, transport and reset. It also checks
+mute and visibility, Full mix on 0/Alt+0, L/R output toggles, input/dialog
+protection, transport and reset. It also checks
 the main-window help button and F1 guide, saving screenshots with isolated
 preferences and silent playback. It is included in the complete native suite.
 
