@@ -8,8 +8,10 @@
 #include <QKeyEvent>
 #include <QLineEdit>
 #include <QListWidget>
+#include <QMouseEvent>
 #include <QPushButton>
 #include <QSpinBox>
+#include <QTabWidget>
 #include <QTextBrowser>
 #include <QTextStream>
 #include <QTimer>
@@ -38,6 +40,97 @@ void key(QWidget &target, int code, Qt::KeyboardModifiers modifiers = {}, bool r
 void focus(QApplication &app, QWidget &widget) {
     widget.window()->activateWindow(); widget.setFocus(); pump(app);
 }
+void click(QWidget &target, Qt::KeyboardModifiers modifiers = {}) {
+    const QPointF point = target.rect().center(), global = target.mapToGlobal(point.toPoint());
+    QMouseEvent press(QEvent::MouseButtonPress, point, global, Qt::LeftButton, Qt::LeftButton, modifiers);
+    QApplication::sendEvent(&target, &press);
+    QMouseEvent release(QEvent::MouseButtonRelease, point, global, Qt::LeftButton, Qt::NoButton, modifiers);
+    QApplication::sendEvent(&target, &release);
+}
+void checkSolo(QApplication &app, PlayerWindow &window, const QString &directory, QTextStream &log) {
+    auto &player = window.player(); auto &scope = window.scopeWindow();
+    window.findChild<QTabWidget *>("tabs")->setCurrentIndex(1);
+    auto voice = [&](int i) { return window.findChild<QToolButton *>(QString("voice%1").arg(i)); };
+    const auto soloKeys = Qt::ControlModifier | Qt::ShiftModifier;
+    player.setMuteMask(2); window.refresh();
+    const auto generation = player.state().generation;
+    const auto visibility = scope.visibleChannels();
+    focus(app, *voice(1)); click(*voice(1), Qt::ShiftModifier);
+    require(player.state().soloChannel == 1 && player.state().muteMask == ~uint32_t(2) &&
+        voice(1)->isChecked() && voice(1)->property("solo").toBool() && !voice(0)->isChecked(),
+        "Shift-click did not solo a previously muted voice.");
+    require(player.state().generation == generation && scope.visibleChannels() == visibility,
+        "Solo restarted playback or changed the grid.");
+    window.grab().save(QDir(directory).filePath("native-solo-player.png"));
+    focus(app, scope); key(scope, Qt::Key_3, soloKeys);
+    require(player.state().soloChannel == 2 && player.state().muteMask == ~uint32_t(4),
+        "Solo shortcut did not switch to another voice from scopes.");
+    key(scope, Qt::Key_3, soloKeys, true);
+    key(scope, Qt::Key_9, soloKeys);
+    require(player.state().soloChannel == 2, "Auto-repeat or absent channel changed Solo.");
+    focus(app, window); key(window, Qt::Key_3, soloKeys | Qt::KeypadModifier);
+    require(player.state().soloChannel == -1 && player.state().muteMask == 2,
+        "Numpad Solo did not restore the original mutes after switching voices.");
+    click(*voice(0), Qt::ShiftModifier); click(*voice(0), Qt::ShiftModifier);
+    require(player.state().soloChannel == -1 && player.state().muteMask == 2,
+        "Repeated Shift-click did not restore previous mutes.");
+
+    // Manual controls take over the visible audible set and clear the Solo marker.
+    key(window, Qt::Key_1, soloKeys); click(*voice(1)); window.refresh();
+    require(player.state().soloChannel == -1 && player.state().muteMask == ~uint32_t(3) &&
+        !voice(0)->property("solo").toBool(), "Manual channel click retained Solo or lost the audible set.");
+    key(window, Qt::Key_2, soloKeys); key(window, Qt::Key_1, Qt::ControlModifier);
+    require(player.state().soloChannel == -1 && player.state().muteMask == ~uint32_t(3),
+        "Mute shortcut did not leave Solo consistently.");
+    for (const QString action : {"enableAllChannels", "disableAllChannels"}) {
+        key(window, Qt::Key_1, soloKeys);
+        window.findChild<QPushButton *>(action)->click(); window.refresh();
+        require(player.state().soloChannel == -1 && player.state().muteMask ==
+            (action == "enableAllChannels" ? 0u : 0xffffffffu), "All-channel action did not cancel Solo.");
+    }
+    player.setMuteMask(2); key(window, Qt::Key_1, soloKeys);
+    key(window, Qt::Key_R, soloKeys);
+    require(player.state().soloChannel == -1 && player.state().muteMask == 0,
+        "Reset did not clear Solo.");
+
+    player.setMuteMask(2); player.setOutputMask(1); key(window, Qt::Key_1, soloKeys);
+    key(window, Qt::Key_F8); until(app, [&] { return !player.state().busy && !player.state().playing; });
+    require(player.state().soloChannel == 0, "Pause lost Solo.");
+    player.seek(1000, false); player.toggleSolo(2);
+    require(player.state().soloChannel == 0, "Solo changed during a pending seek.");
+    until(app, [&] { return !player.state().busy; });
+    require(player.state().soloChannel == 0 && player.state().muteMask == ~uint32_t(1), "Seek lost Solo.");
+    key(window, Qt::Key_F7); until(app, [&] { return !player.state().busy && player.state().playing; });
+    window.findChild<QPushButton *>("stop")->click(); until(app, [&] { return !player.state().busy; });
+    require(player.state().soloChannel == 0 && player.state().positionMs == 0 && !player.state().playing,
+        "Stop lost Solo or failed to stop.");
+    key(window, Qt::Key_F5); until(app, [&] { return !player.state().busy && player.state().playing; });
+    window.loadFile(QDir(directory).filePath("demo.nsf"), 0);
+    until(app, [&] { return !player.state().busy; }); window.refresh();
+    require(player.state().valid && player.state().info.song == 0 && player.state().soloChannel == 0 &&
+        player.state().outputMask == 1, "Subsong change lost Solo/output selection.");
+    click(*voice(0), Qt::ShiftModifier);
+    require(player.state().soloChannel == -1 && player.state().muteMask == 2,
+        "Transport/subsong changes lost the original mute selection.");
+
+    // Ordinary field edits, popup/modal use and non-voice indices stay protected.
+    auto rows = scope.findChild<QSpinBox *>("gridRows");
+    focus(app, *rows); key(*rows, Qt::Key_1, soloKeys);
+    require(player.state().soloChannel == -1, "Solo shortcut escaped a numeric field.");
+    QDialog dialog(&window); dialog.setModal(true); dialog.show(); pump(app);
+    key(window, Qt::Key_1, soloKeys);
+    require(player.state().soloChannel == -1, "Solo shortcut escaped a modal dialog."); dialog.close();
+    focus(app, window); player.toggleSolo(-1); player.toggleSolo(32); key(window, Qt::Key_0, soloKeys);
+    require(player.state().soloChannel == -1, "Invalid source or Full mix was soloed.");
+    key(window, Qt::Key_1, soloKeys);
+    window.loadFile(QDir(directory).filePath("demo.vgz"));
+    until(app, [&] { return !player.state().busy; }); window.refresh();
+    require(player.state().valid && player.state().soloChannel == -1 && player.state().muteMask == 0,
+        "Another file retained Solo or old mutes.");
+    player.setOutputMask(3);
+    log << "Solo: Shift-click, both-window/numpad shortcuts, switch/restore, mute/reset takeover, field guards and transport/file lifecycle PASS\n";
+    log.flush();
+}
 }
 
 void checkShortcuts(QApplication &app, const QString &directory, QTextStream &log) {
@@ -46,6 +139,7 @@ void checkShortcuts(QApplication &app, const QString &directory, QTextStream &lo
     auto help = window.findChild<QPushButton *>("keyboardShortcuts");
     require(help && !scope.findChild<QPushButton *>("keyboardShortcuts"), "Help button must exist only in the main player.");
     key(window, Qt::Key_F5); key(window, Qt::Key_9, Qt::ControlModifier);
+    key(window, Qt::Key_1, Qt::ControlModifier | Qt::ShiftModifier);
     key(window, Qt::Key_0); key(window, Qt::Key_Left, Qt::ControlModifier);
     require(!player.state().valid && !player.state().busy, "Empty-player shortcuts started transport.");
     window.loadFile(QDir(directory).filePath("demo.nsf"), 1);
@@ -153,7 +247,8 @@ void checkShortcuts(QApplication &app, const QString &directory, QTextStream &lo
     until(app, [&] { return QApplication::activePopupWidget(); });
     key(window, Qt::Key_2, Qt::ControlModifier);
     key(window, Qt::Key_Right, Qt::ControlModifier); key(window, Qt::Key_0);
-    require(player.state().muteMask == 2 && player.state().outputMask == 3 && kind(ScopeTheme::FullMix) == 2,
+    key(window, Qt::Key_2, Qt::ControlModifier | Qt::ShiftModifier);
+    require(player.state().soloChannel == -1 && player.state().muteMask == 2 && player.state().outputMask == 3 && kind(ScopeTheme::FullMix) == 2,
         "Shortcut escaped a dropdown popup."); view->hidePopup();
     QDialog other(&window); other.setModal(true); other.show(); pump(app);
     key(window, Qt::Key_2, Qt::ControlModifier);
@@ -197,7 +292,8 @@ void checkShortcuts(QApplication &app, const QString &directory, QTextStream &lo
         if (!dialog) { guideValid = false; return; }
         auto guide = dialog->findChild<QTextBrowser *>("shortcutsGuide");
         guideValid &= guide && guide->toPlainText().contains("F8") && guide->toPlainText().contains("Reset channels and layout") &&
-            guide->toPlainText().contains("Full mix: cycle view") && guide->toPlainText().contains("Toggle left / right audio output");
+            guide->toPlainText().contains("Full mix: cycle view") && guide->toPlainText().contains("Toggle left / right audio output") &&
+            guide->toPlainText().contains("Solo channel / restore previous channels") && guide->toPlainText().contains("Shift+click");
         ++dialogs; dialog->grab().save(QDir(directory).filePath("native-shortcuts-help.png")); dialog->accept();
     };
     for (QWidget *target : {static_cast<QWidget *>(&window), static_cast<QWidget *>(&scope)}) {
@@ -205,6 +301,7 @@ void checkShortcuts(QApplication &app, const QString &directory, QTextStream &lo
     }
     QTimer::singleShot(100, &window, closeGuide); help->click();
     require(guideValid && dialogs == 3, "Help button/F1 guide did not open.");
+    checkSolo(app, window, directory, log);
     require(player.state().outputErrors == 0 && player.state().starvations == 0, "Shortcut check interrupted audio output.");
     window.close();
     log << "Shortcuts: restart/resume/pause, reset, help button/F1 and silent audio continuity PASS\n"; log.flush();

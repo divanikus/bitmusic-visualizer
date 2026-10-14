@@ -10,6 +10,7 @@
 #include <QPainter>
 #include <QPlainTextEdit>
 #include <QPushButton>
+#include <QShortcut>
 #include <QTextBrowser>
 #include <QVBoxLayout>
 
@@ -43,6 +44,20 @@ bool editing(QWidget *widget) {
 void PlayerWindow::setupShortcutsHelp(TitleBar *bar) {
     auto button = new ShortcutsButton; bar->addAction(button);
     connect(button, &QPushButton::clicked, this, [this] { showShortcutsHelp(); });
+    // Qt resolves shifted number-row keys through the current keyboard layout.
+    // Raw key() can instead contain '!' / '@' / other national-layout symbols.
+    for (QWidget *owner : {static_cast<QWidget *>(this), static_cast<QWidget *>(&scopes_)}) {
+        for (int source = 0; source < 9; ++source) {
+            auto shortcut = new QShortcut(QKeySequence(QKeyCombination(Qt::ControlModifier | Qt::ShiftModifier,
+                Qt::Key(Qt::Key_1 + source))), owner);
+            shortcut->setObjectName(QString("soloShortcut%1").arg(source)); shortcut->setAutoRepeat(false);
+            connect(shortcut, &QShortcut::activated, this, [this, source] {
+                if (QApplication::activeModalWidget() || QApplication::activePopupWidget() ||
+                    editing(QApplication::focusWidget())) return;
+                player_.toggleSolo(source); refresh();
+            });
+        }
+    }
 }
 void PlayerWindow::showShortcutsHelp() {
     QDialog dialog(this); dialog.setWindowTitle("Keyboard shortcuts"); dialog.setObjectName("shortcutsDialog");
@@ -55,6 +70,8 @@ void PlayerWindow::showShortcutsHelp() {
       <tr><td><b>1–9</b></td><td>Cycle Waveform → Spectrum → Keyboard</td></tr>
       <tr><td><b>%1–9</b></td><td>Mute / unmute channel</td></tr>
       <tr><td><b>%2–9</b></td><td>Hide / show channel cards</td></tr>
+      <tr><td><b>%7–9</b></td><td>Solo channel / restore previous channels</td></tr>
+      <tr><td><b>Shift+click</b></td><td>Solo a channel button in Channels; repeat to restore</td></tr>
       <tr><td><b>0 / %4</b></td><td>Full mix: cycle view / hide or show</td></tr>
       <tr><td><b>F2 / F3 / F4</b></td><td>All cards: Waveform / Spectrum / Keyboard</td></tr>
       <tr><td><b>%3</b></td><td>Reset channels and layout</td></tr>
@@ -70,6 +87,9 @@ void PlayerWindow::showShortcutsHelp() {
       <p>Works in either player window. Use the number row or the numpad with
       Num Lock on. Numbers refer to the original channel numbers, even after
       reordering. Multiple cards of one channel change together.</p>
+      <p>Solo temporarily plays only one voice. Shift-click another channel to
+      switch Solo, or the same one to restore the previous mutes. Ordinary mute
+      controls exit Solo and edit the currently audible set.</p>
       <p>Reset restores waveform cards, the default grid, labels and visibility,
       and enables all voices and both audio outputs. Full mix starts hidden.
       Colors, effects, volume and window size are kept.</p>
@@ -80,7 +100,8 @@ void PlayerWindow::showShortcutsHelp() {
         shortcutLabel(Qt::ControlModifier | Qt::ShiftModifier, Qt::Key_R).toHtmlEscaped(),
         shortcutLabel(Qt::AltModifier, Qt::Key_0).toHtmlEscaped(),
         shortcutLabel(Qt::ControlModifier, Qt::Key_Left).toHtmlEscaped(),
-        shortcutLabel(Qt::ControlModifier, Qt::Key_Right).toHtmlEscaped()));
+        shortcutLabel(Qt::ControlModifier, Qt::Key_Right).toHtmlEscaped(),
+        shortcutLabel(Qt::ControlModifier | Qt::ShiftModifier, Qt::Key_1).toHtmlEscaped()));
     layout->addWidget(text);
     auto buttons = new QDialogButtonBox(QDialogButtonBox::Close); layout->addWidget(buttons);
     connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);

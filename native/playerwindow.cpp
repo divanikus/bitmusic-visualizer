@@ -11,6 +11,7 @@
 #include <QLabel>
 #include <QListWidget>
 #include <QMimeData>
+#include <QMouseEvent>
 #include <QMessageBox>
 #include <QPainter>
 #include <QPainterPath>
@@ -32,12 +33,38 @@ namespace {
 enum class Symbol { Previous, Stop, Play, Pause, Next, Repeat, Open, Scopes, Volume };
 class ChannelButton : public QToolButton {
 public:
+    std::function<void()> onSolo;
+    void setSolo(bool solo) {
+        if (property("solo").toBool() == solo) return;
+        setProperty("solo", solo); update();
+    }
     QSize minimumSizeHint() const override { return {40, 32}; }
 protected:
+    void mouseReleaseEvent(QMouseEvent *event) override {
+        if (event->button() == Qt::LeftButton && event->modifiers() == Qt::ShiftModifier && isDown()) {
+            setDown(false);
+            if (isEnabled() && rect().contains(event->position().toPoint()) && onSolo) onSolo();
+            event->accept();
+            return;
+        }
+        QToolButton::mouseReleaseEvent(event);
+    }
     void paintEvent(QPaintEvent *) override {
+        const bool solo = property("solo").toBool();
         QStyleOptionToolButton option; initStyleOption(&option);
-        option.text = fontMetrics().elidedText(text(), Qt::ElideRight, std::max(0, width() - 20));
+        option.text = fontMetrics().elidedText(text(), Qt::ElideRight, std::max(0, width() - (solo ? 62 : 20)));
+        const auto label = option.text;
+        if (solo) option.text.clear();
         QStylePainter painter(this); painter.drawComplexControl(QStyle::CC_ToolButton, option);
+        if (solo) {
+            painter.setPen(QColor(isEnabled() ? "#b4eddf" : "#647078"));
+            painter.drawText(rect().adjusted(10, 0, -51, 0), Qt::AlignLeft | Qt::AlignVCenter, label);
+            const QRect badge(width() - 43, (height() - 18) / 2, 37, 18);
+            painter.setRenderHint(QPainter::Antialiasing);
+            painter.setPen(Qt::NoPen); painter.setBrush(QColor("#f2c878")); painter.drawRoundedRect(badge, 4, 4);
+            auto badgeFont = font(); badgeFont.setPointSizeF(7); badgeFont.setBold(true); painter.setFont(badgeFont);
+            painter.setPen(QColor("#30250f")); painter.drawText(badge, Qt::AlignCenter, "SOLO");
+        }
     }
 };
 // Vector icons remain readable at different Windows display scales and need no icon font.
@@ -188,7 +215,9 @@ PlayerWindow::PlayerWindow() {
     tabs_->addTab(songs_, QString::fromUtf8("Tracks"));
     auto channelPage = new QWidget; auto channelLayout = new QVBoxLayout(channelPage); channelLayout->setContentsMargins(8, 8, 8, 8); channelLayout->setSpacing(6);
     auto scroll = new QScrollArea; scroll->setWidgetResizable(true); auto channelContents = new QWidget; channels_ = new QGridLayout(channelContents); channels_->setContentsMargins(0, 0, 0, 0); channels_->setSpacing(6); channels_->setAlignment(Qt::AlignTop); scroll->setWidget(channelContents); channelLayout->addWidget(scroll, 1);
-    auto all = new QPushButton(QString::fromUtf8("Enable all")); auto none = new QPushButton(QString::fromUtf8("Disable all")); auto channelActions = new QHBoxLayout; channelActions->addWidget(all); channelActions->addWidget(none); channelActions->addStretch(); channelLayout->addLayout(channelActions);
+    auto all = new QPushButton(QString::fromUtf8("Enable all")); auto none = new QPushButton(QString::fromUtf8("Disable all"));
+    all->setObjectName("enableAllChannels"); none->setObjectName("disableAllChannels");
+    auto channelActions = new QHBoxLayout; channelActions->addWidget(all); channelActions->addWidget(none); channelActions->addStretch(); channelLayout->addLayout(channelActions);
     tabs_->addTab(channelPage, QString::fromUtf8("Channels")); root->addWidget(tabs_, 1);
     status_ = new QLabel; status_->setObjectName("status"); status_->setWordWrap(true); status_->hide(); root->addWidget(status_);
     connect(open, &QPushButton::clicked, this, [this] {
@@ -275,8 +304,9 @@ void PlayerWindow::rebuildChannels(const PlayerState &state) {
     for (int i = 0; i < state.info.voices.size(); ++i) {
         auto button = new ChannelButton; button->setText(QString("%1  %2").arg(i + 1, 2, 10, QLatin1Char('0')).arg(state.info.voices[i]));
         button->setObjectName(QString("voice%1").arg(i)); button->setCheckable(true); button->setChecked(true); button->setMinimumHeight(32); button->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
-        button->setToolTip(state.info.voices[i] + "\nPressed: channel is audible"); channels_->addWidget(button, i / 2, i % 2);
+        button->setToolTip(state.info.voices[i] + "\nPressed: channel is audible\nShift+click: Solo / restore previous channels"); channels_->addWidget(button, i / 2, i % 2);
         if (i < 9) button->setToolTip(button->toolTip() + '\n' + channelShortcutHint(i));
+        button->onSolo = [this, i] { player_.toggleSolo(i); refresh(); };
         connect(button, &QToolButton::toggled, this, [this, i](bool audible) {
             auto mask = player_.state().muteMask; if (audible) mask &= ~(uint32_t(1) << i); else mask |= uint32_t(1) << i; player_.setMuteMask(mask);
         });
@@ -338,7 +368,12 @@ void PlayerWindow::refreshControls() {
         const bool playing = s.valid && !s.busy && s.playing && i == s.info.song;
         if (item->data(Qt::UserRole + 2).toBool() != playing) item->setData(Qt::UserRole + 2, playing);
     }
-    for (int i = 0; i < channels_->count(); ++i) { auto button = qobject_cast<QToolButton *>(channels_->itemAt(i)->widget()); QSignalBlocker block(button); button->setChecked(!(s.muteMask & (uint32_t(1) << i))); button->setEnabled(ready); }
+    for (int i = 0; i < channels_->count(); ++i) {
+        auto button = static_cast<ChannelButton *>(channels_->itemAt(i)->widget()); QSignalBlocker block(button);
+        button->setChecked(!(s.muteMask & (uint32_t(1) << i))); button->setEnabled(ready);
+        button->setSolo(s.soloChannel == i);
+        button->setAccessibleName(button->text() + (s.soloChannel == i ? "; Solo" : QString()));
+    }
     const auto message = !s.error.isEmpty() ? s.error : !s.scopeError.isEmpty() ? s.scopeError : s.busy ? QString::fromUtf8("Loading…") : QString();
     status_->setText(message); status_->setVisible(!message.isEmpty());
 }

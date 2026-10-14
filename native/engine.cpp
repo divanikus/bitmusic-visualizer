@@ -308,10 +308,28 @@ void NativePlayer::submit(Command command) {
 }
 void NativePlayer::load(const QString &path, int song) {
     const auto current = state();
-    if (!current.valid || current.info.path != path) muteMask_ = 0;
+    if (!current.valid || current.info.path != path) setMuteMask(0);
     submit({0, path, song, 0, true, true});
 }
 void NativePlayer::seek(int ms, bool playing) { submit({0, {}, 0, std::clamp(ms, 0, 3600000), false, playing}); }
+void NativePlayer::setMuteMask(uint32_t mask) {
+    std::lock_guard lock(stateMutex_);
+    // A manual mute action takes over the currently audible set.
+    state_.soloChannel = -1;
+    muteMask_.store(mask);
+}
+void NativePlayer::toggleSolo(int channel) {
+    std::lock_guard lock(stateMutex_);
+    if (!state_.valid || state_.busy || channel < 0 || channel >= state_.info.voices.size() || channel >= 32) return;
+    if (state_.soloChannel == channel) {
+        state_.soloChannel = -1;
+        muteMask_.store(beforeSoloMask_);
+    } else {
+        if (state_.soloChannel < 0) beforeSoloMask_ = muteMask_.load();
+        state_.soloChannel = channel;
+        muteMask_.store(~(uint32_t(1) << channel));
+    }
+}
 PlayerState NativePlayer::state() const {
     std::lock_guard lock(stateMutex_);
     auto result = state_;

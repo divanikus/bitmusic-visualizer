@@ -8,6 +8,11 @@ not published GitHub releases. Unreleased lists changes made after the latest ta
 
 ## Unreleased
 
+### Added
+
+- Solo listening: Shift-click a channel button or press Ctrl+Shift+1–9.
+  Repeat to restore previous mutes, or select another channel to switch Solo.
+
 ## [0.8.1](https://github.com/divanikus/bitmusic-visualizer/releases/tag/v0.8.1) — 2026-10-14
 
 ### Added

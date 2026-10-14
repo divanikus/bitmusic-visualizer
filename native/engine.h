@@ -87,6 +87,7 @@ struct PlayerState {
     bool repeat = false;
     int positionMs = 0;
     uint32_t muteMask = 0;
+    int soloChannel = -1; // Temporary exclusive listening; not a saved preference.
     uint32_t outputMask = 3; // Bit 0: left speaker, bit 1: right speaker.
     uint64_t starvations = 0, outputErrors = 0;
     uint64_t scopeBlocks = 0;
@@ -114,7 +115,8 @@ public:
     ~NativePlayer() override;
     void load(const QString &path, int song = 0);
     void seek(int milliseconds, bool playing);
-    void setMuteMask(uint32_t mask) { muteMask_.store(mask); }
+    void setMuteMask(uint32_t mask);
+    void toggleSolo(int channel);
     void setVolume(float value) { volume_.store(value); }
     void setOutputMask(uint32_t mask) { outputMask_.store(mask & 3u); }
     void setRepeat(bool enabled) { repeat_.store(enabled); }
@@ -136,6 +138,7 @@ private:
     std::mutex scopeWaitMutex_;
     std::condition_variable scopeWake_;
     PlayerState state_;
+    uint32_t beforeSoloMask_ = 0; // Guarded with state_.soloChannel by stateMutex_.
     ScopeFrame scope_;
     std::optional<Command> pending_;
     PcmRing ring_;

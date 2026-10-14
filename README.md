@@ -13,7 +13,7 @@ See the [changelog](CHANGELOG.md) for version history.
 ## Features
 
 - Play, pause, stop, seek, repeat, and select subsongs within a music file.
-- Independent voice mutes and left/right output switches.
+- Independent voice mutes, temporary Solo and left/right output switches.
 - Platform and sound configuration appear together below the track title;
   hover over the title to see the filename.
 - Mono or stereo waveforms; optional Full mix showing the PCM sent to the audio
@@ -71,6 +71,12 @@ Open a file with Ctrl+O or drag it onto the player. Tracks lists subsongs within
 that file; double-click to play one. Channels controls sound. The scopes button
 shows/hides the separate window; closing that window keeps playback running.
 
+**Shift-click a channel button** in Channels to listen to it alone. A **SOLO**
+badge marks the selected voice. Shift-click another channel to switch Solo;
+repeat on the same one to restore the previous mute selection. Ordinary mute
+controls leave Solo and edit the currently audible set. Solo survives transport
+and subsong changes, but resets when opening a different file and is not saved.
+
 In the scope editor, drag cards to reorder and drag their edges/corners to resize.
 Apply finishes editing. Reset restores the grid and visibility, keeping colors.
 Keep grid retains only row/column counts when opening a new file without an
@@ -110,6 +116,7 @@ window, to open the shortcut guide.
 | --- | --- |
 | 1–9 | Cycle that channel's cards: Waveform → Spectrum → Keyboard |
 | Ctrl+1–9 | Mute / unmute that channel |
+| Ctrl+Shift+1–9 | Solo that channel / restore previous mutes |
 | Alt+1–9 | Hide / show that channel's cards |
 | 0 / Alt+0 | Full mix: cycle view / hide or show |
 | Ctrl+← / Ctrl+→ | Toggle left / right audio output |
