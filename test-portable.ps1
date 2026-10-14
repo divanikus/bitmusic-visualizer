@@ -15,7 +15,9 @@ foreach ($required in @('COPYING','licenses/GPL-3.0.txt','licenses/libsidplayfp-
     'third-party-sources/libsidplayfp-2.16.1.tar.gz','third-party-sources/bitmusic-visualizer-source.tar.xz',
     'licenses/ymfm-BSD-3-Clause.txt','licenses/ymfm-voices-BSD-3-Clause.txt',
     'third-party-sources/ymfm-81aec25ccbb98f4873a255f7551ac4dadac59b4a.tar.gz',
-    'roms/ymfm/README.txt')) {
+    'roms/ymfm/README.txt','roms/mt32/README.txt','soundfonts/README.txt',
+    'licenses/FluidSynth-LGPL-2.1.txt','licenses/Munt-LGPL-2.1.txt',
+    'third-party-sources/fluidsynth-2.5.4.tar.gz','third-party-sources/munt-libmt32emu-2.8.3.tar.gz')) {
     if (!(Test-Path -LiteralPath (Join-Path $playerRoot $required))) { throw "Missing corresponding source/license: $required" }
 }
 foreach ($line in Get-Content -LiteralPath "$playerRoot/SHA256SUMS.txt") {
@@ -77,6 +79,11 @@ try {
     $null = $process.Handle
     if (!$process.WaitForExit(60000)) { throw 'Portable MIDI checks timed out.' }
     if ($process.ExitCode -ne 0) { throw "Portable MIDI checks failed (exit $($process.ExitCode))" }
+    $process = Start-Process -FilePath $executable -WorkingDirectory $playerRoot -ArgumentList @('--mt32-checks', ('"' + $fixtureRoot + '"')) `
+        -PassThru -WindowStyle Hidden -RedirectStandardOutput "$checkRoot/mt32-stdout.txt" -RedirectStandardError "$checkRoot/mt32-stderr.txt"
+    $null = $process.Handle
+    if (!$process.WaitForExit(60000)) { throw 'Portable MT-32 resource checks timed out.' }
+    if ($process.ExitCode -ne 0) { throw "Portable MT-32 resource checks failed (exit $($process.ExitCode))" }
     $process = Start-Process -FilePath $executable -WorkingDirectory $playerRoot -ArgumentList @('--gpu-checks', ('"' + $fixtureRoot + '"')) `
         -PassThru -WindowStyle Hidden -RedirectStandardOutput "$checkRoot/gpu-stdout.txt" -RedirectStandardError "$checkRoot/gpu-stderr.txt"
     $null = $process.Handle

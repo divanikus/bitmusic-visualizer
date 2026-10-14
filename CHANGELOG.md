@@ -8,6 +8,8 @@ not published GitHub releases. Unreleased lists changes made after the latest ta
 
 ## Unreleased
 
+## [0.9.0](https://github.com/divanikus/bitmusic-visualizer/releases/tag/v0.9.0) — 2026-10-15
+
 ### Added
 
 - Full-screen visualizer: use the icon beside the pencil, F11 or double-click
