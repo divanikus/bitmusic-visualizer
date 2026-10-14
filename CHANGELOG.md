@@ -10,6 +10,9 @@ not published GitHub releases. Unreleased lists changes made after the latest ta
 
 ### Added
 
+- Full-screen visualizer: use the icon beside the pencil or F11; Esc returns.
+- Adjustable waveform/spectrum line width in Waves, remembered between sessions.
+- Optional L/R level meters on cards, enabled with Levels beside Stereo.
 - Roland MT-32 playback with your Control/PCM ROMs: eight melodic parts and
   rhythm, stereo cards, instrument names, mute/Solo and a saved MIDI engine selector.
 - General MIDI playback with your SF2 SoundFont: sixteen stereo channel cards,

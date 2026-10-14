@@ -527,11 +527,13 @@ void checkScopeColors(QApplication &app, const QString &directory) {
 }
 void checkWindowSettings(QApplication &app, const QString &directory, QTextStream &log) {
     const auto previousPath = app.property("settingsFileForTests");
-    QTemporaryDir isolated; require(isolated.isValid(), "Cannot isolate window settings.");
+    QTemporaryDir isolated(QDir(directory).absoluteFilePath("window-settings-XXXXXX"));
+    require(isolated.isValid(), "Cannot isolate window settings.");
     app.setProperty("settingsFileForTests", isolated.filePath("windows.ini"));
     try {
         { QSettings ini(playerSettingsPath(), QSettings::IniFormat);
-          ini.setValue("Effects/GlowBrightness", 77); ini.setValue("Other/Keep", "untouched"); ini.sync(); }
+          ini.setValue("Effects/GlowBrightness", 77); ini.setValue("Other/Keep", "untouched"); ini.sync();
+          require(ini.status() == QSettings::NoError, "Cannot write isolated window settings."); }
         const auto available = app.primaryScreen()->availableGeometry();
         QRect mainRect, scopeRect;
         {
@@ -596,7 +598,7 @@ void checkWindowSettings(QApplication &app, const QString &directory, QTextStrea
                     "Inline size minimum does not account for display scaling.");
             auto editor = scopes.findChild<QWidget *>("scopeEditor");
             QVector<QRect> controls;
-            for (auto name : {"scopeWindowSize", "scopePixelWidth", "scopePixelHeight", "gridRows", "gridColumns", "channelNumbers", "channelNames", "scopeStereo", "keepGrid", "scopeWindowColor", "resetLayout", "applyLayout"}) {
+            for (auto name : {"scopeWindowSize", "scopePixelWidth", "scopePixelHeight", "gridRows", "gridColumns", "channelNumbers", "channelNames", "scopeStereo", "scopeLevels", "keepGrid", "scopeWindowColor", "resetLayout", "applyLayout"}) {
                 auto control = editor->findChild<QWidget *>(name);
                 require(control && control->isVisible(), "A toolbar control disappeared at the minimum window size.");
                 const QRect bounds(control->mapTo(editor, QPoint()), control->size());

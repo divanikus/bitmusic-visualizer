@@ -124,6 +124,14 @@ void checkRendererSettings(QApplication &app, QTextStream &log, const QDir &outp
     auto edit = [&](ScopeWindow &scope, const QString &expected, const QString &selected, bool save) {
         scope.show(); scope.findChild<QPushButton *>("editLayout")->setChecked(true); pump(app);
         std::exception_ptr failure; bool opened = false;
+        QTimer dismissError;
+        QObject::connect(&dismissError, &QTimer::timeout, &scope, [&] {
+            auto message = scope.findChild<QMessageBox *>(); if (!message) return;
+            failure = std::make_exception_ptr(std::runtime_error(message->text().toStdString()));
+            message->accept();
+            if (auto dialog = scope.findChild<QDialog *>("scopeRendererDialog")) dialog->reject();
+        });
+        dismissError.start(20);
         QTimer::singleShot(30, &scope, [&] {
             auto dialog = scope.findChild<QDialog *>("scopeRendererDialog");
             if (!dialog) return;
@@ -177,7 +185,9 @@ int runGpuChecks(QApplication &app, const QStringList &arguments) {
     QFile file(dir.filePath("gpu-checks.txt")); if (!file.open(QIODevice::WriteOnly)) return 2;
     QTextStream log(&file);
     app.setQuitOnLastWindowClosed(false);
-    QTemporaryDir settings; app.setProperty("settingsFileForTests", settings.filePath("settings.ini"));
+    QTemporaryDir settings(dir.absoluteFilePath("settings-XXXXXX"));
+    if (!settings.isValid()) { log << "FAIL: Cannot create isolated GPU settings in output directory.\n"; return 3; }
+    app.setProperty("settingsFileForTests", settings.filePath("settings.ini"));
     app.setProperty("themesDirectoryForTests", settings.filePath("themes"));
     try {
         checkRendererSettings(app, log, dir);
@@ -200,6 +210,18 @@ int runGpuChecks(QApplication &app, const QStringList &arguments) {
         const auto plain = capture(); plain.save(dir.filePath("gpu-plain.png"));
         const QRectF core(50,60,500,.5), halo(50,62,500,2);
         require(brightness(plain, core) > 100000, "GPU trace is missing.");
+        auto wide = a; wide.lineWidth = 6;
+        canvas.submit(chrome, {wide}, "wide", 1, 0, false, off); pump(app);
+        require(brightness(capture(), halo) > brightness(plain, halo)+100000, "GPU line width did not expand the core.");
+        ScopeEffects meterEffects; meterEffects.trailMs = 999; meterEffects.glowStrength = 1;
+        const QRectF meterBox(40, 160, 6, 40);
+        canvas.submit(chrome, {a}, "meter", 1, 0, true, meterEffects, 0, {{meterBox, QColor("#60e6ce")}}); pump(app);
+        const auto meterImage = capture();
+        require(brightness(meterImage, {41, 161, 4, 38}) > 10000 && brightness(meterImage, {47, 161, 3, 38}) == 0,
+            "GPU meter is missing or has glow.");
+        canvas.submit(chrome, {a}, "meter", 1, 40, true, meterEffects); pump(app);
+        require(brightness(capture(), meterBox) == 0, "GPU meter retained a fading history.");
+        log << "Line widths and instantaneous meters without glow/trails PASS\n"; log.flush();
         ScopeEffects glow = off; glow.glow = true;
         canvas.submit(chrome, {a}, "one", 1, 0, true, glow); pump(app);
         const auto lit = capture();
@@ -380,7 +402,7 @@ int runGpuSoak(QApplication &app, const QStringList &arguments) {
     QFile report(dir.filePath("gpu-soak.txt")); if (!report.open(QIODevice::WriteOnly | QIODevice::Text)) return 3;
     QTextStream log(&report);
     app.setQuitOnLastWindowClosed(false);
-    QTemporaryDir settings;
+    QTemporaryDir settings(dir.absoluteFilePath("settings-XXXXXX"));
     if (!settings.isValid()) return 4;
     app.setProperty("settingsFileForTests", settings.filePath("settings.ini"));
     app.setProperty("themesDirectoryForTests", settings.filePath("themes"));

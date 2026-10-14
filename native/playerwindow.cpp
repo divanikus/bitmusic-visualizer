@@ -338,7 +338,7 @@ void PlayerWindow::closeEvent(QCloseEvent *event) {
     // Snapshot before hiding, including a scope window hidden earlier by the user.
     QSettings settings(playerSettingsPath(), playerSettingsFormat()); settings.setFallbacksEnabled(false);
     settings.setValue("Windows/Player", saveGeometry());
-    settings.setValue("Windows/Scopes", scopes_.saveGeometry());
+    settings.setValue("Windows/Scopes", scopes_.windowedGeometry());
     settings.sync();
     scopes_.hide(); scopes_.onVisibilityChanged = {}; player_.shutdown();
     if (settings.status() != QSettings::NoError)

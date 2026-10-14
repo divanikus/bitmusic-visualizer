@@ -6,9 +6,11 @@
 #include <QComboBox>
 #include <QDialog>
 #include <QDialogButtonBox>
+#include <QDoubleSpinBox>
 #include <QDir>
 #include <QEventLoop>
 #include <QLabel>
+#include <QKeyEvent>
 #include <QListWidget>
 #include <QLineEdit>
 #include <QMouseEvent>
@@ -38,6 +40,10 @@ QVector<float> tone(float amplitude, float phase = 0, float period = 137.3f) {
     return row;
 }
 void checkEnvelopeAndTrigger() {
+    require(scopeMeterLevel({}) == 0 && scopeMeterLevel({0, 0}) == 0 && scopeMeterLevel({65536}) == 1,
+        "Level meters do not handle silence/overload.");
+    require(std::abs(scopeMeterLevel({-3276.8f})-2.f/3.f) < .0001f && scopeMeterLevel({32}) == 0,
+        "Level meters do not use a fixed -60..0 dBFS scale.");
     WaveOptions options; options.trigger = WaveOptions::Off;
     const QVector<float> loud(ScopeFrames, 10000), quiet(ScopeFrames, 2000);
     ScopeWave wave; wave.update(loud, loud, 0, options);
@@ -169,6 +175,8 @@ void checkWaveUi(QApplication &app, const QString &directory) {
             dialog->findChild<QComboBox *>("waveTrigger")->setCurrentIndex(WaveOptions::Off);
             dialog->findChild<QSpinBox *>("waveHold")->setValue(777);
             dialog->findChild<QSpinBox *>("waveRelease")->setValue(2345);
+            dialog->findChild<QDoubleSpinBox *>("waveLineWidth")->setValue(3.2);
+            scope.findChild<QCheckBox *>("scopeLevels")->setChecked(true);
             require(!dialog->findChild<QCheckBox *>("waveOutput") && !dialog->findChild<QLabel *>("waveScaleHelp")->text().isEmpty() &&
                 dialog->findChild<QLabel *>("waveTriggerHelp")->text().contains("Does not align"), "Waveform explanations or list-only mix control missing.");
             dialog->grab().save(dir.filePath("native-waveforms-dialog.png"));
@@ -232,11 +240,14 @@ void checkWaveUi(QApplication &app, const QString &directory) {
             require(dialog->findChild<QComboBox *>("waveScale")->currentIndex() == WaveOptions::Smooth &&
                 dialog->findChild<QComboBox *>("waveTrigger")->currentIndex() == WaveOptions::Off &&
                 dialog->findChild<QSpinBox *>("waveHold")->value() == 777 &&
-                dialog->findChild<QSpinBox *>("waveRelease")->value() == 2345, "Waveform preferences did not survive restart.");
+                dialog->findChild<QSpinBox *>("waveRelease")->value() == 2345 &&
+                dialog->findChild<QDoubleSpinBox *>("waveLineWidth")->value() == 3.2 &&
+                restored.findChild<QCheckBox *>("scopeLevels")->isChecked(), "Waveform preferences did not survive restart.");
             dialog->findChild<QDialogButtonBox *>()->button(QDialogButtonBox::RestoreDefaults)->click();
         });
         QSettings settings(playerSettingsPath(), playerSettingsFormat());
         require(settings.value("Waveforms/OutputMix").toBool(), "Waveform defaults reset the independent mix visibility.");
+        require(restored.findChild<QCheckBox *>("scopeLevels")->isChecked(), "Waveform defaults reset the toolbar Levels option.");
         restored.findChild<QPushButton *>("resetLayout")->click();
     }
     {
@@ -244,16 +255,98 @@ void checkWaveUi(QApplication &app, const QString &directory) {
         require(settings.value("Other/WaveKeep").toInt() == 42 && !settings.value("Waveforms/OutputMix").toBool(), "Reset lost unrelated settings or did not persist.");
         settings.setValue("Waveforms/Scale", "bogus"); settings.setValue("Waveforms/HoldMs", -5);
         settings.setValue("Waveforms/ReleaseMs", "bad"); settings.setValue("Waveforms/OutputMix", "bad");
+        settings.setValue("Waveforms/LineWidth", "nan"); settings.setValue("Waveforms/LevelMeters", "bad");
     }
     {
         ScopeWindow invalid;
         edit(app, invalid, [&](QDialog *dialog) {
             require(dialog->findChild<QComboBox *>("waveScale")->currentIndex() == WaveOptions::Smooth &&
                 dialog->findChild<QSpinBox *>("waveHold")->value() == 0 && dialog->findChild<QSpinBox *>("waveRelease")->value() == 1000 &&
-                !invalid.outputEnabled(), "Invalid waveform preferences did not recover safely.");
+                !invalid.outputEnabled() && dialog->findChild<QDoubleSpinBox *>("waveLineWidth")->value() == 1.6 &&
+                !invalid.findChild<QCheckBox *>("scopeLevels")->isChecked(), "Invalid waveform preferences did not recover safely.");
             dialog->findChild<QDialogButtonBox *>()->button(QDialogButtonBox::RestoreDefaults)->click();
         });
     }
+}
+void checkPresentation(QApplication &app, const QString &directory) {
+    ScopeWindow scope; scope.resize(920, 550); scope.show();
+    PlayerState state; state.valid = true; state.generation = 1; state.info.stereoOutput = true;
+    state.info.voices = {"Stereo test"}; state.info.title = "Presentation preview";
+    ScopeFrame frame; frame.generation = 1; frame.mask = 1;
+    frame.channels = {QVector<float>(ScopeFrames, 0)};
+    frame.left = {tone(16384)}; frame.right = {tone(100)};
+    scope.present(state, frame); pump(app);
+    auto options = [&](double width, bool meters) {
+        scope.findChild<QCheckBox *>("scopeLevels")->setChecked(meters);
+        edit(app, scope, [&](QDialog *dialog) {
+            dialog->findChild<QDoubleSpinBox *>("waveLineWidth")->setValue(width);
+        });
+        scope.findChild<QPushButton *>("applyLayout")->click(); pump(app);
+    };
+    auto capture = [&] {
+        if (auto gpu = scope.findChild<QQuickWidget *>("scopeGpu")) {
+            auto image = gpu->grabFramebuffer(); image.setDevicePixelRatio(scope.devicePixelRatioF()); return image;
+        }
+        return scope.grab().toImage();
+    };
+    const auto content = scope.panelRect(0).adjusted(12, 32, -12, -10);
+    auto green = [&](const QImage &image, QPointF point) {
+        point *= image.devicePixelRatio(); return image.pixelColor(qRound(point.x()), qRound(point.y())).green();
+    };
+    options(.5, false); const auto thin = capture();
+    options(6, false); const auto thick = capture();
+    const auto nearLine = content.center()+QPointF(20, 2);
+    require(green(thick, nearLine) > green(thin, nearLine)+70, "Line width did not change rendered stroke thickness.");
+    options(2.4, true); const auto levels = capture();
+    const QPointF left(content.left()+3, content.top()+content.height()*.4);
+    const QPointF right = left+QPointF(11, 0);
+    require(green(levels, left) > green(levels, right)+70, "Meters lost the L/R level difference when Stereo is off.");
+    levels.save(QDir(directory).filePath("native-levels.png"));
+    state.outputMask = 2; scope.present(state, frame); pump(app);
+    require(green(capture(), left) < green(levels, left)-50, "Muted meter was not dimmed.");
+    state.outputMask = 3; frame.left[0].fill(0); frame.right[0].fill(0); ++frame.positionMs;
+    scope.present(state, frame); pump(app);
+    require(green(capture(), left) < green(levels, left)-70, "Silent meter retained a trail or stale level.");
+    state.info.stereoOutput = false; frame.channels[0] = tone(16384); ++frame.positionMs;
+    scope.present(state, frame); pump(app); const auto mono = capture();
+    require(green(mono, left) > green(mono, right)+70, "Mono meter was duplicated into L/R.");
+    scope.setAllViews(ScopeWindow::ViewKind::Keyboard); pump(app);
+    require(green(capture(), left) > green(capture(), right)+70, "Keyboard card lost its meter.");
+    scope.setAllViews(ScopeWindow::ViewKind::Waveform); state.info.stereoOutput = true;
+    frame.left[0] = tone(16384); frame.right[0] = tone(4000); ++frame.positionMs;
+    scope.present(state, frame); scope.findChild<QCheckBox *>("scopeStereo")->setChecked(true); pump(app);
+    scope.findChild<QPushButton *>("editLayout")->setChecked(true); pump(app);
+    scope.grab().save(QDir(directory).filePath("native-presentation-editor.png"));
+    const auto geometry = scope.geometry(); const auto saved = scope.windowedGeometry();
+    scope.findChild<QPushButton *>("scopeFullscreen")->click(); pump(app, 1800);
+    require(scope.presentationFullscreen() && !scope.findChild<QWidget *>("titleBar")->isVisible() &&
+        !scope.findChild<QWidget *>("scopeEditor")->isVisible() && scope.panelRect(0).top() == 14 &&
+        !scope.findChild<QPushButton *>("exitFullscreen")->isVisible(), "Full screen did not hide window/editor controls.");
+    require(scope.windowedGeometry() == saved, "Full screen overwrote saved window geometry.");
+    const auto fullscreen = capture(); fullscreen.save(QDir(directory).filePath("native-fullscreen.png"));
+    const auto fullContent = scope.panelRect(0).adjusted(12, 32, -12, -10);
+    require(green(fullscreen, {fullContent.left()+3, fullContent.center().y()}) > 140,
+        "Full screen lost the current paused scope samples.");
+    const QPointF top(scope.width()-45, 20);
+    QMouseEvent move(QEvent::MouseMove, top, scope.mapToGlobal(top.toPoint()), Qt::NoButton, Qt::NoButton, Qt::NoModifier);
+    QApplication::sendEvent(&scope, &move);
+    require(scope.findChild<QPushButton *>("exitFullscreen")->isVisible(), "Top edge did not reveal the full-screen exit.");
+    QKeyEvent escape(QEvent::KeyPress, Qt::Key_Escape, Qt::NoModifier); QApplication::sendEvent(&scope, &escape); pump(app);
+    require(!scope.presentationFullscreen() && scope.geometry() == geometry && scope.findChild<QWidget *>("scopeEditor")->isVisible(),
+        "Escape did not restore geometry and editor state.");
+    scope.showMaximized(); pump(app);
+    require(scope.isMaximized(), "Presentation test could not maximize scopes.");
+    scope.toggleFullscreen(); pump(app);
+    require(scope.presentationFullscreen(), "Maximized scopes did not enter full screen.");
+    QWidget savedWindow;
+    require(savedWindow.restoreGeometry(scope.windowedGeometry()) && savedWindow.isMaximized() && !savedWindow.isFullScreen(),
+        "Saved maximized geometry accidentally persisted fullscreen.");
+    scope.toggleFullscreen(); pump(app);
+    require(scope.isMaximized() && !scope.presentationFullscreen(), "Full screen lost the maximized state.");
+    scope.showNormal(); pump(app); scope.toggleFullscreen(); pump(app);
+    scope.findChild<QPushButton *>("exitFullscreen")->click(); pump(app);
+    require(!scope.presentationFullscreen(), "Full-screen exit button failed.");
+    options(1.6, false);
 }
 void checkLiveOutput(QApplication &app, const QString &path) {
     NativePlayer player; player.setVolume(.025f); player.setOutputScopesEnabled(true);
@@ -315,6 +408,7 @@ void checkWaves(QApplication &app, const QString &directory, QTextStream &log, c
     checkEnvelopeAndTrigger(); log << "Waves: hold/release cadence, attack, pause, rewind, scale modes, sub-sample trigger and stereo hysteresis PASS\n"; log.flush();
     checkCapture(); log << "Output history: concurrent 600000-frame wraps, packed L/R, generation reset and startup padding PASS\n"; log.flush();
     checkWaveUi(app, directory); log << "Waveform UI: explanations, persistence/defaults, normal Full mix card, overflow/capture, list/grid drag, pipette, mono/stereo, 32 voices + mix PASS\n"; log.flush();
+    checkPresentation(app, directory); log << "Presentation: rendered line widths, independent L/R and mono meters, silence/mutes, keyboard, full-screen controls and geometry PASS\n"; log.flush();
     checkLiveOutput(app, QDir(directory).filePath("demo.spc"));
     for (const auto &path : musicPaths) checkLiveOutput(app, path);
     log << "Live output: " << 1 + musicPaths.size() << " files; full-mix PCM equality after volume, L/R gate, pause, seek, capture suspension; audio errors=0 PASS\n"; log.flush();

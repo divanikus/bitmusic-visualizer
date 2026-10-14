@@ -146,6 +146,15 @@ void checkShortcuts(QApplication &app, const QString &directory, QTextStream &lo
     require(!player.state().valid && !player.state().busy, "Empty-player shortcuts started transport.");
     window.loadFile(QDir(directory).filePath("demo.nsf"), 1);
     until(app, [&] { return !player.state().busy && player.state().positionMs > 200; }); window.refresh();
+    scope.show(); pump(app); focus(app, window);
+    const auto beforeFullscreen = player.state(); const auto windowRect = scope.geometry();
+    key(window, Qt::Key_F11); pump(app);
+    require(scope.presentationFullscreen(), "F11 from the player did not enter full screen.");
+    key(scope, Qt::Key_F11, {}, true); require(scope.presentationFullscreen(), "F11 auto-repeat exited full screen.");
+    focus(app, scope); key(scope, Qt::Key_Escape); pump(app);
+    require(!scope.presentationFullscreen() && scope.geometry() == windowRect && player.state().playing &&
+        player.state().generation == beforeFullscreen.generation, "Full-screen shortcut changed transport or window geometry.");
+    log << "F11/Escape: both windows, auto-repeat guard, geometry and uninterrupted playback PASS\n"; log.flush();
     scope.findChild<QPushButton *>("editLayout")->click();
     auto list = scope.findChild<QListWidget *>("scopeChannelList");
     auto view = scope.findChild<QComboBox *>("cardView");

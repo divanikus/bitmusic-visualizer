@@ -36,6 +36,14 @@ counts are not monitor-presented FPS. Add `--software-scopes` to check CPU drawi
 multi-note keyboards, duplicate cards, audio continuity and transport changes.
 Add `--software-scopes` for CPU rendering. These checks also run in the complete native suite.
 
+`--self-test test-output --waves-only` checks waveform controls and output capture,
+plus rendered line thickness, L/R/mono level meters, settings, and fullscreen
+entry/exit with restored window/editor state. Run with and without
+`--software-scopes`. `--gpu-checks test-output` also verifies thick GPU ribbons
+and instantaneous meter fills without glow or stale trails.
+GPU and window-settings checks isolate their settings under the output directory
+so restricted system temporary folders do not trigger modal write warnings.
+
 `--self-test test-output --shortcuts-only` exercises keyboard events in both
 windows, number-row/numpad mapping, duplicate/reordered/hidden cards, independent
 mute and visibility, Full mix on 0/Alt+0, L/R output toggles, input/dialog

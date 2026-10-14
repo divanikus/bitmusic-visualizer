@@ -98,6 +98,35 @@ The existing minimum window size still applies. Size and position are remembered
 on player exit, independently of themes and the card grid. Moving to a display
 with a different scale may change the pixel dimensions.
 
+## Presentation
+
+**Waves… → Line width** changes waveform and spectrum lines from 0.5 to 8
+display-scaled pixels (default 1.6). It applies immediately, including while
+paused, to CPU and GPU drawing. Spectrum bars and keyboard keys keep their
+dimensions. Glow remains a separate effect.
+
+**Levels**, beside **Stereo** in the editor toolbar, enables compact peak meters
+on the left of every visible card's plot, including Keyboard and Full mix. The
+fixed -60 to 0 dBFS scale is independent of waveform autoscaling. Stereo sources show L/R even if
+the waveform's Stereo display is off; mono sources show one M meter. The top is
+0 dBFS and each tick represents 12 dB. Very small cards omit the meters.
+
+Meters use the captured PCM window, without extra decoding. Voice meters share
+the waveform's capture stage (often a dry signal), so they are not measurements
+of the final audible mix. Muted voice/output lanes remain visible but dimmed;
+Full mix follows the actual final volume and mutes. Silence empties the meter.
+Meters have no glow or fading trail. Line width and Levels survive file changes
+and restarts, independently of color themes and layout presets. Restore Defaults
+in Waves resets line width but preserves the toolbar's Levels choice.
+
+The full-screen icon beside the pencil, or **F11** from either player window,
+expands the visualizer on its current display and hides the title bar/editor.
+**Esc/F11** restores the previous window size, position, maximized state and editor.
+Move the pointer to the top edge to reveal a temporary exit button. Playback
+shortcuts remain available; fullscreen does not change audio or the card layout.
+Closing the application while fullscreen preserves the previous window geometry;
+the next launch opens in windowed mode.
+
 ## Spectrum
 
 Spectrum shows frequency content on a logarithmic 20 Hz–20 kHz axis, with a fixed

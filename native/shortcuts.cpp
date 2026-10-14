@@ -83,6 +83,7 @@ void PlayerWindow::showShortcutsHelp() {
       <tr><td><b>F7</b></td><td>Resume playback</td></tr>
       <tr><td><b>F8</b></td><td>Pause playback</td></tr>
       <tr><td><b>F1</b></td><td>This guide</td></tr>
+      <tr><td><b>F11 / Esc</b></td><td>Toggle full-screen visualizer / leave full screen</td></tr>
       </table>
       <p>Works in either player window. Use the number row or the numpad with
       Num Lock on. Numbers refer to the original channel numbers, even after
@@ -118,6 +119,8 @@ bool PlayerWindow::eventFilter(QObject *object, QEvent *event) {
     const auto modifiers = keyEvent->modifiers() & ~Qt::KeypadModifier;
     const int key = keyEvent->key();
     const bool help = key == Qt::Key_F1 && modifiers == Qt::NoModifier;
+    const bool fullscreen = modifiers == Qt::NoModifier &&
+        (key == Qt::Key_F11 || (key == Qt::Key_Escape && scopes_.presentationFullscreen()));
     // Unhandled keys bubble to parents. Keep protecting the focused editor there too.
     const auto focus = QApplication::focusWidget();
     if (!help && (editing(widget) || (focus && focus->window() == widget->window() && editing(focus))))
@@ -129,10 +132,11 @@ bool PlayerWindow::eventFilter(QObject *object, QEvent *event) {
     const bool reset = key == Qt::Key_R && modifiers == (Qt::ControlModifier | Qt::ShiftModifier);
     const bool function = modifiers == Qt::NoModifier &&
         ((key >= Qt::Key_F2 && key <= Qt::Key_F5) || key == Qt::Key_F7 || key == Qt::Key_F8);
-    if (!help && !digit && !mix && !output && !reset && !function) return FrameWindow::eventFilter(object, event);
+    if (!help && !fullscreen && !digit && !mix && !output && !reset && !function) return FrameWindow::eventFilter(object, event);
     event->accept();
     if (event->type() == QEvent::ShortcutOverride || keyEvent->isAutoRepeat()) return true;
     if (help) { showShortcutsHelp(); return true; }
+    if (fullscreen) { scopes_.toggleFullscreen(); return true; }
     const auto state = player_.state();
     if (!state.valid || state.busy) return true;
     refreshScopes(); // Keep source indices current even when scopes are hidden.

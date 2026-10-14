@@ -114,7 +114,7 @@ ScopeWindow::ScopeWindow() {
       QPushButton { background: #293b41; border: none; border-radius: 6px; padding: 5px 10px; }
       QPushButton:hover { background: #385158; }
       QPushButton:checked { background: #a2e5d5; color: #133c38; }
-      QSpinBox { background: #293b41; border: 1px solid #465b62; border-radius: 4px; padding: 3px; min-width: 42px; }
+      QSpinBox, QDoubleSpinBox { background: #293b41; border: 1px solid #465b62; border-radius: 4px; padding: 3px; min-width: 42px; }
       QComboBox { background: #202e35; border: 1px solid #465b62; border-radius: 4px; padding: 5px; }
       QCheckBox { spacing: 5px; }
       QListWidget { background: transparent; border: none; outline: none; }
@@ -131,6 +131,7 @@ ScopeWindow::ScopeWindow() {
     close->setToolTip("Hide scopes"); close->setAccessibleName("Hide scopes");
     edit_ = new EditLayoutButton; edit_->setObjectName("editLayout");
     edit_->setToolTip("Edit layout"); edit_->setAccessibleName("Edit layout"); titleBar_->addAction(edit_);
+    setupFullscreen();
     editor_ = new QWidget(this); editor_->setObjectName("scopeEditor");
     settings_ = new QGridLayout(editor_); settings_->setContentsMargins(10, 6, 10, 6); settings_->setSpacing(10);
     gridControls_ = new QWidget; labelControls_ = new QWidget; editorActions_ = new QWidget;
@@ -171,7 +172,12 @@ ScopeWindow::ScopeWindow() {
     names_ = new QCheckBox("Names"); names_->setObjectName("channelNames"); names_->setChecked(true);
     stereo_ = new QCheckBox("Stereo"); stereo_->setObjectName("scopeStereo");
     stereo_->setToolTip("Show left and right lanes with the same time and amplitude scale");
-    labels->addWidget(numbers_); labels->addWidget(names_); labels->addWidget(stereo_); labels->addWidget(keepGrid_);
+    auto meters = new QCheckBox("Levels"); meters->setObjectName("scopeLevels"); meters->setChecked(waveOptions_.meters);
+    meters->setToolTip("Peak levels on a fixed -60 to 0 dBFS scale, independent of wave height. Stereo sources show L/R; mono shows M. Muted lanes are dimmed.");
+    labels->addWidget(numbers_); labels->addWidget(names_); labels->addWidget(stereo_); labels->addWidget(meters); labels->addWidget(keepGrid_);
+    connect(meters, &QCheckBox::toggled, this, [this](bool enabled) {
+        waveOptions_.meters = enabled; rememberWaves(); update();
+    });
     settings_->addWidget(gridControls_, 0, 0); settings_->addWidget(labelControls_, 0, 1); settings_->addWidget(editorActions_, 0, 2);
     summary_ = new QLabel; summary_->setObjectName("editorHint");
     auto scroll = new QScrollArea(this); channelPanel_ = scroll; channelPanel_->setObjectName("scopeChannels");
@@ -455,6 +461,9 @@ void ScopeWindow::updateList() {
     summary_->setText((preview ? "Preview: " : "") + QString("%1 shown / %2 overflow").arg(visible.size()).arg(enabled - visible.size()));
 }
 void ScopeWindow::updateVisibility() {
+    // Maximizing/fullscreen changes geometry, not capture eligibility. Keep the
+    // current frame and paused output instead of flashing Preparing on every change.
+    if (presentationTimer_->isActive() == renderingVisible()) { update(); return; }
     if (renderingVisible()) presentationTimer_->start(); else presentationTimer_->stop();
     if (gpu_) { gpu_->suspend(); gpu_->setVisible(renderingVisible() && !gpuFailed_); }
     frame_ = {}; output_ = {}; waveStates_ = {}; spectrumStates_ = {}; pitchStates_ = {}; cancelDrag();
@@ -472,7 +481,10 @@ void ScopeWindow::showEvent(QShowEvent *event) { FrameWindow::showEvent(event); 
 void ScopeWindow::hideEvent(QHideEvent *event) { FrameWindow::hideEvent(event); updateVisibility(); }
 void ScopeWindow::changeEvent(QEvent *event) {
     FrameWindow::changeEvent(event);
-    if (event->type() == QEvent::WindowStateChange) updateVisibility();
+    if (event->type() == QEvent::WindowStateChange) {
+        if (!isFullScreen() && !isMinimized() && !fullscreenGeometry_.isEmpty()) toggleFullscreen();
+        updateVisibility();
+    }
 }
 bool ScopeWindow::event(QEvent *event) {
     const bool handled = FrameWindow::event(event);
@@ -485,7 +497,8 @@ void ScopeWindow::applyWindowSize() {
     // user is still editing (especially when DPI rounding changes the result).
     applyingWindowSize_ = true;
     const QSize requested(pixelWidth_->value(), pixelHeight_->value());
-    if (isMaximized() || isFullScreen()) showNormal();
+    if (!fullscreenGeometry_.isEmpty()) toggleFullscreen();
+    if (isMaximized()) showNormal();
     resize(QSize(qRound(requested.width()/devicePixelRatioF()), qRound(requested.height()/devicePixelRatioF()))
         .expandedTo(minimumSize()).boundedTo(maximumSize()));
     updateWindowSizeControls();
@@ -510,6 +523,7 @@ void ScopeWindow::updateWindowSizeControls() {
 void ScopeWindow::updateEditorGeometry() {
     updateWindowSizeControls();
     titleBar_->setGeometry(14, 6, width() - 28, 30);
+    fullscreenExit_->move(width()-44, 8);
     const int inlineWidth = gridControls_->sizeHint().width() + labelControls_->sizeHint().width() + editorActions_->sizeHint().width() + 40;
     const int compactWidth = gridControls_->sizeHint().width() + editorActions_->sizeHint().width() + 30;
     const int lines = width() - 28 >= inlineWidth ? 1 : width() - 28 >= compactWidth ? 2 : 3;
@@ -535,6 +549,7 @@ QByteArray ScopeWindow::chromeKey(bool dynamic) const {
     QByteArray key; QDataStream s(&key, QIODevice::WriteOnly);
     s << size() << devicePixelRatioF() << theme_.windowBackground << rows_->value() << columns_->value()
       << edit_->isChecked() << windowSize_->isChecked() << numbers_->isChecked() << names_->isChecked() << stereo_->isChecked()
+      << presentationFullscreen() << waveOptions_.lineWidth << waveOptions_.meters
       << state_.info.stereoOutput << state_.info.tonalMask << state_.busy << (frame_.generation == state_.generation)
       << state_.muteMask << state_.outputMask << state_.scopeError << frame_.mask << hoveredColor_ << pressedColor_;
     s << channelReady(ScopeTheme::FullMix) << state_.playing;
@@ -562,7 +577,7 @@ QVector<ScopeLane> ScopeWindow::waveLanes() {
         if (!channelReady(card) || viewFor(card) == ViewKind::Keyboard) continue;
         const int source = sourceFor(card);
         const auto kind = viewFor(card);
-        const auto plot = panelRect(card).adjusted(12, edit_->isChecked() || names_->isChecked() || numbers_->isChecked() ? 32 : 10, -12, -10);
+        const auto plot = plotRect(card);
         if (plot.width() < 2 || plot.height() < 2) continue;
         const bool stereo = channelStereo(card), mix = source == ScopeTheme::FullMix;
         const bool muted = !mix && (state_.muteMask & (VoiceMask::bit(source)));
@@ -584,6 +599,7 @@ QVector<ScopeLane> ScopeWindow::waveLanes() {
         }
         for (int side = 0; side < (stereo ? 2 : 1); ++side) {
             ScopeLane lane; lane.id = card*2+side; lane.clip = plot; lane.color = theme_.colors(source).waveform;
+            lane.lineWidth = waveOptions_.lineWidth;
             if (muted || !state_.outputMask || (stereo && !(state_.outputMask & (1u << side)))) lane.color.setAlpha(115);
             if (kind == ViewKind::Spectrum) {
                 const auto &bins = side ? spectrum.right : spectrum.left;
@@ -741,7 +757,7 @@ void ScopeWindow::paintEvent(QPaintEvent *event) {
             chromeImage_.setDevicePixelRatio(devicePixelRatioF()); chromeImage_.fill(QColor("#171e24"));
             QPainter chrome(&chromeImage_); chrome.setRenderHint(QPainter::Antialiasing); paintContents(chrome, false);
         }
-        gpu_->submit(chromeImage_, waveLanes(), chromeKey(false), state_.generation, frame_.positionMs, state_.playing && !state_.busy, effects_, output_.sequence);
+        gpu_->submit(chromeImage_, waveLanes(), chromeKey(false), state_.generation, frame_.positionMs, state_.playing && !state_.busy, effects_, output_.sequence, meterFills());
         return;
     }
     QPainter p(this); p.setRenderHint(QPainter::Antialiasing);
@@ -749,9 +765,12 @@ void ScopeWindow::paintEvent(QPaintEvent *event) {
 }
 void ScopeWindow::paintContents(QPainter &p, bool waves) {
     const auto lanes = waves ? waveLanes() : QVector<ScopeLane>();
+    const auto meters = waves ? meterFills() : QVector<ScopeMeter>();
     p.fillRect(rect().adjusted(1, 1, -1, -1), theme_.windowBackground);
     // Keep the title and window controls legible on arbitrary canvas colors.
-    p.setPen(Qt::NoPen); p.setBrush(QColor("#171e24")); p.drawRoundedRect(titleBar_->geometry(), 6, 6);
+    if (!presentationFullscreen()) {
+        p.setPen(Qt::NoPen); p.setBrush(QColor("#171e24")); p.drawRoundedRect(titleBar_->geometry(), 6, 6);
+    }
     const auto visible = displayedChannels(); const bool editing = edit_->isChecked();
     if (editing) {
         for (int slot = 0; slot < rows_->value() * columns_->value(); ++slot) {
@@ -799,7 +818,9 @@ void ScopeWindow::paintContents(QPainter &p, bool waves) {
                 for (int offset : {5, 10}) p.drawLine(card.bottomRight()-QPointF(offset+4, 4), card.bottomRight()-QPointF(4, offset+4));
             }
         }
-        const auto plot = card.adjusted(12, editing || !label.isEmpty() ? 32 : 10, -12, -10);
+        paintMeterTracks(p, channel);
+        for (const auto &meter : meters) if (meter.card == channel) p.fillRect(meter.rect, meter.color);
+        const auto plot = plotRect(channel);
         if (plot.width() < 2 || plot.height() < 2) { p.restore(); return; }
         if (viewFor(channel) == ViewKind::Keyboard) {
             paintKeyboard(p, channel, plot, muted); p.restore(); return;
@@ -838,7 +859,7 @@ void ScopeWindow::paintContents(QPainter &p, bool waves) {
             } else if (!lane.points.isEmpty()) {
                 QPainterPath line; line.moveTo(lane.points.front());
                 for (int j = 1; j < lane.points.size(); ++j) line.lineTo(lane.points[j]);
-                p.setPen(QPen(lane.color, 1.6)); p.setBrush(Qt::NoBrush); p.drawPath(line);
+                p.setPen(QPen(lane.color, lane.lineWidth)); p.setBrush(Qt::NoBrush); p.drawPath(line);
             }
         }
         p.restore();

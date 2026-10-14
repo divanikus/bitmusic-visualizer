@@ -14,7 +14,7 @@ QRectF ScopeWindow::colorButtonRect(const QRectF &card) const {
 }
 QRectF ScopeWindow::cardRect(int slot) const {
     const int columns = columns_->value(), rows = rows_->value();
-    const int top = edit_->isChecked() ? channelPanel_->y() : 44;
+    const int top = edit_->isChecked() ? channelPanel_->y() : presentationFullscreen() ? 14 : 44;
     const qreal right = edit_->isChecked() ? 226 : 14;
     const qreal cellWidth = std::max(1.0, (width()-14.0-right-(columns-1)*10)/columns);
     const qreal bottom = height()-14;
@@ -159,6 +159,7 @@ void ScopeWindow::mousePressEvent(QMouseEvent *event) {
     FrameWindow::mousePressEvent(event);
 }
 void ScopeWindow::mouseMoveEvent(QMouseEvent *event) {
+    if (presentationFullscreen() && event->position().y() < 48) revealFullscreenExit();
     if (pressedColor_ >= 0) { event->accept(); return; }
     if (resizeChannel_ >= 0 && (event->buttons() & Qt::LeftButton)) {
         previewGesture(event->position());
@@ -215,6 +216,10 @@ void ScopeWindow::mouseReleaseEvent(QMouseEvent *event) {
     FrameWindow::mouseReleaseEvent(event);
 }
 void ScopeWindow::keyPressEvent(QKeyEvent *event) {
+    if (event->modifiers() == Qt::NoModifier && event->key() == Qt::Key_Escape && presentationFullscreen()) {
+        if (!event->isAutoRepeat()) toggleFullscreen();
+        event->accept(); return;
+    }
     if (event->key() == Qt::Key_Escape && (resizeChannel_ >= 0 || pressedChannel_ >= 0 || pressedColor_ >= 0)) {
         const auto from = panelPositions(); cancelDrag(); animateLayout(from); update(); event->accept(); return;
     }

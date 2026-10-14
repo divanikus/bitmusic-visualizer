@@ -2,6 +2,12 @@
 #include <algorithm>
 #include <cmath>
 
+float scopeMeterLevel(const QVector<float> &samples) {
+    float peak = 0;
+    for (float sample : samples) if (std::isfinite(sample)) peak = std::max(peak, std::abs(sample));
+    return peak > 0 ? std::clamp((20.f*std::log10(peak/32768.f)+60.f)/60.f, 0.f, 1.f) : 0.f;
+}
+
 float ScopeWave::sample(const QVector<float> &row, float index) {
     const int i = std::clamp(int(index), 0, int(row.size()) - 1);
     const int next = std::min(i + 1, int(row.size()) - 1);

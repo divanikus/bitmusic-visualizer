@@ -5,6 +5,7 @@
 #include <QComboBox>
 #include <QDialog>
 #include <QDialogButtonBox>
+#include <QDoubleSpinBox>
 #include <QFormLayout>
 #include <QLabel>
 #include <QMessageBox>
@@ -13,6 +14,7 @@
 #include <QSpinBox>
 #include <QVBoxLayout>
 #include <algorithm>
+#include <cmath>
 
 void ScopeWindow::restoreWaves() {
     QSettings settings(playerSettingsPath(), playerSettingsFormat()); settings.setFallbacksEnabled(false);
@@ -30,6 +32,11 @@ void ScopeWindow::restoreWaves() {
     waveOptions_.releaseMs = number("ReleaseMs", 1000, 1, 9999);
     const auto output = settings.value("OutputMix", false).toString().trimmed().toLower();
     waveOptions_.output = output == "true" || output == "1";
+    bool widthOk = false;
+    const auto width = settings.value("LineWidth", 1.6).toFloat(&widthOk);
+    waveOptions_.lineWidth = widthOk && std::isfinite(width) ? std::clamp(width, .5f, 8.f) : 1.6f;
+    const auto meters = settings.value("LevelMeters", false).toString().trimmed().toLower();
+    waveOptions_.meters = meters == "true" || meters == "1";
 }
 void ScopeWindow::rememberWaves() {
     QSettings settings(playerSettingsPath(), playerSettingsFormat()); settings.setFallbacksEnabled(false);
@@ -38,6 +45,8 @@ void ScopeWindow::rememberWaves() {
     settings.setValue("Scale", scales[waveOptions_.scale]); settings.setValue("Trigger", triggers[waveOptions_.trigger]);
     settings.setValue("HoldMs", waveOptions_.holdMs); settings.setValue("ReleaseMs", waveOptions_.releaseMs);
     settings.setValue("FrameRate", frameRate_);
+    settings.setValue("LineWidth", waveOptions_.lineWidth);
+    settings.setValue("LevelMeters", waveOptions_.meters);
     settings.setValue("OutputMix", waveOptions_.output); settings.sync();
     if (settings.status() != QSettings::NoError)
         QMessageBox::warning(this, "Could not save settings", "The waveform settings are applied for this session, but could not be saved to:\n" +
@@ -50,6 +59,9 @@ void ScopeWindow::editWaves() {
     for (int rate : {30, 60, 120}) fps->addItem(QString("%1 FPS").arg(rate), rate);
     styleCombo(fps); fps->setCurrentIndex(fps->findData(frameRate_)); form->addRow("Frame rate", fps);
     fps->setToolTip("Target refresh rate. Higher rates use more CPU/GPU; actual smoothness depends on the track, renderer and display.");
+    auto width = new QDoubleSpinBox; width->setObjectName("waveLineWidth"); width->setRange(.5, 8); width->setDecimals(1);
+    width->setSingleStep(.1); width->setSuffix(" px"); width->setValue(waveOptions_.lineWidth); form->addRow("Line width", width);
+    width->setToolTip("Waveform and spectrum lines, in display-scaled pixels. Glow is controlled separately in Effects.");
     auto scale = new QComboBox; scale->setObjectName("waveScale"); scale->addItems({"Smooth auto", "Instant auto", "Fixed (full scale)"});
     styleCombo(scale); scale->setCurrentIndex(waveOptions_.scale); form->addRow("Wave height", scale);
     auto scaleHelp = new QLabel; scaleHelp->setObjectName("waveScaleHelp"); scaleHelp->setWordWrap(true); scaleHelp->setMaximumWidth(290);
@@ -82,7 +94,8 @@ void ScopeWindow::editWaves() {
     });
     auto changed = [&] {
         edited = true;
-        waveOptions_ = {WaveOptions::Scale(scale->currentIndex()), WaveOptions::Trigger(trigger->currentIndex()), hold->value(), release->value(), waveOptions_.output};
+        waveOptions_ = {WaveOptions::Scale(scale->currentIndex()), WaveOptions::Trigger(trigger->currentIndex()),
+            hold->value(), release->value(), waveOptions_.output, float(width->value()), waveOptions_.meters};
         hold->setEnabled(waveOptions_.scale == WaveOptions::Smooth); release->setEnabled(hold->isEnabled());
         waveStates_ = {}; if (gpu_) gpu_->suspend();
         explain();
@@ -90,12 +103,14 @@ void ScopeWindow::editWaves() {
     };
     connect(scale, &QComboBox::currentIndexChanged, &dialog, changed); connect(trigger, &QComboBox::currentIndexChanged, &dialog, changed);
     connect(hold, &QSpinBox::valueChanged, &dialog, changed); connect(release, &QSpinBox::valueChanged, &dialog, changed);
+    connect(width, &QDoubleSpinBox::valueChanged, &dialog, changed);
     connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::accept);
     connect(buttons->button(QDialogButtonBox::RestoreDefaults), &QPushButton::clicked, &dialog, [&] {
         const WaveOptions defaults;
         fps->setCurrentIndex(fps->findData(ScopePacing::DefaultFps));
         scale->setCurrentIndex(defaults.scale); trigger->setCurrentIndex(defaults.trigger);
         hold->setValue(defaults.holdMs); release->setValue(defaults.releaseMs);
+        width->setValue(defaults.lineWidth);
     });
     hold->setEnabled(waveOptions_.scale == WaveOptions::Smooth); release->setEnabled(hold->isEnabled());
     explain(); dialog.exec(); if (edited) rememberWaves();

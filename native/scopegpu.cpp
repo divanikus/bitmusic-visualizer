@@ -7,6 +7,7 @@
 #include <QSGGeometryNode>
 #include <QSGOpacityNode>
 #include <QSGSimpleTextureNode>
+#include <QSGSimpleRectNode>
 #include <QSGVertexColorMaterial>
 #include <QTimer>
 #include <QWindow>
@@ -25,7 +26,8 @@ struct SceneRoot : QSGNode {
     QSGSimpleTextureNode *chrome = new QSGSimpleTextureNode;
     quint64 imageKey = 0;
     std::deque<std::pair<quint64, QSGOpacityNode *>> traces;
-    SceneRoot() { appendChildNode(chrome); }
+    QSGNode *meters = new QSGNode;
+    SceneRoot() { appendChildNode(chrome); appendChildNode(meters); }
     ~SceneRoot() override { delete chrome->texture(); }
 };
 
@@ -74,9 +76,10 @@ QSGGeometryNode *ribbon(const ScopeLane &lane, const ScopeEffects &effects, qrea
     // the wider, faint bands interpolate a soft halo without blur render passes.
     const float fringe = float(1.0 / dpr);
     const float halo = effects.glow ? effects.glowStrength : 0.f;
+    const float half = lane.lineWidth*.5f;
     const QVector<float> distances = halo > 0
-        ? QVector<float>{-5.f, -2.5f, -.8f-fringe, -.8f, .8f, .8f+fringe, 2.5f, 5.f}
-        : QVector<float>{-.8f-fringe, -.8f, .8f, .8f+fringe};
+        ? QVector<float>{-half-4.2f, -half-1.7f, -half-fringe, -half, half, half+fringe, half+1.7f, half+4.2f}
+        : QVector<float>{-half-fringe, -half, half, half+fringe};
     const QVector<float> alpha = halo > 0
         ? QVector<float>{0, halo*.35f, halo, 1, 1, halo, halo*.35f, 0}
         : QVector<float>{0, 1, 1, 0};
@@ -128,6 +131,7 @@ public:
         QObject::connect(&timer, &QTimer::timeout, this, [this] { advance(); expire(); update(); });
     }
     QImage image;
+    QVector<ScopeMeter> meters;
     QByteArray layout;
     std::deque<Trace> traces;
     ScopeEffects effects;
@@ -149,7 +153,7 @@ public:
         // Covers 999 ms at 120 FPS, with headroom for occasional extra UI paints.
         while (traces.size() > 1 && (now - traces.front().born >= life || traces.size() > 128 || !effects.trail)) traces.pop_front();
     }
-    void clear() { traces.clear(); position = -1; timer.stop(); update(); }
+    void clear() { traces.clear(); meters.clear(); position = -1; timer.stop(); update(); }
 protected:
     QSGNode *updatePaintNode(QSGNode *old, UpdatePaintNodeData *) override {
         // Expose/resize can arrive before a first image, or after allocation failure.
@@ -193,12 +197,22 @@ protected:
                     auto clip = new QSGClipNode; clip->setIsRectangular(true); clip->setClipRect(lane.clip);
                     clip->appendChildNode(mesh); opacity->appendChildNode(clip);
                 }
-                root->appendChildNode(opacity); root->traces.emplace_back(trace.serial, opacity);
+                root->insertChildNodeBefore(opacity, root->meters); root->traces.emplace_back(trace.serial, opacity);
             }
             const double age = std::max(0., now - trace.born);
             const double opacity = i+1 == traces.size() ? 1.0
                 : trace.weight * effects.trailStrength * std::exp(-4*age/(effects.trailMs/1000.0));
             root->traces[i].second->setOpacity(float(opacity));
+        }
+        // Instant level fills never enter the fading/glowing trace history.
+        while (root->meters->childCount() > meters.size()) {
+            auto node = root->meters->lastChild(); root->meters->removeChildNode(node); delete node;
+        }
+        auto node = root->meters->firstChild();
+        for (const auto &meter : meters) {
+            if (!node) { node = new QSGSimpleRectNode; root->meters->appendChildNode(node); }
+            auto rect = static_cast<QSGSimpleRectNode *>(node); rect->setRect(meter.rect); rect->setColor(meter.color);
+            node = node->nextSibling();
         }
         return root;
     }
@@ -246,7 +260,7 @@ bool ScopeGpu::checkHealth() {
 }
 void ScopeGpu::submit(const QImage &chrome, const QVector<ScopeLane> &lanes,
                       const QByteArray &layoutKey, quint64 generation, int positionMs,
-                      bool playing, const ScopeEffects &effects, quint64 outputSequence) {
+                      bool playing, const ScopeEffects &effects, quint64 outputSequence, const QVector<ScopeMeter> &meters) {
     if (!checkHealth()) return;
     if (chrome.isNull()) { reportFailure("Could not allocate the scope image"); return; }
     if (!pending_) { pending_ = true; requestedAt_ = healthClock_.elapsed(); }
@@ -258,6 +272,7 @@ void ScopeGpu::submit(const QImage &chrome, const QVector<ScopeLane> &lanes,
         scene_->clear();
     scene_->effects = effects; scene_->layout = layoutKey; scene_->generation = generation;
     scene_->image = chrome; scene_->running = playing;
+    scene_->meters = meters;
     if (scene_->position != positionMs || scene_->outputSequence != outputSequence || scene_->traces.empty()) {
         if (!scene_->traces.empty()) {
             // Normalize historical brightness by capture interval, not frame rate.

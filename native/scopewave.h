@@ -2,6 +2,9 @@
 #include <QVector>
 #include <array>
 
+// Peak of captured PCM on a fixed -60..0 dBFS display scale; no autoscaling.
+float scopeMeterLevel(const QVector<float> &samples);
+
 struct WaveOptions {
     enum Scale { Smooth, Instant, Fixed };
     enum Trigger { Stable, Rising, Off };
@@ -9,6 +12,8 @@ struct WaveOptions {
     Trigger trigger = Stable;
     int holdMs = 300, releaseMs = 1000;
     bool output = false;
+    float lineWidth = 1.6f;
+    bool meters = false;
 };
 
 // Presentation only: never changes PCM. One instance per card, shared by CPU/GPU.

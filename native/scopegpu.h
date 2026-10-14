@@ -12,7 +12,9 @@ struct ScopeLane {
     QColor color;
     QVector<QPointF> points;
     QVector<QRectF> bars;
+    float lineWidth = 1.6f;
 };
+struct ScopeMeter { QRectF rect; QColor color; int card = -1; };
 struct ScopeEffects {
     bool trail = true, glow = true;
     int trailMs = 180;
@@ -27,7 +29,8 @@ public:
     explicit ScopeGpu(QWidget *parent, bool externallyPaced = false);
     void submit(const QImage &chrome, const QVector<ScopeLane> &lanes,
                 const QByteArray &layoutKey, quint64 generation, int positionMs,
-                bool playing, const ScopeEffects &effects, quint64 outputSequence = 0);
+                bool playing, const ScopeEffects &effects, quint64 outputSequence = 0,
+                const QVector<ScopeMeter> &meters = {});
     void suspend();
     QString backend() const;
     int historySize() const;

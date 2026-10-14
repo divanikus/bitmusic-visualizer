@@ -50,7 +50,7 @@ configure_file(packaging/ROMS.txt "${CMAKE_CURRENT_BINARY_DIR}/roms/c64/README.t
 file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/roms/ymfm")
 configure_file(packaging/YAMAHA-ROMS.txt "${CMAKE_CURRENT_BINARY_DIR}/roms/ymfm/README.txt" COPYONLY)
 qt_add_resources(bitmusic_visualizer app_assets PREFIX "/" FILES assets/player.png)
-target_sources(bitmusic_visualizer PRIVATE native/gpuchecks.cpp native/scopewave.cpp native/scopecontrols.cpp native/outputhistory.cpp native/wavechecks.cpp native/scopegrid.cpp native/scopelayout.cpp native/layoutchecks.cpp)
+target_sources(bitmusic_visualizer PRIVATE native/gpuchecks.cpp native/scopewave.cpp native/scopecontrols.cpp native/scopepresentation.cpp native/outputhistory.cpp native/wavechecks.cpp native/scopegrid.cpp native/scopelayout.cpp native/layoutchecks.cpp)
 target_sources(bitmusic_visualizer PRIVATE native/pacingchecks.cpp native/spectrum.cpp native/scopeviews.cpp native/viewchecks.cpp)
 target_sources(bitmusic_visualizer PRIVATE native/psgnoteschecks.cpp native/chipnoteschecks.cpp)
 target_sources(bitmusic_visualizer PRIVATE native/shortcuts.cpp native/shortcutchecks.cpp)

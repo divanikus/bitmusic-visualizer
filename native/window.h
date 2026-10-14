@@ -45,6 +45,9 @@ public:
     void toggleSourceVisibility(int source);
     void setAllViews(ViewKind kind);
     void resetLayout();
+    void toggleFullscreen();
+    bool presentationFullscreen() const { return !fullscreenGeometry_.isEmpty(); }
+    QByteArray windowedGeometry() const;
     void present(const PlayerState &state, const ScopeFrame &frame, const OutputFrame &output = {});
     void beginFile();
     std::function<void(bool)> onVisibilityChanged;
@@ -75,6 +78,18 @@ private:
     void paintContents(QPainter &p, bool waves);
     QVector<ScopeLane> waveLanes();
     QByteArray chromeKey(bool dynamic = true) const;
+    void setupFullscreen();
+    void revealFullscreenExit();
+    QByteArray fullscreenGeometry_;
+    bool fullscreenEditor_ = false, fullscreenMaximized_ = false;
+    QPushButton *fullscreenExit_ = nullptr;
+    QTimer *fullscreenExitTimer_ = nullptr;
+    QRectF contentRect(int card) const;
+    QRectF plotRect(int card) const;
+    QRectF meterRect(int card, int side) const;
+    bool meterStereo(int card) const;
+    void paintMeterTracks(QPainter &p, int card);
+    QVector<ScopeMeter> meterFills() const;
     struct Card {
         int source = 0;
         ViewKind kind = ViewKind::Waveform;
