@@ -1,4 +1,4 @@
-Bit Music Visualizer 0.7.3 - portable Windows x64 build
+Bit Music Visualizer 0.8.0 - portable Windows x64 build
 
 1. Extract the whole ZIP to a folder on Windows 10 or Windows 11 (64-bit).
 2. Run bitmusic_visualizer.exe from that folder.
@@ -16,7 +16,17 @@ Sega PSG, Game Boy Square/Wave and AY A/B/C chip data, with names and frequencie
 for all active notes. Combined PSG cards can show three tones at once. Other sources
 estimate one pitch from audio, which can be inaccurate, especially for chords,
 noise and drums. Remove deletes any card without
-muting its source. Card layouts reset on a new file or Reset; themes keep colors.
+muting its source. Card layouts reset on a new file without an assigned preset,
+or on Reset; themes keep colors.
+Pencil -> Preset saves grid dimensions, card views/sizes/visibility and stereo mode.
+Use the save icon to name a preset and the star to set or clear the default for
+this chip configuration. Related presets marked (adapt) can be applied manually.
+Presets are stored in presets/ beside the EXE; copy it with the INI and themes
+when moving/updating the app. Unsaved layout edits remain session-local.
+F1 or the main player's keyboard icon opens the shortcut guide. Digits 1-9 change
+channel views; Ctrl+digit mutes/unmutes and Alt+digit hides/shows cards. 0 / Alt+0
+controls Full mix. Ctrl+Left / Ctrl+Right toggles L/R output. F2/F3/F4 changes all
+views; F5 restarts, F7 resumes, F8 pauses. Ctrl+Shift+R resets layout and unmutes all.
 A saved 30 / 60 / 120 FPS target is available in Pencil -> Waves... -> Frame rate.
 Selection applies immediately; the default is 30. Actual rates depend on the
 track, audio device, renderer, system load and monitor. Higher rates use more
@@ -52,9 +62,9 @@ preview show the proposed layout. Release inside the grid to apply; Escape or
 release outside cancels. Red 'Does not fit' leaves the size/order unchanged.
 Other cards use the remaining free rectangles; smaller cards may fill gaps while
 larger ones overflow. Audio continues; capture masks change only on release.
-Reset and opening a new file restore 1x1 cards. Keep grid retains only row/column
+Reset and opening a new file without an assigned preset restore 1x1 cards. Keep grid retains only row/column
 counts; subsong changes and hiding/reordering retain sizes. Reducing the grid
-clamps card sizes to its bounds. Layout remains session-local.
+clamps card sizes to its bounds. Save a preset to retain the layout.
 Both window positions, sizes and maximized state are saved on exit in the same INI
 and restored next time. Hidden scopes keep their last geometry; off-screen
 coordinates are corrected. Minimized windows reopen normally.
@@ -118,7 +128,7 @@ be written, the app reports it and keeps the chosen colors for this session only
 Unsaved edits are not automatically written to a theme.
 
 Prototype limitations: some VGM chips are unsupported; Mega Drive PSG is a combined
-group. Long seeks/new scope preparation can take time. Layout is session-local.
+group. Long seeks/new scope preparation can take time.
 This build is unsigned. Its source/build identification is in BUILD.txt.
 
 This application uses Qt 6.11.2 under LGPLv3 and Game Music Emu 0.6.5 under LGPLv2.1

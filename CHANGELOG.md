@@ -8,6 +8,8 @@ not published GitHub releases. Unreleased lists changes made after the latest ta
 
 ## Unreleased
 
+## [0.8.0](https://github.com/divanikus/bitmusic-visualizer/releases/tag/v0.8.0) — 2026-10-14
+
 ### Added
 
 - Keyboard shortcuts for channel views, mute and visibility, playback and layout reset.
