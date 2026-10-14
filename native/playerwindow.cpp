@@ -417,7 +417,16 @@ void PlayerWindow::refreshControls() {
         button->setSolo(s.soloChannel == i);
         button->setAccessibleName(button->text() + (s.soloChannel == i ? "; Solo" : QString()));
     }
-    const auto message = !s.error.isEmpty() ? s.error : !s.scopeError.isEmpty() ? s.scopeError : s.busy ? QString::fromUtf8("Loading…") : QString();
+    QString intro;
+    if (ready && s.info.midiResources) {
+        const auto first = s.info.midiResources->sequence.firstNoteFrame;
+        const auto remainingMs = (first * 1000 + SampleRate - 1) / SampleRate - s.positionMs;
+        // Explain noticeable leading rests without flashing a message for tiny gaps.
+        // Use the audible playhead, so pause/seek/repeat naturally update the counter.
+        if (first >= SampleRate && remainingMs > 0)
+            intro = QString::fromUtf8("Intro pause · first note in %1 s").arg(((remainingMs + 99) / 100) / 10.0, 0, 'f', 1);
+    }
+    const auto message = !s.error.isEmpty() ? s.error : !s.scopeError.isEmpty() ? s.scopeError : s.busy ? QString::fromUtf8("Loading…") : intro;
     status_->setText(message.section('\n', 0, 0)); status_->setToolTip(message); status_->setVisible(!message.isEmpty());
     if ((s.error.startsWith("C64 ROM required:") || s.error.startsWith("YM2608 ROM required:") || s.error.startsWith("SoundFont required:")) && romWarningGeneration_ != s.generation) {
         romWarningGeneration_ = s.generation;
