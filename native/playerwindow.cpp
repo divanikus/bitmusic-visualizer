@@ -122,7 +122,7 @@ PlayerWindow::PlayerWindow() {
     setStyleSheet(R"(
       QWidget { background: #171e24; color: #dce5e8; font-family: 'Segoe UI'; font-size: 9pt; }
       QLabel#title { font-size: 12pt; font-weight: 600; color: #e6eeef; }
-      QLabel#muted, QLabel#status { color: #92a6b0; font-size: 8pt; }
+      QLabel#muted, QLabel#status, QLabel#soundConfiguration { color: #92a6b0; font-size: 8pt; }
       QLabel#clock { color: #a2e5d5; font-family: Consolas; }
       QPushButton, QToolButton { background: #253239; border: none; border-radius: 8px; padding: 6px 10px; }
       QPushButton:hover, QToolButton:hover { background: #32444b; }
@@ -154,6 +154,9 @@ PlayerWindow::PlayerWindow() {
     auto open = new IconButton(Symbol::Open, "open", QString::fromUtf8("Open file (Ctrl+O)"));
     showScopes_ = new IconButton(Symbol::Scopes, "showScopes", QString::fromUtf8("Scopes")); showScopes_->setCheckable(true);
     header->addWidget(open); header->addWidget(showScopes_); root->addLayout(header);
+    sound_ = new QLabel; sound_->setObjectName("soundConfiguration"); sound_->setTextFormat(Qt::PlainText);
+    sound_->setWordWrap(true); sound_->setMinimumWidth(0); sound_->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
+    root->addWidget(sound_);
     timeline_ = new Timeline; timeline_->setObjectName("timeline"); timeline_->setRange(0, unknownRangeMs_); root->addWidget(timeline_);
     auto times = new QHBoxLayout;
     clock_ = new QLabel("00:00"); clock_->setObjectName("clock"); total_ = new QLabel(QString::fromUtf8("—")); total_->setObjectName("muted"); times->addWidget(clock_); times->addStretch();
@@ -305,6 +308,8 @@ void PlayerWindow::refreshControls() {
         const auto subtitle = QFileInfo(s.info.path).fileName() + " · " + s.info.system;
         subtitle_->setText(subtitle_->fontMetrics().elidedText(subtitle, Qt::ElideMiddle, subtitle_->width())); subtitle_->setToolTip(subtitle);
     }
+    sound_->setText(s.valid ? "Sound: " + (s.info.configuration.name.isEmpty() ? QString("Unknown") : s.info.configuration.name) : QString());
+    sound_->setVisible(s.valid);
     const bool ready = s.valid && !s.busy;
     play_->setEnabled(ready); stop_->setEnabled(ready); previous_->setEnabled(ready); next_->setEnabled(ready && s.info.song + 1 < s.info.songs); timeline_->setEnabled(ready); songs_->setEnabled(ready);
     static_cast<IconButton *>(play_)->setSymbol(s.playing && !s.busy ? Symbol::Pause : Symbol::Play);

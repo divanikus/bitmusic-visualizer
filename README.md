@@ -14,6 +14,7 @@ See the [changelog](CHANGELOG.md) for version history.
 
 - Play, pause, stop, seek, repeat, and select subsongs within a music file.
 - Independent voice mutes and left/right output switches.
+- A compact Sound line identifies the loaded sound configuration, including NES expansions.
 - Mono or stereo waveforms; optional Full mix showing the PCM sent to the audio
   device, including active voices, volume and shared effects.
 - Editable grid: hide, reorder and resize cards in whole grid cells.

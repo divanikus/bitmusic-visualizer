@@ -8,6 +8,10 @@ not published GitHub releases. Unreleased lists changes made after the latest ta
 
 ## Unreleased
 
+### Added
+
+- A Sound line in the main player shows the current sound configuration.
+
 ## [0.8.0](https://github.com/divanikus/bitmusic-visualizer/releases/tag/v0.8.0) — 2026-10-14
 
 ### Added

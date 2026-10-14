@@ -22,7 +22,7 @@ SoundConfiguration soundConfiguration(const QByteArray &data, const QStringList 
             if (data.mid(at+4, 4) == "INFO" && size >= 8) { flags = quint8(data[at+15]); break; }
             at += 8 + qsizetype(size);
         }
-        c.family = "nes"; c.name = "NES"; hardware = QString::number(flags);
+        c.family = "nes"; c.name = "NES APU"; hardware = QString::number(flags);
         add("nes.apu", 5);
         // Backend order is not flag-bit order. Roles avoid ambiguous Square 3 labels.
         struct Expansion { int bit, count; const char *key, *name; };
@@ -44,7 +44,7 @@ SoundConfiguration soundConfiguration(const QByteArray &data, const QStringList 
     } else if (data.startsWith("SNES-SPC700")) {
         c.family = "spc"; c.name = "SNES DSP"; add("snes.dsp", 8);
     } else if (data.startsWith("GBS")) {
-        c.family = "gbs"; c.name = "Game Boy"; add("gb.square", 2); add("gb.wave", 1); add("gb.noise", 1);
+        c.family = "gbs"; c.name = "Game Boy APU"; add("gb.square", 2); add("gb.wave", 1); add("gb.noise", 1);
     } else if (data.startsWith("ZXAYEMUL")) {
         c.family = "ay"; c.name = "AY + Beeper"; add("ay.tone", 3); add("ay.beeper", 1);
     } else return c;
