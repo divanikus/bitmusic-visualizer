@@ -1,7 +1,7 @@
 # Licenses and third-party components
 
 The application's own code, scripts, original artwork and test fixture generator
-are MIT, except for the LGPL libgme and GPL SID integrations described below. The top-level
+are MIT, except for the LGPL libgme, GPL SID and BSD ymfm-derived integrations below. The top-level
 LICENSE does not relicense dependencies or modified upstream code.
 
 The combined executable containing libsidplayfp is distributed under **GPLv3**
@@ -15,7 +15,7 @@ available under MIT. This applies to both static and dynamic SID integration.
 | Qt Shader Tools | 6.11.2 | Build dependency; upstream license terms, source included to rebuild Qt Quick |
 | Game Music Emu | 0.6.5 + local patches | LGPL-2.1-or-later; replaceable shared library |
 | libsidplayfp / bundled reSIDfp | 2.16.1 + local patches | GPL-2.0-or-later; static, combined application GPLv3 |
-| ymfm | 81aec25ccbb98f4873a255f7551ac4dadac59b4a | BSD-3-Clause; unmodified Yamaha cores, static |
+| ymfm | 81aec25ccbb98f4873a255f7551ac4dadac59b4a + local voice capture | BSD-3-Clause; static |
 | zlib | 1.3.2 | zlib license; static |
 | ICU (Linux Qt runtime) | 73.2 | Unicode/ICU permissive licenses; shared |
 | AppImage type-2 runtime (Linux) | 20251108 | MIT runtime; static libfuse LGPL-2.1, other permissive runtime components |
@@ -46,14 +46,21 @@ contains third-party emulation code, including emu2413 with its upstream notices
 Complete libgme sources retain those notices. No emulator ROMs, game soundtracks,
 MIDI ROMs or sound banks are bundled.
 
-## Yamaha chip mixes
+## Yamaha playback and voice capture
 
 The Yamaha VGM backend uses Aaron Giles's [ymfm](https://github.com/aaronsgiles/ymfm)
 under BSD-3-Clause. Its complete notice is in
 [LICENSES/ymfm-BSD-3-Clause.txt](LICENSES/ymfm-BSD-3-Clause.txt).
 `cmake/Ymfm.cmake` pins the revision/archive hash; packaging includes its complete
-upstream source. `native/yamahatrack.cpp` is original MIT adapter code, with
-chip-level capture, scheduling and resampling. No libvgm source is used.
+upstream source. The derived YM2203 capture in `native/ymfm-voices/` is also
+BSD-3-Clause, copyright Aaron Giles and Bit Music Visualizer contributors;
+its complete notice is in
+[LICENSES/ymfm-voices-BSD-3-Clause.txt](LICENSES/ymfm-voices-BSD-3-Clause.txt).
+The wrapper compiles the unchanged upstream OPN implementation with our derived
+class, exposing individual voices without altering its source files. These
+additions are included in the complete corresponding application-source bundle.
+`native/yamahatrack.cpp` is original MIT scheduling, resampling and mixing code.
+No libvgm source is used.
 
 ## Local libgme modifications
 

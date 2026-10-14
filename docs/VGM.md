@@ -16,16 +16,16 @@ seeks are supported. Independent audio and scope workers each use one decoder;
 adding four cards does not run four emulators. Backward seek resets the complete
 chip/buffer state and replays commands. Source files are never changed.
 
-## Yamaha chip mixes
+## Yamaha voices and chip mixes
 
 The separate ymfm backend accepts YM2203, YM2151, YM2608, YM2610/2610B,
 YM3526 (OPL), YM3812 (OPL2), Y8950 and YMF262 (OPL3).
-Each complete chip is one source with a `mix` label. These
-types may be combined, with up to two instances of each. Existing Sega files
+YM2203 exposes six voices; each other complete chip is one source with a `mix`
+label. These types may be combined, with up to two instances of each. Existing Sega files
 retain their detailed GME voice cards. Mixed new-Yamaha/Sega/POKEY streams are
 explicitly rejected rather than partially played.
 
-YM2203 combines FM and its three SSG outputs into mono. OPL/OPL2 and Y8950 are
+YM2203's FM and PSG voices are mono. OPL/OPL2 and Y8950 are
 mono; YM2151 uses native L/R. YM2608 and YM2610/2610B combine stereo FM/ADPCM with
 centered SSG. OPL3's A+C outputs map to left and B+D to right.
 The dual-OPL2 header flag hard-pans chip 1 left and chip 2 right. Ordinary dual
@@ -42,10 +42,10 @@ OPN chips use ymfm's minimum-output-rate mode: clock/24 for YM2203, clock/48 for
 YM2608 and clock/144 for YM2610/2610B, including internal FM/SSG rate conversion.
 This is not a claim of cycle-perfect hardware output.
 
-All chips keep running when muted; capture precedes chip mutes. Fixed mix
+All chips keep running when muted; capture precedes user mutes. Fixed mix
 headroom and file-specified relative/absolute volumes are applied consistently,
 including paired SSG volumes and alternate clocks for second chips.
-Master clipping happens after summing enabled chip cards. The gain does not
+Master clipping happens after summing the enabled output of each chip. The gain does not
 change when Solo/mutes change. Full mix retains the normal final-output stage.
 
 GD3 metadata, compressed input, repeat, rewind/replay and cancellable seeks are
@@ -56,6 +56,37 @@ waits would change length on later passes are rejected instead of mistimed.
 DAC stream commands (0x90-95)
 and compressed PCM stream banks are not implemented in this backend. Other
 sample chips, MDX and non-VGM containers remain separate work.
+
+### YM2203 voice cards
+
+Each chip has FM 1–3 and PSG A/B/C, with individual mute/Solo and the normal
+waveform, spectrum and estimated-pitch keyboard views. Two chips expose twelve
+voices. PSG channels already include their tone/noise gates and shared envelope;
+noise and envelope are not extra sound sources. Channel 3's special FM mode
+remains one hardware voice, including its differently tuned operators.
+
+One emulator advances all voices together. FM capture precedes the chip's
+shared DAC quantization; PSG capture uses its native resampler. The audio mix
+preserves the original shared-DAC output for every FM mute combination, then
+adds enabled PSG voices. Summing the FM cards is therefore not guaranteed to
+reproduce the audible mix exactly. Full mix shows the actual final PCM.
+
+Each native frame retains the eight possible FM DAC combinations in a bounded
+FIR history, allowing immediate mutes without restarting oscillators or leaking
+previously enabled voices through the filter. This does not create an emulator
+per voice. The original all-enabled sound and internal rate conversion remain
+unchanged. No chip-register pitch metadata is exposed yet.
+
+Preset source keys are `ym2203.<instance>.fm:0..2` and
+`ym2203.<instance>.ssg:0..2`. This changes YM2203's configuration identity from
+the earlier, unpublished chip-mix layout; its old default preset will not be
+automatically applied to six voice cards. Other chips retain their identities.
+
+The voice checks compare all eight FM algorithms and all mute combinations
+against the pinned unmodified core, including feedback, prescaler changes,
+PSG noise/envelopes, channel-3 special mode and timer-driven CSM. They also
+verify six/twelve distinct mono signals, real PCM timing, mute/Solo state,
+seeking/loops, chunking, concurrency and live scope suspend/resume.
 
 ### Sample memory and the optional rhythm ROM
 

@@ -24,7 +24,10 @@ only affect C++ capture/mute/dither handling, not the drivers.
 
 The BSD-3-Clause ymfm cores are also statically linked. Their complete pinned
 `ymfm-81aec25ccbb98f4873a255f7551ac4dadac59b4a.tar.gz` archive is included;
-`cmake/Ymfm.cmake` selects the unmodified source files. Rebuild the application
+`cmake/Ymfm.cmake` selects the source files. The BSD-3-Clause wrapper in
+`native/ymfm-voices/opn.cpp` includes the unchanged upstream OPN implementation
+and adds YM2203 voice capture in the same translation unit. Keep this directory
+from the application-source bundle when rebuilding. Rebuild the application
 to replace them. No libvgm dependency is needed.
 
 ## Game Music Emu

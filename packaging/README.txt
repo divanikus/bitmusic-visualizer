@@ -144,6 +144,8 @@ files remain MIT (LICENSE); libgme changes are LGPL-2.1-or-later and SID changes
 GPL-2.0-or-later. The complete application/build source is included in
 third-party-sources/bitmusic-visualizer-source.tar.xz, alongside the pinned
 libsidplayfp/reSIDfp archive. Keep COPYING with the bundle too.
+The ymfm core and native/ymfm-voices capture code are BSD-3-Clause; their notices
+and complete sources are included as well.
 
 The application sources are maintained at:
 https://github.com/divanikus/bitmusic-visualizer

@@ -23,3 +23,4 @@ struct VgmHeader {
 };
 VgmHeader inspectVgm(const QByteArray &data);
 void requireSupportedVgm(const VgmHeader &header);
+inline int yamahaVoiceCount(const VgmYamahaChip &chip) { return chip.id == 6 ? 6 : 1; }

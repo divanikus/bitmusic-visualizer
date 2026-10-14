@@ -18,8 +18,9 @@ not published GitHub releases. Unreleased lists changes made after the latest ta
 - Atari POKEY playback in VGM/VGZ, with four mono channel cards and mute/Solo.
 - Clear messages for unsupported sound chips declared in VGM/VGZ files.
 - VGM/VGZ playback for YM2203, YM2151, YM2608, YM2610/2610B, Y8950 and
-  OPL/OPL2/OPL3, with one mix card per chip, stereo where available, and chip
-  mute/Solo. YM2608 rhythm samples use an optional user-provided ROM.
+  OPL/OPL2/OPL3. YM2203 has three FM and three PSG voice cards with individual
+  mute/Solo; other chips have one mix card each, with stereo where available.
+  YM2608 rhythm samples use an optional user-provided ROM.
 
 ### Distribution
 

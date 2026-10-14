@@ -15,6 +15,8 @@ This repository owns the native Bit Music Visualizer application.
   Explicitly name what was added or changed and briefly explain its visible effect.
   Leave implementation details and test-coverage reports in development documentation.
 - Application code is MIT; native/gme-taps is LGPL-2.1-or-later. Preserve notices.
+- native/ymfm-voices is derived from ymfm under BSD-3-Clause; retain its notice
+  and sources alongside the pinned upstream core when packaging.
 - native/sid-taps and patched libsidplayfp are GPL-2.0-or-later; SID-enabled
   combined binaries are GPLv3. Retain COPYING and the full corresponding source
   bundle, including application sources and build scripts, when packaging.

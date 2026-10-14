@@ -1,7 +1,7 @@
 #pragma once
 #include "engine.h"
 
-// One source/card per complete chip, not per FM operator or hardware voice.
+// YM2203 hardware voices; remaining Yamaha families currently expose chip mixes.
 class YamahaTrack final : public MusicTrack {
 public:
     YamahaTrack(const QString &path, QByteArray data, int song, bool playlist, bool capture,

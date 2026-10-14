@@ -62,9 +62,11 @@ also runs under `--tap-checks`. See [VGM boundaries](VGM.md).
 
 `--self-test test-output --yamaha-only` checks YM2203/YM2151/OPL/OPL2/OPL3 and
 YM2608/YM2610/2610B/Y8950 with synthetic ADPCM and on-demand ROM scenarios,
-single/dual/mixed chips, actual PCM alignment, stereo, chip mute/Solo, timer-driven
+single/dual/mixed chips, actual PCM alignment, stereo, mute/Solo, timer-driven
 CSM, clocks/volumes, seeking/repeat and live cards. Add `--decoder-only` for
-headless checks. Optional additional Yamaha VGM/VGZ paths are read only.
+headless checks. YM2203 checks include six/twelve individual voices and bit-exact
+comparisons of every FM algorithm/mute combination against the upstream core.
+Optional additional Yamaha VGM/VGZ paths are read only.
 The decoder portion also runs in `--tap-checks`. ymfm is a pinned static C++
 dependency; no new SDK or runtime DLL is required. Tests need no proprietary
 ROMs. Real YM2608 rhythm playback uses the user's optional ROM (see

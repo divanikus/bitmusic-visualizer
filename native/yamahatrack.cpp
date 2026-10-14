@@ -1,6 +1,7 @@
 #include "yamahatrack.h"
 #include "vgm.h"
 #include "romfiles.h"
+#include "ymfm-voices/ym2203.h"
 #include <ymfm_opn.h>
 #include <ymfm_opm.h>
 #include <ymfm_opl.h>
@@ -26,19 +27,25 @@ struct SampleBlock {
     quint32 total, offset;
     QByteArray bytes;
 };
+struct ChipFrame {
+    Stereo mix{};
+    std::array<Stereo,6> channels{};
+};
 
 class Chip {
 public:
     virtual ~Chip() = default;
     virtual void write(int reg, int value) = 0;
-    virtual Stereo sample(qint64 frame) = 0;
+    virtual ChipFrame sample(qint64 frame, uint32_t enabled) = 0;
     virtual void load(const SampleBlock &block) = 0;
 };
 
 template<class Core> class YamahaChip final : public Chip, public ymfm::ymfm_interface {
 public:
-    explicit YamahaChip(const VgmYamahaChip &spec, std::shared_ptr<const YamahaRoms> roms) : spec_(spec), roms_(std::move(roms)), core_(*this) {
-        if constexpr (std::is_same_v<Core, ymfm::ym2203> || std::is_same_v<Core, ymfm::ym2608> ||
+    static constexpr bool Separate = std::is_same_v<Core, bitmusic::Ym2203Voices>;
+    using NativeFrame = std::conditional_t<Separate,bitmusic::Ym2203Voices::Voices,Stereo>;
+    explicit YamahaChip(const VgmYamahaChip &spec, std::shared_ptr<const YamahaRoms> roms, bool capture) : spec_(spec), roms_(std::move(roms)), core_(*this), capture_(capture) {
+        if constexpr (std::is_base_of_v<ymfm::ym2203,Core> || std::is_same_v<Core, ymfm::ym2608> ||
                       std::is_base_of_v<ymfm::ym2610, Core>) core_.set_fidelity(ymfm::OPN_FIDELITY_MIN);
         core_.reset();
         // Use an exact clock divider, not a rounded integer native sample rate.
@@ -65,7 +72,7 @@ public:
         memory.resize(block.total, 0xff);
         std::copy(block.bytes.begin(), block.bytes.end(), memory.begin()+block.offset);
     }
-    Stereo sample(qint64 frame) override {
+    ChipFrame sample(qint64 frame, uint32_t enabled) override {
         const qint64 target = (frame+1)*spec_.clock/SampleRate;
         for (;;) {
             const auto timer = std::min(timers_[0], timers_[1]);
@@ -78,35 +85,49 @@ public:
                     m_engine->engine_timer_expired(t);
                 }
             } else {
-                typename Core::output_data output;
-                core_.generate(&output);
-                Stereo s;
-                if constexpr (std::is_same_v<Core, ymfm::ym2203>) {
-                    const double mix = output.data[0]*spec_.gain +
-                        (output.data[1]+output.data[2]+output.data[3])*spec_.ssgGain;
-                    s = {mix, mix};
-                } else if constexpr (std::is_same_v<Core, ymfm::ym2608> || std::is_base_of_v<ymfm::ym2610, Core>) {
-                    s = {output.data[0]*spec_.gain+output.data[2]*spec_.ssgGain,
-                         output.data[1]*spec_.gain+output.data[2]*spec_.ssgGain};
-                } else if constexpr (Core::OUTPUTS == 1) {
-                    s = {output.data[0]*spec_.gain, output.data[0]*spec_.gain};
-                } else if constexpr (std::is_same_v<Core, ymfm::ymf262>) {
-                    // Fold OPL3's two stereo output pairs into the host L/R pair.
-                    s = {(output.data[0]+output.data[2])*spec_.gain, (output.data[1]+output.data[3])*spec_.gain};
-                } else s = {output.data[0]*spec_.gain, output.data[1]*spec_.gain};
-                if (spec_.pan < 0) s[1] = 0;
-                if (spec_.pan > 0) s[0] = 0;
-                history_[cursor_] = s; cursor_ = (cursor_+1)%Taps;
+                if constexpr (Separate) {
+                    core_.generate_voices(history_[cursor_]);
+                } else {
+                    typename Core::output_data output;
+                    core_.generate(&output);
+                    Stereo s;
+                    if constexpr (std::is_same_v<Core, ymfm::ym2608> || std::is_base_of_v<ymfm::ym2610, Core>) {
+                        s = {output.data[0]*spec_.gain+output.data[2]*spec_.ssgGain,
+                             output.data[1]*spec_.gain+output.data[2]*spec_.ssgGain};
+                    } else if constexpr (Core::OUTPUTS == 1) {
+                        s = {output.data[0]*spec_.gain, output.data[0]*spec_.gain};
+                    } else if constexpr (std::is_same_v<Core, ymfm::ymf262>) {
+                        // Fold OPL3's two stereo output pairs into the host L/R pair.
+                        s = {(output.data[0]+output.data[2])*spec_.gain, (output.data[1]+output.data[3])*spec_.gain};
+                    } else s = {output.data[0]*spec_.gain, output.data[1]*spec_.gain};
+                    if (spec_.pan < 0) s[1] = 0;
+                    if (spec_.pan > 0) s[0] = 0;
+                    history_[cursor_] = s;
+                }
+                cursor_ = (cursor_+1)%Taps;
                 nextSample_ += divider_;
             }
         }
         now_ = target;
         const auto phase = int((target % divider_)*Phases/divider_);
-        Stereo result{};
+        ChipFrame result;
         for (int tap = 0; tap < Taps; ++tap) {
             const auto &s = history_[(cursor_+Taps-1-tap)%Taps];
-            result[0] += s[0]*filter_[phase][tap]; result[1] += s[1]*filter_[phase][tap];
+            const double f = filter_[phase][tap];
+            if constexpr (Separate) {
+                double mixed = s.fmMix[enabled&7]*spec_.gain;
+                for (int c=3;c<6;++c) if (enabled & (1u<<c)) mixed += s.channels[c]*spec_.ssgGain;
+                result.mix[0] += mixed*f;
+                if (capture_) for (int c=0;c<6;++c)
+                    result.channels[c][0] += s.channels[c]*(c<3 ? spec_.gain : spec_.ssgGain)*f;
+            } else {
+                result.channels[0][0] += s[0]*f; result.channels[0][1] += s[1]*f;
+            }
         }
+        if constexpr (Separate) {
+            result.mix[1] = result.mix[0];
+            for (auto &c : result.channels) c[1] = c[0];
+        } else if (enabled) result.mix = result.channels[0];
         return result;
     }
 private:
@@ -137,24 +158,25 @@ private:
     std::shared_ptr<const YamahaRoms> roms_;
     std::array<std::vector<uint8_t>,2> memory_;
     Core core_;
+    bool capture_;
     qint64 now_ = 0, nextSample_ = 0;
     std::array<qint64,2> timers_{Never,Never};
     int divider_ = 0, cursor_ = 0;
-    std::array<Stereo,Taps> history_{};
+    std::array<NativeFrame,Taps> history_{};
     std::array<std::array<double,Taps>,Phases> filter_{};
 };
-std::unique_ptr<Chip> makeChip(const VgmYamahaChip &spec, const std::shared_ptr<const YamahaRoms> &roms) {
+std::unique_ptr<Chip> makeChip(const VgmYamahaChip &spec, const std::shared_ptr<const YamahaRoms> &roms, bool capture) {
     switch (spec.id) {
-    case 3: return std::make_unique<YamahaChip<ymfm::ym2151>>(spec,roms);
-    case 6: return std::make_unique<YamahaChip<ymfm::ym2203>>(spec,roms);
-    case 7: return std::make_unique<YamahaChip<ymfm::ym2608>>(spec,roms);
+    case 3: return std::make_unique<YamahaChip<ymfm::ym2151>>(spec,roms,capture);
+    case 6: return std::make_unique<YamahaChip<bitmusic::Ym2203Voices>>(spec,roms,capture);
+    case 7: return std::make_unique<YamahaChip<ymfm::ym2608>>(spec,roms,capture);
     case 8:
-        if (spec.variant) return std::make_unique<YamahaChip<ymfm::ym2610b>>(spec,roms);
-        return std::make_unique<YamahaChip<ymfm::ym2610>>(spec,roms);
-    case 9: return std::make_unique<YamahaChip<ymfm::ym3812>>(spec,roms);
-    case 10: return std::make_unique<YamahaChip<ymfm::ym3526>>(spec,roms);
-    case 11: return std::make_unique<YamahaChip<ymfm::y8950>>(spec,roms);
-    case 12: return std::make_unique<YamahaChip<ymfm::ymf262>>(spec,roms);
+        if (spec.variant) return std::make_unique<YamahaChip<ymfm::ym2610b>>(spec,roms,capture);
+        return std::make_unique<YamahaChip<ymfm::ym2610>>(spec,roms,capture);
+    case 9: return std::make_unique<YamahaChip<ymfm::ym3812>>(spec,roms,capture);
+    case 10: return std::make_unique<YamahaChip<ymfm::ym3526>>(spec,roms,capture);
+    case 11: return std::make_unique<YamahaChip<ymfm::y8950>>(spec,roms,capture);
+    case 12: return std::make_unique<YamahaChip<ymfm::ymf262>>(spec,roms,capture);
     default: throw std::runtime_error("Unsupported Yamaha chip.");
     }
 }
@@ -167,6 +189,7 @@ struct YamahaTrack::Impl {
     QVector<SampleBlock> blocks;
     std::shared_ptr<const YamahaRoms> roms;
     std::vector<std::unique_ptr<Chip>> chips;
+    QVector<int> offsets;
     std::vector<std::array<std::array<float, ScopeFrames>,2>> history;
     qsizetype next = 0, loopEvent = 0;
     qint64 ticks = 0, loopTick = 0, loopDuration = 0, iteration = 0;
@@ -174,8 +197,12 @@ struct YamahaTrack::Impl {
     double gain = 1;
     void reset() {
         chips.clear();
-        for (const auto &s : specs) chips.push_back(makeChip(s,roms));
-        history.clear(); if (capture) history.resize(chips.size());
+        offsets.clear(); int sources = 0;
+        for (const auto &s : specs) {
+            offsets.push_back(sources); sources += yamahaVoiceCount(s);
+            chips.push_back(makeChip(s,roms,capture));
+        }
+        history.clear(); if (capture) history.resize(sources);
         next = 0; iteration = 0;
     }
     bool writes(qint64 frame) {
@@ -288,7 +315,10 @@ YamahaTrack::YamahaTrack(const QString &path, QByteArray data, int song, bool pl
     double weight = 0;
     for (const auto &s : d.specs) {
         const bool dual = std::count_if(d.specs.begin(),d.specs.end(),[&](const auto &v){return v.id==s.id;}) > 1;
-        info_.voices << s.name + (dual ? QString(" %1").arg(s.instance+1) : QString()) + " mix";
+        const QString prefix = s.name + (dual ? QString(" %1").arg(s.instance+1) : QString());
+        if (s.id == 6) for (const auto &name : {"FM 1","FM 2","FM 3","PSG A","PSG B","PSG C"})
+            info_.voices << prefix + " / " + name;
+        else info_.voices << prefix + " mix";
         info_.stereoOutput |= s.stereo;
         weight += std::max(s.gain,s.ssgGain);
     }
@@ -305,11 +335,13 @@ void YamahaTrack::render(short *out, int frames) {
         const bool running = d.writes(frame_);
         int mix[2]{};
         for (size_t c = 0; c < d.chips.size(); ++c) {
-            const auto s = running ? d.chips[c]->sample(frame_) : Stereo{};
+            const int offset = d.offsets[c], count = yamahaVoiceCount(d.specs[c]);
+            const auto enabled = (~muteMask_>>offset) & ((1u<<count)-1);
+            const auto s = running ? d.chips[c]->sample(frame_,enabled) : ChipFrame{};
             for (int side = 0; side < 2; ++side) {
-                const int value = int(std::clamp(std::lround(s[side]*d.gain),-32768L,32767L));
-                if (d.capture) d.history[c][side][frame_%ScopeFrames] = float(value);
-                if (!(muteMask_ & (1u<<c))) mix[side] += value;
+                mix[side] += int(std::clamp(std::lround(s.mix[side]*d.gain),-32768L,32767L));
+                if (d.capture) for (int v=0;v<count;++v)
+                    d.history[offset+v][side][frame_%ScopeFrames] = float(std::clamp(std::lround(s.channels[v][side]*d.gain),-32768L,32767L));
             }
         }
         *out++ = short(std::clamp(mix[0],-32768,32767)); *out++ = short(std::clamp(mix[1],-32768,32767));
@@ -326,7 +358,7 @@ bool YamahaTrack::seek(qint64 target, const std::function<bool()> &cancelled) {
     return !cancelled();
 }
 bool YamahaTrack::readTap(int channel, QVector<float> &left, QVector<float> &right) const {
-    if (!impl_->capture || channel < 0 || size_t(channel) >= impl_->chips.size()) return false;
+    if (!impl_->capture || channel < 0 || size_t(channel) >= impl_->history.size()) return false;
     left.resize(ScopeFrames); right.resize(ScopeFrames);
     for (int i = 0; i < ScopeFrames; ++i) {
         const auto at = frame_-ScopeFrames+i;

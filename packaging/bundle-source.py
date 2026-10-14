@@ -23,6 +23,8 @@ def bundle(destination):
                 'native/pokeytrack.cpp', 'native/vgm.cpp', 'native/gme-taps/pokey.cpp',
                 'native/gme-taps/pokey.h', 'cmake/PatchGme.cmake',
                 'native/yamahatrack.cpp', 'native/yamahasamplechecks.cpp', 'native/romfiles.cpp',
+                'native/ymfm-voices/opn.cpp', 'native/ymfm-voices/ym2203.h',
+                'native/yamahavoicechecks.cpp', 'LICENSES/ymfm-voices-BSD-3-Clause.txt',
                 'packaging/YAMAHA-ROMS.txt', 'cmake/Ymfm.cmake', 'LICENSES/ymfm-BSD-3-Clause.txt'}
     if not required.issubset(paths):
         raise RuntimeError('Application source bundle is incomplete.')

@@ -57,7 +57,7 @@ def main():
     for required in ('LICENSE', 'COPYING', 'licenses/THIRD-PARTY.md', 'licenses/GPL-3.0.txt',
                      'licenses/libsidplayfp-NOTICES.txt', 'third-party-sources/sources.json',
                      'third-party-sources/libsidplayfp-2.16.1.tar.gz',
-                     'licenses/ymfm-BSD-3-Clause.txt',
+                     'licenses/ymfm-BSD-3-Clause.txt', 'licenses/ymfm-voices-BSD-3-Clause.txt',
                      'third-party-sources/ymfm-81aec25ccbb98f4873a255f7551ac4dadac59b4a.tar.gz',
                      'third-party-sources/bitmusic-visualizer-source.tar.xz', 'YAMAHA-ROMS.txt'):
         if required not in listed:
