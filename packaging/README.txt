@@ -139,8 +139,11 @@ engineering for debugging modifications to these libraries is not restricted.
 Licenses, copyright notices and compiler runtime notices are in licenses/.
 Complete corresponding Qt/libgme source archives and rebuild information are in
 third-party-sources/. Keep these materials with the bundle when passing it on.
-The application's own code is under the MIT license; see LICENSE.
-Local libgme modifications remain LGPL-2.1-or-later.
+The SID-enabled combined application is GPLv3; see COPYING. Original application
+files remain MIT (LICENSE); libgme changes are LGPL-2.1-or-later and SID changes
+GPL-2.0-or-later. The complete application/build source is included in
+third-party-sources/bitmusic-visualizer-source.tar.xz, alongside the pinned
+libsidplayfp/reSIDfp archive. Keep COPYING with the bundle too.
 
 The application sources are maintained at:
 https://github.com/divanikus/bitmusic-visualizer

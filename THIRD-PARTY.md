@@ -1,14 +1,20 @@
 # Licenses and third-party components
 
 The application's own code, scripts, original artwork and test fixture generator
-are MIT, except for the LGPL libgme integration described below. The top-level
+are MIT, except for the LGPL libgme and GPL SID integrations described below. The top-level
 LICENSE does not relicense dependencies or modified upstream code.
+
+The combined executable containing libsidplayfp is distributed under **GPLv3**
+(COPYING). The GPL-2.0-or-later SID code permits this version, which is compatible
+with the selected LGPLv3 Qt modules. Individual original application files remain
+available under MIT. This applies to both static and dynamic SID integration.
 
 | Component | Version | License / distribution |
 | --- | --- | --- |
 | Qt Base, Declarative, Multimedia | 6.11.2 | LGPL-3.0; shared libraries and required plugins |
 | Qt Shader Tools | 6.11.2 | Build dependency; upstream license terms, source included to rebuild Qt Quick |
 | Game Music Emu | 0.6.5 + local patches | LGPL-2.1-or-later; replaceable shared library |
+| libsidplayfp / bundled reSIDfp | 2.16.1 + local patches | GPL-2.0-or-later; static, combined application GPLv3 |
 | zlib | 1.3.2 | zlib license; static |
 | ICU (Linux Qt runtime) | 73.2 | Unicode/ICU permissive licenses; shared |
 | AppImage type-2 runtime (Linux) | 20251108 | MIT runtime; static libfuse LGPL-2.1, other permissive runtime components |
@@ -51,6 +57,15 @@ The LGPL text is in [LICENSES/LGPL-2.1.txt](LICENSES/LGPL-2.1.txt).
 
 ## Redistribution and replacement
 
+`native/sid-taps/` and the patched libsidplayfp files are GPL-2.0-or-later.
+They add pre-filter taps, oscillator-preserving mute and an independent dither
+cursor for each decoder. `cmake/Sid.cmake` builds the pinned complete release
+using its supplied generated 6502 drivers; no assembler is required for an
+unchanged driver. Full driver source and upstream build rules are retained.
+See [SID notices](LICENSES/libsidplayfp-NOTICES.txt) for credits and the embedded
+MD5 implementation's permissive notice. Software reSIDfp is the only builder
+linked; no hardware/USB driver is linked.
+
 Release packaging uses shared Qt and libgme. Compatible replacement libraries
 can be used; reverse engineering for debugging modifications to those libraries
 is not restricted. No activation or developer signature is required by the app.
@@ -59,9 +74,13 @@ macOS may require a new local ad-hoc signature after modifying a bundle.
 Every binary archive includes:
 
 - the application MIT LICENSE;
+- GPLv3 COPYING for the combined program;
 - library license texts and notices in `licenses/`;
-- complete corresponding Qt/libgme/zlib source archives, exact URLs and hashes,
+- complete corresponding Qt/libgme/libsidplayfp/zlib source archives, exact URLs and hashes,
   and all local libgme patches in `third-party-sources/`;
+- `third-party-sources/bitmusic-visualizer-source.tar.xz`, containing the complete
+  application source, all SID patches, build and packaging scripts used for the
+  build, with a source-file checksum manifest and no Git history;
 - instructions for rebuilding/replacing the libraries.
 
 Keep these files together when redistributing a binary. Default development
@@ -76,6 +95,7 @@ frameworks are likewise not bundled.
 - [Qt LGPL obligations](https://www.qt.io/development/open-source-lgpl-obligations)
 - [Qt third-party code](https://doc.qt.io/qt-6.11/licenses-used-in-qt.html)
 - [Game Music Emu 0.6.5](https://github.com/libgme/game-music-emu/tree/0.6.5)
+- [libsidplayfp 2.16.1](https://github.com/libsidplayfp/libsidplayfp/releases/tag/v2.16.1)
 - [zlib 1.3.2](https://github.com/madler/zlib/tree/v1.3.2)
 
 Source archive hashes are pinned in `packaging/sources.json` and CMakeLists.txt.

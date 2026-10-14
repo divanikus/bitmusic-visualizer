@@ -53,7 +53,23 @@ struct TrackInfo {
     uint32_t tonalMask = 0; // Sources with chip pitch metadata (possibly several tones).
 };
 
-class GmeTrack {
+// A decoder instance belongs to exactly one worker. Audio and scopes never share it.
+class MusicTrack {
+public:
+    virtual ~MusicTrack() = default;
+    virtual const TrackInfo &info() const = 0;
+    virtual bool seek(qint64 frame, const std::function<bool()> &cancelled = [] { return false; }) = 0;
+    virtual void render(short *out, int frames) = 0;
+    virtual void mute(uint32_t mask) = 0;
+    virtual void dry() = 0;
+    virtual bool hasTaps() const = 0;
+    virtual bool readTap(int channel, QVector<float> &left, QVector<float> &right) const = 0;
+    virtual QVector<float> notePitches(int channel) const = 0;
+    virtual qint64 frame() const = 0;
+};
+std::unique_ptr<MusicTrack> openMusicTrack(const QString &path, int song = 0, bool readPlaylist = true, bool capture = false);
+
+class GmeTrack : public MusicTrack {
 public:
     GmeTrack(const QString &path, int song = 0, bool readPlaylist = true, bool capture = false);
     ~GmeTrack();

@@ -221,7 +221,7 @@ PlayerWindow::PlayerWindow() {
     tabs_->addTab(channelPage, QString::fromUtf8("Channels")); root->addWidget(tabs_, 1);
     status_ = new QLabel; status_->setObjectName("status"); status_->setWordWrap(true); status_->hide(); root->addWidget(status_);
     connect(open, &QPushButton::clicked, this, [this] {
-        const auto path = QFileDialog::getOpenFileName(this, QString::fromUtf8("Open music"), {}, "Chiptunes (*.nsf *.nsfe *.vgm *.vgz *.spc *.gbs *.ay);;All files (*)");
+        const auto path = QFileDialog::getOpenFileName(this, QString::fromUtf8("Open music"), {}, "Chiptunes (*.nsf *.nsfe *.vgm *.vgz *.spc *.gbs *.ay *.sid);;All files (*)");
         if (!path.isEmpty()) loadFile(path);
     });
     connect(showScopes_, &QPushButton::clicked, this, [this] { setScopesVisible(!scopes_.renderingVisible()); });

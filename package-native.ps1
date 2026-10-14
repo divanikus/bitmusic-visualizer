@@ -89,6 +89,9 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'Qt license collection failed.' }
     Copy-Item -LiteralPath "$PSScriptRoot/packaging/README.txt" -Destination $stageRoot
     Copy-Item -LiteralPath "$PSScriptRoot/LICENSE" -Destination $stageRoot
+    Copy-Item -LiteralPath "$PSScriptRoot/COPYING" -Destination $stageRoot
+    & $Python "$PSScriptRoot/packaging/bundle-source.py" $stageRoot
+    if ($LASTEXITCODE -ne 0) { throw 'Corresponding application source collection failed.' }
     foreach ($launcher in @('Start-Diagnostics.cmd','Start-Software.cmd','Start-OpenGL.cmd')) {
         Copy-Item -LiteralPath (Join-Path "$PSScriptRoot/packaging" $launcher) -Destination $stageRoot
     }
@@ -115,7 +118,7 @@ try {
     $revision = & git -c "safe.directory=$($PSScriptRoot.Replace('\','/'))" -C $PSScriptRoot rev-parse HEAD
     $changes = & git -c "safe.directory=$($PSScriptRoot.Replace('\','/'))" -C $PSScriptRoot status --porcelain --untracked-files=no
     @("Version: $version", "Platform: Windows x64", "Source revision: $revision", "Tracked working tree changed: $([bool]$changes)",
-      "Qt: 6.11.2 (DLLs)", 'libgme: 0.6.5 + Bit Music taps/YM2413, Nuked OPN2 (DLL)', 'zlib: 1.3.2 (static)',
+      "Qt: 6.11.2 (DLLs)", 'libgme: 0.6.5 + Bit Music taps/YM2413, Nuked OPN2 (DLL)', 'libsidplayfp: 2.16.1 + Bit Music taps (static, combined GPLv3)', 'zlib: 1.3.2 (static)',
       "Built UTC: $([DateTime]::UtcNow.ToString('u'))") | Set-Content -LiteralPath "$stageRoot/BUILD.txt" -Encoding UTF8
     $manifest = foreach ($file in Get-ChildItem -LiteralPath $stageRoot -Recurse -File | Sort-Object FullName) {
         $relative = $file.FullName.Substring($stageRoot.Length + 1).Replace('\','/')

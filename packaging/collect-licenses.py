@@ -4,6 +4,8 @@ import hashlib
 import json
 from pathlib import Path
 import shutil
+import subprocess
+import sys
 import tarfile
 import urllib.request
 
@@ -44,6 +46,8 @@ def collect(destination, qt_root):
         if path.is_file():
             shutil.copy2(path, licenses)
     shutil.copy2(ROOT / 'LICENSE', destination)
+    shutil.copy2(ROOT / 'COPYING', destination)
+    subprocess.run([sys.executable, str(ROOT / 'packaging/bundle-source.py'), str(destination)], check=True)
     shutil.copy2(ROOT / 'THIRD-PARTY.md', licenses)
     collect_qt_notices(destination, qt_root)
 

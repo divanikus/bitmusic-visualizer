@@ -12,6 +12,13 @@ not published GitHub releases. Unreleased lists changes made after the latest ta
 
 - Solo listening: Shift-click a channel button or press Ctrl+Shift+1–9.
   Repeat to restore previous mutes, or select another channel to switch Solo.
+- Commodore 64 SID playback: single-chip PSID files, three voice cards, Full mix,
+  subsongs, seeking and independent mute/Solo. Supports 6581 and 8580 models.
+
+### Distribution
+
+- SID-enabled builds use GPLv3 for the combined application and include the
+  application's corresponding source. Original application files remain MIT.
 
 ## [0.8.1](https://github.com/divanikus/bitmusic-visualizer/releases/tag/v0.8.1) — 2026-10-14
 

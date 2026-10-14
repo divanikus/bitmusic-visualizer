@@ -1,0 +1,42 @@
+libsidplayfp 2.16.1, including its bundled reSIDfp engine
+https://github.com/libsidplayfp/libsidplayfp/releases/tag/v2.16.1
+
+GPL-2.0-or-later. This distribution elects GPL version 3 for the combined
+application (compatible with the selected LGPLv3 Qt modules).
+See GPL-2.0.txt, GPL-3.0.txt and the full corresponding source archive.
+
+Copyright holders include Simon White, Dag Lem, Antti Lankila and Leandro Nini.
+Individual source files retain their complete copyright/license notices,
+including credits for the C64 emulator, 6502 driver and relocation code.
+The original 6502 driver/stubs are included; no Commodore ROM is bundled.
+
+Local changes, copyright 2026 Bit Music Visualizer contributors:
+native/sid-taps and hash-pinned modifications in patches.json, GPL-2.0-or-later.
+They capture three pre-filter DAC signals without clocking oscillators twice,
+mute at the filter input without changing chip registers, and give each decoder
+an independent dither cursor to avoid shared-state races. Modified source copies
+are marked by cmake/PatchSid.cmake; originals remain available in the archive.
+
+Embedded MD5 implementation:
+Derived by Michael Schwendt from original work by L. Peter Deutsch.
+
+Copyright (C) 1999 Aladdin Enterprises. All rights reserved.
+
+This software is provided 'as-is', without any express or implied
+warranty. In no event will the authors be held liable for any damages
+arising from the use of this software.
+
+Permission is granted to anyone to use this software for any purpose,
+including commercial applications, and to alter it and redistribute it
+freely, subject to the following restrictions:
+
+1. The origin of this software must not be misrepresented; you must not
+   claim that you wrote the original software. If you use this software
+   in a product, an acknowledgment in the product documentation would be
+   appreciated but is not required.
+2. Altered source versions must be plainly marked as such, and must not be
+   misrepresented as being the original software.
+3. This notice may not be removed or altered from any source distribution.
+
+L. Peter Deutsch
+ghost@aladdin.com

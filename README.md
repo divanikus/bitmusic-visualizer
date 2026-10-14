@@ -6,7 +6,7 @@ with the final audio mix.
 
 ![Bit Music Visualizer playing a Sega Genesis track with stereo channel oscilloscopes and the full mix.](docs/images/player-and-oscilloscopes.png)
 
-Built with C++17, Qt 6 and a modified Game Music Emu backend. Music is not included.
+Built with C++17, Qt 6, Game Music Emu and libsidplayfp. Music is not included.
 
 See the [changelog](CHANGELOG.md) for version history.
 
@@ -41,12 +41,22 @@ See the [changelog](CHANGELOG.md) for version history.
 | SNES | SPC | Eight dry DSP voices; shared echo appears in Full mix |
 | Game Boy | GBS | Square 1, Square 2, Wave and Noise, with L/R routing |
 | ZX Spectrum | AY (ZXAYEMUL) | AY A/B/C and beeper; mono output |
+| Commodore 64 | SID (single-chip PSID) | Three pre-filter voices; filter and volume-register samples in Full mix |
 
 VGM is a container: accepting it does **not** mean every chip is supported. PT3,
-VTX, YM, SID, Amiga/tracker modules and MIDI are not supported yet. There are no
+VTX, YM, RSID, multi-SID, Amiga/tracker modules and MIDI are not supported yet. There are no
 invented durations or titles: files without duration data keep playing until
 stopped. Cold seeks can require emulation from an earlier point. Voice traces
 are not guaranteed to be exact separately audible stems after shared effects.
+
+SID uses the file's 6581/8580 and PAL/NTSC flags, with 6581/PAL defaults when
+unspecified. It exposes three hardware voices in mono, with subsongs, seeking,
+mute and Solo. Voice cards show the envelope-modulated signal before the common
+filter, volume control and output circuitry. Full mix includes these shared
+stages and volume-register digi samples; the latter have no separate voice card
+and can remain audible with all three voices muted. SID keyboard uses the
+experimental waveform estimate. No C64 ROM or song-length database is included.
+See [SID implementation boundaries](docs/SID.md).
 
 ## Run
 
@@ -161,3 +171,8 @@ the [MIT license](LICENSE). The libgme modifications in `native/gme-taps/` are
 **LGPL-2.1-or-later**, including patch content applied by `cmake/PatchGme.cmake`.
 Qt, libgme, zlib and compiler runtimes keep their own licenses. Release packages
 dynamically link Qt and libgme and include their corresponding source and notices.
+
+The SID engine and `native/sid-taps/` are **GPL-2.0-or-later**. The combined
+SID-enabled application is distributed under **GPLv3**; see [COPYING](COPYING).
+This does not remove the MIT license from our original source files. Packages
+also include the complete corresponding application source and build scripts.

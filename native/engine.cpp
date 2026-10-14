@@ -90,7 +90,7 @@ QByteArray readMusic(const QString &path) {
     }
     if (!(data.startsWith("NESM\x1a") || data.startsWith("NSFE") ||
           data.startsWith("Vgm ") || data.startsWith("SNES-SPC700") || data.startsWith("GBS") || data.startsWith("ZXAYEMUL")))
-        throw std::runtime_error("Supported formats: NSF, NSFE, VGM, VGZ, SPC, GBS, AY (ZXAYEMUL).");
+        throw std::runtime_error("Supported formats: NSF, NSFE, VGM, VGZ, SPC, GBS, AY (ZXAYEMUL), SID (PSID).");
     return data;
 }
 }
@@ -363,7 +363,7 @@ OutputFrame NativePlayer::outputScopes() const {
 void NativePlayer::run() {
     QObject context;
     std::unique_ptr<QAudioSink> sink;
-    std::unique_ptr<GmeTrack> track;
+    std::unique_ptr<MusicTrack> track;
     std::array<short, BlockFrames * 2> buffer{};
     quint64 active = 0;
     bool playing = false;
@@ -401,7 +401,7 @@ void NativePlayer::run() {
             if (command) {
                 active = command->generation;
                 stopOutput();
-                if (command->load) track = std::make_unique<GmeTrack>(command->path, command->song);
+                if (command->load) track = openMusicTrack(command->path, command->song);
                 if (!track) throw std::runtime_error("Open a music file first.");
                 int target = command->ms;
                 if (track->info().durationMs >= 0) target = std::min(target, track->info().durationMs);
@@ -483,9 +483,9 @@ void NativePlayer::run() {
 }
 
 void NativePlayer::scopeLoop() {
-    struct Voice { std::unique_ptr<GmeTrack> track; QVector<float> history, left, right; };
+    struct Voice { std::unique_ptr<MusicTrack> track; QVector<float> history, left, right; };
     std::vector<Voice> voices;
-    std::unique_ptr<GmeTrack> shared;
+    std::unique_ptr<MusicTrack> shared;
     QString path;
     int song = -1;
     QThreadPool preparationPool;
@@ -513,7 +513,7 @@ void NativePlayer::scopeLoop() {
                 if (path != current.info.path || song != current.info.song) {
                     voices.clear(); voices.resize(current.info.voices.size());
                     path = current.info.path; song = current.info.song;
-                    shared = std::make_unique<GmeTrack>(path, song, false, true);
+                    shared = openMusicTrack(path, song, false, true);
                     if (!shared->hasTaps()) shared.reset();
                     sharedScopes_ = bool(shared);
                 }
@@ -593,7 +593,7 @@ void NativePlayer::scopeLoop() {
                         try {
                             auto &voice = voices[i];
                             if (!voice.track) {
-                                voice.track = std::make_unique<GmeTrack>(path, song, false, true);
+                                voice.track = openMusicTrack(path, song, false, true);
                                 voice.track->mute(~bit); voice.track->dry();
                             }
                             if (voice.track->frame() > target) voice.track->seek(0, cancelled);

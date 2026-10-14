@@ -4,6 +4,24 @@ The portable player links dynamically to Qt 6.11.2 and Game Music Emu 0.6.5. No 
 
 The exact upstream source archives are included here; URLs and SHA256 values are in `sources.json`. Qt Base supplies Core, Gui, Widgets, Network and the Windows platform plugin; Qt Multimedia supplies native audio output. The package does not ship FFmpeg, SVG, video or TLS plugins. Qt and zlib source is unmodified. The complete LGPL-2.1-or-later libgme tap/YM2413 changes and their CMake integration are in `bitmusic-gme/`. `windeployqt` may adjust the Qt installation prefix for deployment; `qt.conf` selects this folder for plugin lookup.
 
+## Application and SID engine
+
+The combined player with libsidplayfp is GPLv3 (COPYING). Extract
+`bitmusic-visualizer-source.tar.xz` and put the supplied libgme, libsidplayfp and
+zlib archives into its `.runtime/sources/` directory. Follow `docs/BUILDING.md`
+inside it with the Qt 6.11.2 SDK. CMake checks hashes, reapplies the included
+GME/SID patches and builds the application. `SOURCE-SHA256SUMS.txt` records every
+application input. No Git history, credentials or signing key is needed to build
+and run a modified executable. Repackaging scripts use Git to inventory reviewed
+source inputs; initialize a local repository and track your source changes first.
+
+The SID engine is statically linked, so replacing it requires rebuilding the
+application. The exact complete upstream archive is
+`libsidplayfp-2.16.1.tar.gz`; it includes driver assembler sources and generated
+driver arrays. The CMake build does not need xa unless those drivers are changed;
+upstream's Makefile.am documents regeneration using xa. Current local changes
+only affect C++ capture/mute/dither handling, not the drivers.
+
 ## Game Music Emu
 
 Keep `bitmusic-gme/` beside the supplied `libgme-0.6.5.tar.gz`. With CMake, Ninja and MinGW available, run from this directory (no Qt or network access is needed):

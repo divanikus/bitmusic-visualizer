@@ -25,6 +25,11 @@
     "sha256": "8531678502451c2cf04248cda45c8b4645e19fcfb63e6a7ec2549641c47bb392"
   },
   {
+    "file": "libsidplayfp-2.16.1.tar.gz",
+    "url": "https://github.com/libsidplayfp/libsidplayfp/releases/download/v2.16.1/libsidplayfp-2.16.1.tar.gz",
+    "sha256": "ace0f73c2ef8645ab069ce1b298b10e31e36af7b5996109983b2b67ad60ff3ca"
+  },
+  {
     "file": "zlib-1.3.2.tar.gz",
     "url": "https://codeload.github.com/madler/zlib/tar.gz/refs/tags/v1.3.2",
     "sha256": "b99a0b86c0ba9360ec7e78c4f1e43b1cbdf1e6936c8fa0f6835c0cd694a495a1"

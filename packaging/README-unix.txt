@@ -33,7 +33,10 @@ macOS themes: ~/Library/Application Support/BitMusicVisualizer/themes
 Theme format is described in THEMES.txt.
 Layout presets use a presets directory alongside themes under the same data root.
 
-Application code is MIT. Qt is used under LGPLv3 and libgme under LGPLv2.1 or later.
+Original application code is MIT. SID-enabled combined builds are GPLv3 (COPYING).
+Qt is used under LGPLv3, libgme under LGPLv2.1 or later, and libsidplayfp under GPLv2
+or later. The full application/build source and dependency archives are included
+in third-party-sources/; keep COPYING with the bundle.
 Libraries are replaceable with compatible modified builds. Reverse engineering
 for debugging modifications to these libraries is not restricted.
 Keep LICENSE, licenses/ and third-party-sources/ with the bundle when sharing it.

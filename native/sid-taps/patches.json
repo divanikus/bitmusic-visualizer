@@ -1,0 +1,70 @@
+[
+  {
+    "file": "builders/residfp-builder/residfp/Voice.h",
+    "sha256": "9a336ff46b3820381116a6283231e17fb43f1de326126d43f36b7f2beac8ddfb",
+    "edits": [
+      [
+        "    /**\n     * Amplitude modulated waveform output.",
+        "    float bmOutput = 0;\n    bool bmMuted = false;\n    /**\n     * Amplitude modulated waveform output."
+      ],
+      [
+        "return wavDAC[wav] * envDAC[env];",
+        "bmOutput = wavDAC[wav] * envDAC[env];\n        return bmMuted ? 0.f : bmOutput;"
+      ]
+    ]
+  },
+  {
+    "file": "builders/residfp-builder/residfp/Filter.h",
+    "sha256": "6329b7736216efeac101c10d4a8bde305cae8b4b86abe54d8364be3d3202c631",
+    "edits": [
+      [
+        "return fmc.getNormalizedVoice(v.output(), v.envelope()->output());",
+        "const float sample = v.output();\n        return fmc.getNormalizedVoice(sample, v.bmMuted ? 0 : v.envelope()->output());"
+      ],
+      [
+        "v.wave()->output();",
+        "v.output(); // Capture without clocking the waveform a second time."
+      ]
+    ]
+  },
+  {
+    "file": "builders/residfp-builder/residfp/SID.h",
+    "sha256": "b95d41595fa2112c831527381c9252f3b01cb687bd7114bb59e3dc51ada8d68e",
+    "edits": [
+      [
+        "#include \"Filter.h\"",
+        "#include \"Filter.h\"\n#include \"taps.h\""
+      ],
+      [
+        "    ageBusValue(cycles);\n    int s = 0;",
+        "    ageBusValue(cycles);\n    BmSidTaps *const bm = bm_sid_context;\n    for (int n = 0; n < 3; ++n) voice[n].bmMuted = bm && (bm->muteMask & (1u << n));\n    int s = 0;"
+      ],
+      [
+        "                const int c64Output = externalFilter.clock(sidOutput + INT16_MIN);",
+        "                if (bm && bm->capture) bm->cycle(voice[0].bmOutput, voice[1].bmOutput, voice[2].bmOutput);\n                const int c64Output = externalFilter.clock(sidOutput + INT16_MIN);"
+      ],
+      [
+        "                    buf[s++] = resampler->getOutput(scaleFactor);",
+        "                    buf[s++] = resampler->getOutput(scaleFactor);\n                    if (bm && bm->capture) bm->sample();"
+      ]
+    ]
+  },
+  {
+    "file": "builders/residfp-builder/residfp/FilterModelConfig.h",
+    "sha256": "c5eece989581fb8f1822afc583e75f527c062eb7f0c4346556d62a74be98a52e",
+    "edits": [
+      [
+        "#include <random>",
+        "#include <random>\n#include \"taps.h\""
+      ],
+      [
+        "        mutable int index = 0;\n",
+        ""
+      ],
+      [
+        "double getNoise() const { index = (index + 1) & 0x3ff; return buffer[index]; }",
+        "double getNoise() const {\n            // Tables are immutable. Each decoder (or table-building thread)\n            // owns its cursor; the original singleton cursor caused data races.\n            static thread_local unsigned fallback = 0;\n            auto &index = bm_sid_context ? bm_sid_context->noiseIndex : fallback;\n            index = (index + 1) & 0x3ff; return buffer[index];\n        }"
+      ]
+    ]
+  }
+]

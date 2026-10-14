@@ -70,7 +70,7 @@ def main():
     dirty = subprocess.check_output(['git', '-C', str(ROOT), 'status', '--porcelain', '--untracked-files=no'], text=True).strip()
     (stage / 'BUILD.txt').write_text(f'Version: {version}\nPlatform: {label}\nSource revision: {revision}\n'
                                    f'Tracked working tree changed: {bool(dirty)}\nQt: 6.11.2 (shared)\n'
-                                   'libgme: 0.6.5 + taps/YM2413 (shared)\nzlib: 1.3.2 (static)\n')
+                                   'libgme: 0.6.5 + taps/YM2413 (shared)\nlibsidplayfp: 2.16.1 + taps (static, combined GPLv3)\nzlib: 1.3.2 (static)\n')
     lines = [f'{hashlib.sha256(path.read_bytes()).hexdigest()}  {path.relative_to(stage).as_posix()}'
              for path in sorted(stage.rglob('*')) if path.is_file() and not path.is_symlink()]
     (stage / 'SHA256SUMS.txt').write_text('\n'.join(lines) + '\n')

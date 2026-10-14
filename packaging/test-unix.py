@@ -54,7 +54,10 @@ def main():
               if p.is_file() and not p.is_symlink() and p.name != 'SHA256SUMS.txt'}
     if actual != listed:
         raise RuntimeError('Manifest does not cover the complete package.')
-    for required in ('LICENSE', 'licenses/THIRD-PARTY.md', 'third-party-sources/sources.json'):
+    for required in ('LICENSE', 'COPYING', 'licenses/THIRD-PARTY.md', 'licenses/GPL-3.0.txt',
+                     'licenses/libsidplayfp-NOTICES.txt', 'third-party-sources/sources.json',
+                     'third-party-sources/libsidplayfp-2.16.1.tar.gz',
+                     'third-party-sources/bitmusic-visualizer-source.tar.xz'):
         if required not in listed:
             raise RuntimeError('Missing notices: ' + required)
     if platform.system() == 'Linux':

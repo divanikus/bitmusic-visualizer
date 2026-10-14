@@ -50,6 +50,10 @@ missing/corrupt defaults, Keep grid and live NSF/VGZ application without transpo
 or mute changes. It saves editor screenshots and isolates settings and presets.
 It also runs in the complete native suite.
 
+`--self-test test-output --sid-only` checks SID voices, models/clocks, mutes/Solo,
+seeking, Full mix and cancellation. Add `--decoder-only` for headless tests.
+See [SID boundaries and checks](SID.md).
+
 ## Linux / macOS
 
 Set `QT_ROOT_DIR` to the Qt kit (Linux `gcc_64`, macOS `macos`). With the compiler,
@@ -107,11 +111,18 @@ their first release is described as tested.
 
 ## Dependencies and sources
 
-CMake fetches hash-pinned libgme and zlib source archives. `.runtime/sources/`
+CMake fetches hash-pinned libgme, libsidplayfp and zlib source archives. `.runtime/sources/`
 caches them. Packaging additionally downloads the exact Qt source archives in
 `packaging/sources.json`, verifies hashes and includes them with notices generated
 from the installed SDK's `sbom/` files. Missing source or notices fails packaging.
 The libgme modifications are hash-checked and replayed on each configure.
+The SID modifications follow the same approach. libsidplayfp 2.16.1 uses a local
+CMake adapter and the release's generated 6502 driver; no autotools or xa is needed
+unless changing that driver. SID is statically linked on all three platforms.
+The combined binary is GPLv3; original MIT/LGPL source licenses are retained.
+Packages include full corresponding application/build sources as well as the
+dependency archives. New source files must be tracked before packaging; source
+bundling refuses untracked inputs to avoid silently incomplete source archives.
 
 Qt and libgme stay shared in all distributable packages. See
 [THIRD-PARTY.md](../THIRD-PARTY.md) and

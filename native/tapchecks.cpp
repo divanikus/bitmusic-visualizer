@@ -14,6 +14,7 @@
 #include <algorithm>
 #include <cmath>
 #include <stdexcept>
+void checkSid(QApplication &app, const QString &directory, QTextStream &log, bool decoderOnly);
 
 namespace {
 void require(bool ok, const char* message) { if (!ok) throw std::runtime_error(message); }
@@ -104,6 +105,7 @@ int runTapChecks(QApplication& app, const QStringList& arguments) {
     QFile report(directory.filePath("tap-checks.txt")); if (!report.open(QIODevice::WriteOnly | QIODevice::Text)) return 3;
     QTextStream log(&report);
     try {
+        checkSid(app, directory.path(), log, true);
         QTemporaryDir fixtures(directory.filePath("tap-fixtures-XXXXXX")); require(fixtures.isValid(), "No fixture directory.");
         app.setProperty("settingsFileForTests", fixtures.filePath("BitMusicVisualizer.ini"));
         app.setProperty("themesDirectoryForTests", fixtures.filePath("themes"));
