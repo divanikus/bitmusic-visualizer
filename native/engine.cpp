@@ -340,6 +340,10 @@ PlayerState NativePlayer::state() const {
     std::lock_guard lock(stateMutex_);
     auto result = state_;
     result.positionMs = static_cast<int>(playedFrame_.load() * 1000 / SampleRate);
+    // A millisecond endpoint may lie between samples. Flooring twice otherwise
+    // leaves the UI one millisecond short, so Play never recognizes the end.
+    if (state_.valid && !state_.busy && endFrame_ >= 0 && playedFrame_ >= endFrame_)
+        result.positionMs = state_.info.durationMs;
     result.muteMask = muteMask_.load();
     result.outputMask = outputMask_.load();
     result.repeat = repeat_.load();
@@ -411,6 +415,9 @@ void NativePlayer::run() {
                 if (!track) throw std::runtime_error("Open a music file first.");
                 int target = command->ms;
                 if (track->info().durationMs >= 0) target = std::min(target, track->info().durationMs);
+                if (!command->load && command->playing && !state().playing &&
+                    endFrame_ >= 0 && playedFrame_ >= endFrame_ && target >= track->info().durationMs)
+                    target = 0;
                 if (!track->seek(qint64(target) * SampleRate / 1000, [&] { return closing_ || active != generation_; })) return;
                 playedFrame_ = track->frame();
                 endFrame_ = track->info().durationMs < 0 ? -1 : qint64(track->info().durationMs) * SampleRate / 1000;
@@ -447,6 +454,7 @@ void NativePlayer::run() {
                 std::lock_guard lock(stateMutex_);
                 if (active == generation_) {
                     state_.info = track->info();
+                    state_.instruments = track->instrumentNames(playedFrame_.load());
                     state_.valid = true; state_.busy = false; state_.playing = playing;
                 }
             }
@@ -469,6 +477,11 @@ void NativePlayer::run() {
                         }
                     }
                 }
+            }
+            if (track && active == generation_) {
+                const auto names = track->instrumentNames(playedFrame_.load());
+                std::lock_guard lock(stateMutex_);
+                if (active == generation_) state_.instruments = names;
             }
         } catch (const std::exception &error) {
             stopOutput();
@@ -531,7 +544,9 @@ void NativePlayer::scopeLoop() {
                     sharedScopes_ = bool(shared);
                 }
                 if (shared) {
-                    if (shared->frame() > target) shared->seek(0, cancelled);
+                    if (current.info.midiResources && (shared->frame() > target || target-shared->frame() > 2*SampleRate)) {
+                        if (!shared->seek(target, cancelled)) continue;
+                    } else if (shared->frame() > target) shared->seek(0, cancelled);
                     const auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(8);
                     std::array<short, BlockFrames * 2> scratch;
                     while (shared->frame() < target && !cancelled()) {
@@ -546,6 +561,7 @@ void NativePlayer::scopeLoop() {
                     const int count = int(voices.size());
                     frame.channels.resize(count); frame.left.resize(count); frame.right.resize(count);
                     frame.noteHz.resize(count);
+                    frame.instruments = shared->instrumentNames(target);
                     for (int i = 0; i < count; ++i) if (mask & (VoiceMask::bit(i))) {
                         if (shared->readTap(i, frame.left[i], frame.right[i])) {
                             frame.channels[i].resize(ScopeFrames);

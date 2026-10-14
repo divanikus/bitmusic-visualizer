@@ -385,7 +385,9 @@ VoiceMask ScopeWindow::visibleMask() const {
     return mask;
 }
 QString ScopeWindow::channelName(int channel) const {
-    return sourceName(sourceFor(channel));
+    const int source = sourceFor(channel);
+    const auto name = frame_.generation == state_.generation ? frame_.instruments.value(source) : QString();
+    return name.isEmpty() ? sourceName(source) : name;
 }
 bool ScopeWindow::channelReady(int channel) const {
     channel = sourceFor(channel);

@@ -11,8 +11,8 @@ not published GitHub releases. Unreleased lists changes made after the latest ta
 ### Added
 
 - General MIDI playback with your SF2 SoundFont: sixteen stereo channel cards,
-  MIDI keyboard notes, mute/Solo and seeking. A saved SoundFont selector appears
-  in the main player when opening MIDI.
+  instrument names, MIDI keyboard notes, mute/Solo and fast seeking. A saved
+  SoundFont selector appears in the main player when opening MIDI.
 - Solo listening: Shift-click a channel button or press Ctrl+Shift+1–9.
   Repeat to restore previous mutes, or select another channel to switch Solo.
 - Commodore 64 SID playback: PSID/RSID with up to three chips, individual voice

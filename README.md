@@ -56,6 +56,7 @@ are not guaranteed to be exact separately audible stems after shared effects.
 For General MIDI, put an SF2 bank in the [SoundFonts folder](packaging/SOUNDFONTS.txt).
 Opening a MIDI shows a compact bank selector in the main player; the choice is
 saved. MIDI file tracks play together as one song, with cards per MIDI channel.
+Card headings and Channels show the current instrument name from the SoundFont.
 The duration includes a two-second release/effects tail. See [MIDI details and
 limits](docs/MIDI.md). No SoundFont is bundled or downloaded.
 

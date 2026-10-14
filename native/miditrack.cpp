@@ -7,11 +7,13 @@
 #include <algorithm>
 #include <cmath>
 #include <cstring>
+#include <deque>
 #include <stdexcept>
 
 namespace {
 void require(bool ok,const char *s) { if (!ok) throw std::runtime_error(s); }
 constexpr int Polyphony=256, Chunk=64, TailSeconds=2;
+constexpr qint64 SeekPreroll=2*SampleRate;
 thread_local std::shared_ptr<const MidiResources> loading;
 struct Cursor { std::shared_ptr<const MidiResources> resource; qint64 pos=0; };
 void *sfOpen(const char *name) {
@@ -80,6 +82,18 @@ struct MidiTrack::Impl {
     std::array<std::array<float,Chunk>,64> effects{};
     std::vector<std::array<std::array<float,ScopeFrames>,2>> history;
     qsizetype event=0; bool released=false, capture=false;
+    struct Names { qint64 frame; QStringList channels; };
+    std::deque<Names> names;
+    void rememberNames(qint64 frame) {
+        QStringList channels;
+        for(int ch=0;ch<16;++ch) {
+            auto *preset=fluid_synth_get_channel_preset(synth.get(),ch);
+            channels<< (preset ? QString::fromUtf8(fluid_preset_get_name(preset)).trimmed() : QString());
+        }
+        if(names.empty() || channels!=names.back().channels) names.push_back({frame,channels});
+        // Only the audio ring's read-ahead needs history. Keep its preceding state too.
+        while(names.size()>1 && names[1].frame<frame-SampleRate) names.pop_front();
+    }
     void reset() {
         synth.reset(); settings.reset(new_fluid_settings()); require(bool(settings),"Cannot create MIDI settings.");
         auto *s=settings.get();
@@ -107,6 +121,7 @@ struct MidiTrack::Impl {
         loading.reset();
         require(id>=0,"Cannot load SoundFont. Use a valid uncompressed SF2 file.");
         event=0; released=false;
+        names.clear(); rememberNames(0);
         if (capture) history.assign(16,{});
     }
     void dispatch(const QByteArray &m) {
@@ -122,6 +137,99 @@ struct MidiTrack::Impl {
         case 0xe0: fluid_synth_pitch_bend(s,ch,a|(b<<7)); break;
         case 0xf0: fluid_synth_sysex(s,m.constData()+1,int(m.size())-2,nullptr,nullptr,nullptr,0); break;
         }
+    }
+    bool chase(qint64 target,const std::function<bool()> &cancelled) {
+        // Reconstruct MIDI state without rendering the entire elapsed soundtrack.
+        // Old held notes are restarted; sample phase/envelopes and long effect tails
+        // cannot be restored through FluidSynth's public API. A short render follows.
+        struct Note { int velocity=0, font=0, bank=0, program=0; bool down=false, sostenuto=false; };
+        std::array<std::array<Note,128>,16> notes{};
+        std::array<std::array<int,128>,16> pressure{};
+        std::array<bool,16> sustain{}, sostenuto{};
+        auto *s=synth.get();
+        const auto release=[&](int ch) {
+            for(auto &n:notes[ch]) if(!n.down && !sustain[ch] && !n.sostenuto) n={};
+        };
+        const auto &events=resources->sequence.events;
+        while(event<events.size() && events[event].frame<target) {
+            if(cancelled()) return false;
+            const auto &e=events[event++]; const auto &m=e.message;
+            const int status=quint8(m[0]), kind=status&0xf0, ch=status&15;
+            const int a=m.size()>1?quint8(m[1]):0, b=m.size()>2?quint8(m[2]):0;
+            if(kind==0x90 && b) {
+                auto &n=notes[ch][a]; n={}; n.velocity=b; n.down=true;
+                if(auto *p=fluid_synth_get_channel_preset(s,ch)) {
+                    n.font=fluid_sfont_get_id(fluid_preset_get_sfont(p));
+                    n.bank=fluid_preset_get_banknum(p); n.program=fluid_preset_get_num(p);
+                } else n={};
+            } else if(kind==0x80 || kind==0x90) {
+                notes[ch][a].down=false; release(ch);
+            } else {
+                if(kind==0xa0) pressure[ch][a]=b;
+                if(kind==0xb0) {
+                    if(a==64) { sustain[ch]=b>=64; release(ch); }
+                    if(a==66) {
+                        if((b>=64)!=sostenuto[ch]) {
+                            sostenuto[ch]=b>=64;
+                            for(auto &n:notes[ch]) n.sostenuto=sostenuto[ch]&&n.down;
+                        }
+                        release(ch);
+                    }
+                    if(a==120) notes[ch]={};
+                    if(a==121) {
+                        sustain[ch]=sostenuto[ch]=false;
+                        pressure[ch]={};
+                        for(auto &n:notes[ch]) n.sostenuto=false;
+                        release(ch);
+                    }
+                    if(a==123 || a>=124) { for(auto &n:notes[ch]) n.down=false; release(ch); }
+                }
+                // Match the reset messages handled by FluidSynth. Ask its dry-run
+                // parser first so invalid checksums/device IDs cannot clear notes.
+                if(status==0xf0) {
+                    int handled=0;
+                    const bool accepted=fluid_synth_sysex(s,m.constData()+1,int(m.size())-2,nullptr,nullptr,&handled,1)==FLUID_OK && handled;
+                    const bool gm=m.size()==6 && a==0x7e && quint8(m[3])==9 && (quint8(m[4])==1 || quint8(m[4])==3);
+                    const bool gs=m.size()==11 && a==0x41 && m.mid(3,5)==QByteArray::fromHex("421240007f");
+                    const bool xg=m.size()==9 && a==0x43 && m.mid(3,3)==QByteArray::fromHex("4c0000") && (quint8(m[6])==0x7e || quint8(m[6])==0x7f);
+                    if(accepted && (gm||gs||xg)) { notes={}; pressure={}; sustain={}; sostenuto={}; }
+                }
+                dispatch(m);
+                if(kind==0xc0 || status==0xf0) rememberNames(e.frame);
+            }
+        }
+        for(int ch=0;ch<16;++ch) {
+            if(std::none_of(notes[ch].begin(),notes[ch].end(),[](const Note &n){return n.velocity!=0;})) continue;
+            int font=0,bank=0,pedal=0,hold=0;
+            fluid_synth_get_program(s,ch,&font,&bank,nullptr);
+            auto *preset=fluid_synth_get_channel_preset(s,ch);
+            const int actualFont=preset?fluid_sfont_get_id(fluid_preset_get_sfont(preset)):-1;
+            const int actualBank=preset?fluid_preset_get_banknum(preset):0;
+            const int actualProgram=preset?fluid_preset_get_num(preset):0;
+            fluid_synth_get_cc(s,ch,64,&pedal); fluid_synth_get_cc(s,ch,66,&hold);
+            fluid_synth_cc(s,ch,64,0); fluid_synth_cc(s,ch,66,0);
+            // Latch only the keys that were held when sostenuto was pressed.
+            for(bool latched:{true,false}) {
+                for(int key=0;key<128;++key) {
+                    const auto &n=notes[ch][key];
+                    if(n.velocity && n.sostenuto==latched) {
+                        fluid_synth_program_select(s,ch,n.font,n.bank,n.program);
+                        fluid_synth_noteon(s,ch,key,n.velocity);
+                        fluid_synth_key_pressure(s,ch,key,pressure[ch][key]);
+                    }
+                }
+                if(latched) fluid_synth_cc(s,ch,66,hold);
+            }
+            fluid_synth_cc(s,ch,64,pedal);
+            for(int key=0;key<128;++key) if(notes[ch][key].velocity && !notes[ch][key].down) fluid_synth_noteoff(s,ch,key);
+            if(preset) fluid_synth_program_select(s,ch,actualFont,actualBank,actualProgram);
+            else fluid_synth_unset_program(s,ch);
+            // Bank Select may be waiting for a future Program Change. Keep it
+            // separate from the actual preset (including SoundFont fallbacks).
+            fluid_synth_bank_select(s,ch,bank); fluid_synth_sfont_select(s,ch,font);
+        }
+        rememberNames(target);
+        return !cancelled();
     }
 };
 MidiTrack::MidiTrack(const QString &path,QByteArray data,int song,bool playlist,bool capture,
@@ -149,7 +257,11 @@ bool MidiTrack::hasTaps() const { return impl_->capture; }
 void MidiTrack::render(short *out,int frames) {
     auto &d=*impl_; const auto &sequence=d.resources->sequence;
     while(frames>0) {
-        while(d.event<sequence.events.size() && sequence.events[d.event].frame<=frame_) d.dispatch(sequence.events[d.event++].message);
+        while(d.event<sequence.events.size() && sequence.events[d.event].frame<=frame_) {
+            const auto &e=sequence.events[d.event++]; d.dispatch(e.message);
+            const auto status=quint8(e.message[0]);
+            if((status&0xf0)==0xc0 || status==0xf0) d.rememberNames(e.frame);
+        }
         if(!d.released && frame_>=sequence.endFrame) {
             for(int ch=0;ch<16;++ch) { fluid_synth_cc(d.synth.get(),ch,64,0); fluid_synth_cc(d.synth.get(),ch,66,0); fluid_synth_all_notes_off(d.synth.get(),ch); }
             d.released=true;
@@ -177,10 +289,22 @@ void MidiTrack::render(short *out,int frames) {
 bool MidiTrack::seek(qint64 target,const std::function<bool()> &cancelled) {
     target=std::clamp<qint64>(target,0,qint64(info_.durationMs)*SampleRate/1000);
     if(cancelled()) return false;
-    if(target<frame_) { impl_->reset(); frame_=0; }
+    if(target<frame_ || target-frame_>SeekPreroll) {
+        impl_->reset(); frame_=0;
+        const auto start=std::max<qint64>(0,target-SeekPreroll);
+        if(start) {
+            if(!impl_->chase(start,cancelled)) { impl_->reset(); return false; }
+            frame_=start;
+        }
+    }
     std::array<short,BlockFrames*2> scratch;
     while(frame_<target) { if(cancelled()) return false; render(scratch.data(),int(std::min<qint64>(BlockFrames,target-frame_))); }
     return !cancelled();
+}
+QStringList MidiTrack::instrumentNames(qint64 frame) const {
+    const auto &names=impl_->names;
+    auto at=std::upper_bound(names.begin(),names.end(),frame,[](qint64 f,const Impl::Names &n){return f<n.frame;});
+    return at==names.begin() ? QStringList{} : std::prev(at)->channels;
 }
 bool MidiTrack::readTap(int channel,QVector<float>&left,QVector<float>&right) const {
     if(!impl_->capture || channel<0 || channel>=16) return false;

@@ -10,8 +10,15 @@ is selected; a missing saved bank produces an error on MIDI load.
 
 MIDI tracks play together as one song, rather than appearing as separate
 subsongs. Sixteen stable cards represent MIDI channels; channel 10 is percussion.
+Some files contain a whole soundtrack as one continuous sequence. Leading rests
+and the declared endpoint are kept; tracks are not guessed to be separate songs.
 Several notes and instruments can share a channel. These are musical parts,
 not sixteen hardware oscillators. Preset identities do not depend on the bank.
+Card headings and the main player's Channels buttons show the current SoundFont
+preset name. Labels follow program changes at the playhead, including after a
+seek, without changing channel numbers or resetting the layout. A channel can
+still contain a sustained note from a previous preset; the label names its
+current selection, not every sounding voice. With no name, the channel label stays.
 
 Each card has an independent stereo dry waveform, spectrum and existing
 mute/Solo controls. The keyboard uses active MIDI keys, sustain/sostenuto and
@@ -29,8 +36,15 @@ The timeline follows MIDI tempo events (including changes) or SMPTE time
 division. At the end of the sequence, held notes/pedals are released and two
 seconds are allowed for releases and effects. This tail is included in the
 displayed duration; unusually long releases can be cut off. Repeat restarts
-from the beginning. Backward seeking reconstructs a fresh synthesizer and
-replays events/audio in a cancellable worker. Loading a large bank can still
+from the beginning. Play and F7 also restart a completed track from zero.
+
+For long jumps and rewinds, seeking reconstructs channel controls, programs,
+pitch bend and held notes/pedals from MIDI events, then synthesizes up to two
+seconds before the target. Audio and scopes use this same bounded preparation;
+they do not render every skipped minute. Short forward seeks render normally.
+This is an approximate seek: old held samples restart, so their phase, envelopes,
+modulation and effects longer than the preparation window can differ from
+continuous playback. Ordinary playback is unchanged. Loading a large bank can still
 take time and is not interruptible inside FluidSynth's loader.
 
 The parsed sequence and bank bytes form one immutable resource snapshot shared
@@ -70,6 +84,8 @@ Generate original fixtures with `fixtures.make_fixtures`, then run
 `bitmusic_visualizer --midi-checks <fixture-directory> --decoder-only`.
 Omit `--decoder-only` for the muted live player check; `--soundfont <path>` adds
 a read-only smoke check of a local bank through a temporary copy. These fixtures
-contain an authored sine SoundFont and a short multichannel MIDI, not game music.
+contain an authored sine SoundFont, short multichannel MIDI, an endpoint between
+sample frames and long seek/pedal cases, not game music. With `--soundfont`, optional
+`--midi <path>` measures a local file's load and distant seeks without modifying it.
 Windows decoder and live results are recorded in the development handoff;
 Linux/macOS runtime and real collection listening remain separate validation.

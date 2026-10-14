@@ -101,6 +101,8 @@ void checkSolo(QApplication &app, PlayerWindow &window, const QString &directory
     until(app, [&] { return !player.state().busy; });
     require(player.state().soloChannel == 0 && player.state().muteMask == ~VoiceMask(1), "Seek lost Solo.");
     key(window, Qt::Key_F7); until(app, [&] { return !player.state().busy && player.state().playing; });
+    // Worker readiness can precede the next UI refresh; wait for the real button.
+    until(app, [&] { return window.findChild<QPushButton *>("stop")->isEnabled(); });
     window.findChild<QPushButton *>("stop")->click(); until(app, [&] { return !player.state().busy; });
     require(player.state().soloChannel == 0 && player.state().positionMs == 0 && !player.state().playing,
         "Stop lost Solo or failed to stop.");

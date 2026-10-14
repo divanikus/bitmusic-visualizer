@@ -7,6 +7,10 @@
 #include <QTemporaryDir>
 #include <QTextStream>
 #include <QThread>
+#include <QPushButton>
+#include <QToolButton>
+#include <QTabWidget>
+#include <QKeyEvent>
 #include <QDir>
 #include <QtEndian>
 #include <cmath>
@@ -69,6 +73,8 @@ int runMidiChecks(QApplication &app,const QStringList &args) {
         require(audio->info().songs==1 && audio->info().voices.size()==16 && audio->info().stereoOutput &&
                 audio->info().durationMs==3500 && capture->hasTaps(),"General MIDI metadata/capture incorrect.");
         advance(*audio,SampleRate/5); advance(*capture,SampleRate/5);
+        require(audio->instrumentNames(audio->frame()).value(0)=="Sine" &&
+                audio->instrumentNames(audio->frame()).value(9)=="Drums","SoundFont instrument names missing.");
         QVector<float> left,right;
         for(int c=0;c<16;++c) {
             require(capture->readTap(c,left,right)&&std::max(peak(left),peak(right))>20,"MIDI channel is silent or missing.");
@@ -107,6 +113,26 @@ int runMidiChecks(QApplication &app,const QStringList &args) {
         write(resources.filePath("Test.sf2"),read(QDir(directory).filePath("fixture-gm.sf2")));
         QElapsedTimer speed; speed.start(); capture->seek(0); advance(*capture,10*SampleRate);
         log<<"MIDI parser, stereo taps / all 16 channels, sustain notes, mute/Solo/effects, rewind, cancellation, snapshots PASS; 10s capture "<<speed.elapsed()<<" ms\n"; log.flush();
+        auto longTrack=openMusicTrack(QDir(directory).filePath("long-seek.mid"),0,false,true);
+        require(longTrack->info().durationMs==2702000,"Long MIDI duration changed.");
+        speed.restart(); require(longTrack->seek(12*SampleRate),"Long seek failed.");
+        require(longTrack->instrumentNames(12*SampleRate).value(0)=="Lead","Seek lost current instrument.");
+        for(int c=0;c<9;++c) {
+            const bool held=c==0||c==1||c==2||c==8;
+            require(longTrack->notePitches(c).isEmpty()!=held,"Seek lost held keys/pedals or restored ended notes.");
+            if(held) { longTrack->readTap(c,left,right); require(std::max(peak(left),peak(right))>20,"Chased held note has no waveform."); }
+        }
+        require(std::abs(longTrack->notePitches(0).value(0)-float(440*std::pow(2.,.5/12)))<.1,"Seek lost pitch bend.");
+        require(longTrack->seek(16*SampleRate),"Seek past pedal release failed.");
+        for(int c=0;c<9;++c) require(longTrack->notePitches(c).isEmpty(),"Seek left a stuck key.");
+        require(longTrack->seek(2600LL*SampleRate),"Late MIDI seek failed.");
+        log<<"45-minute MIDI seek to 43:20: "<<speed.elapsed()<<" ms (including held-note checks)\n"; log.flush();
+        int cancelCalls=0;
+        require(!longTrack->seek(20*SampleRate,[&]{return ++cancelCalls>8;}),"Mid-chase cancellation ignored.");
+        require(longTrack->seek(12*SampleRate)&&!longTrack->notePitches(1).isEmpty(),"Seek after cancellation damaged MIDI state.");
+        longTrack->seek(0); advance(*longTrack,5*SampleRate+1);
+        require(longTrack->instrumentNames(4*SampleRate).value(0)=="Sine"&&
+                longTrack->instrumentNames(5*SampleRate).value(0)=="Lead","Instrument read-ahead leaked into past labels.");
         const int real=args.indexOf("--soundfont");
         if(real>=0&&real+1<args.size()) {
             require(QFile::copy(args[real+1],resources.filePath("Real.sf2")),"Cannot prepare requested SoundFont check.");
@@ -114,6 +140,17 @@ int runMidiChecks(QApplication &app,const QStringList &args) {
             auto actual=openMusicTrack(midi); speed.restart();
             require(pcm(*actual,SampleRate/2)!=QByteArray(SampleRate*2,0),"User SoundFont rendered silence.");
             advance(*actual,10*SampleRate); log<<"User SoundFont: 10s audio render "<<speed.elapsed()<<" ms PASS\n"; log.flush();
+            const int tune=args.indexOf("--midi");
+            if(tune>=0&&tune+1<args.size()) {
+                speed.restart(); auto tuneTrack=openMusicTrack(args[tune+1]);
+                log<<"Local MIDI load: "<<speed.elapsed()<<" ms; duration "<<tuneTrack->info().durationMs<<" ms\n"; log.flush();
+                for(int percent:{50,95,5}) {
+                    speed.restart(); const qint64 target=qint64(tuneTrack->info().durationMs)*SampleRate/1000*percent/100;
+                    require(tuneTrack->seek(target),"Local MIDI seek failed.");
+                    require(tuneTrack->frame()==target,"Local MIDI seek landed at wrong time.");
+                    log<<"Local MIDI seek "<<percent<<"%: "<<speed.elapsed()<<" ms\n"; log.flush();
+                }
+            }
             selectSoundFont("Test.sf2");
         }
         if(!args.contains("--decoder-only")) {
@@ -133,8 +170,36 @@ int runMidiChecks(QApplication &app,const QStringList &args) {
             player.seek(200,false);
             spin(app,[&]{return !player.state().busy&&player.state().positionMs==200&&player.scopes().generation==player.state().generation;});
             window.refresh(); app.processEvents();
+            require(window.findChild<QToolButton*>("voice0")->text().contains("Sine"),"Channel button lacks instrument name.");
+            require(player.scopes().instruments.value(0)=="Sine","Scope frame lacks instrument name.");
             window.grab().save(QDir(directory).filePath("midi-player.png"));
+            window.findChild<QTabWidget*>("tabs")->setCurrentIndex(1); app.processEvents();
+            window.grab().save(QDir(directory).filePath("midi-channels.png"));
             window.scopeWindow().grab().save(QDir(directory).filePath("midi-scopes.png"));
+            player.setRepeat(false);
+            window.loadFile(QDir(directory).filePath("fractional-end.mid"));
+            spin(app,[&]{return !player.state().busy&&player.state().info.durationMs==3525;});
+            for(int restart=0;restart<3;++restart) {
+                player.seek(3400,true);
+                spin(app,[&]{return !player.state().busy&&!player.state().playing;});
+                require(player.state().positionMs==3525,"Natural endpoint lost a millisecond.");
+                window.refresh();
+                if(restart==0) window.findChild<QPushButton*>("primary")->click();
+                else if(restart==1) { QKeyEvent key(QEvent::KeyPress,Qt::Key_F7,Qt::NoModifier); QApplication::sendEvent(&window,&key); }
+                else player.seek(player.state().positionMs,true);
+                spin(app,[&]{auto s=player.state();return !s.busy&&s.playing&&s.positionMs>0&&s.positionMs<1000;});
+            }
+            window.loadFile(QDir(directory).filePath("long-seek.mid"));
+            spin(app,[&]{return !player.state().busy&&player.state().info.durationMs==2702000;});
+            window.refresh(); window.scopeWindow().toggleSourceVisibility(3);
+            const auto layout=window.scopeWindow().visibleChannels();
+            player.seek(2600000,false);
+            spin(app,[&]{auto s=player.state();auto f=player.scopes();return !s.busy&&!s.playing&&s.positionMs==2600000&&f.generation==s.generation&&f.positionMs==2600000;});
+            require(player.scopes().instruments.value(0)=="Lead","Late paused scope seek lost instrument.");
+            window.refresh();
+            require(window.scopeWindow().visibleChannels()==layout && window.findChild<QToolButton*>("voice0")->text().contains("Lead"),
+                    "Instrument change reset the layout or left stale channel labels.");
+            log<<"Live MIDI: end restart (button/F7/transport), instrument labels and long audio/scope seek PASS\n";
             window.close(); log<<"MIDI live: controls, paused seek, Solo, repeat, hide/resume, zero audio errors PASS\n";
         }
         return 0;

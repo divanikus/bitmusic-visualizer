@@ -152,6 +152,26 @@ def make_midi_fixtures(directory):
     events.sort(key=lambda e: e[0])
     midi = b'MThd' + struct.pack('>IHHH', 6, 1, 2, 480) + conductor + track(events)
     (directory / 'demo.mid').write_bytes(midi)
+    # Long, sparse sequence: seek work must depend on events, not 45 minutes of PCM.
+    events = [(0, b'\xff\x03\x09Long seek')]
+    for c in range(9):
+        events += [(0, bytes([0x90+c, 69, 70]))]
+    events += [(120, b'\xb1\x40\x7f'), (240, b'\x81\x45\0'),  # sustain
+               (120, b'\xb2\x42\x7f'), (240, b'\x82\x45\0'),  # sostenuto
+               (240, b'\x83\x45\0'), (240, b'\xb4\x7b\0'),
+               (120, b'\xb5\x40\x7f'), (240, b'\x85\x45\0'), (360, b'\xb5\x79\0'),
+               (240, b'\xb6\x78\0'),
+               (120, b'\xb7\x42\x7f'), (240, b'\x87\x45\0'), (360, b'\xb7\x42\0'),
+               (120, b'\xb8\x40\x7f'), (240, b'\xb8\x7b\0'),
+               (4800, b'\xc0\x50'),  # change preset while an old key is still held
+               (4900, b'\xe0\0\x50'), (14400, b'\xb1\x40\0'), (14400, b'\xb2\x42\0'),
+               (14400, b'\xb8\x40\0'), (14400, b'\x80\x45\0'),
+               (2592000, b'\xff\x2f\0')]
+    events.sort(key=lambda e: e[0])
+    (directory / 'long-seek.mid').write_bytes(b'MThd' + struct.pack('>IHHH', 6, 0, 1, 480) + track(events))
+    # Endpoint not aligned to a whole millisecond/sample conversion (3525 ms).
+    (directory / 'fractional-end.mid').write_bytes(b'MThd' + struct.pack('>IHHH', 6, 0, 1, 480)
+        + track([(0, b'\x90\x45\x50'), (1440, b'\x80\x45\0'), (1464, b'\xff\x2f\0')]))
 
 
 if __name__ == '__main__':

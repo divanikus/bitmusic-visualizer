@@ -26,6 +26,7 @@ public:
     bool hasTaps() const override;
     bool readTap(int channel, QVector<float> &left, QVector<float> &right) const override;
     QVector<float> notePitches(int channel) const override;
+    QStringList instrumentNames(qint64 frame) const override;
     qint64 frame() const override { return frame_; }
 private:
     struct Impl;

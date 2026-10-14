@@ -406,6 +406,13 @@ void PlayerWindow::refreshControls() {
     }
     for (int i = 0; i < channels_->count(); ++i) {
         auto button = static_cast<ChannelButton *>(channels_->itemAt(i)->widget()); QSignalBlocker block(button);
+        const auto instrument = s.instruments.value(i);
+        const auto name = instrument.isEmpty() ? s.info.voices.value(i) : instrument;
+        button->setText(QString("%1  %2").arg(i + 1, 2, 10, QLatin1Char('0')).arg(name));
+        QString tip = s.info.voices.value(i) + (instrument.isEmpty() ? QString() : " / " + instrument)
+            + "\nPressed: channel is audible\nShift+click: Solo / restore previous channels";
+        if (i < 9) tip += '\n' + channelShortcutHint(i);
+        button->setToolTip(tip);
         button->setChecked(!(s.muteMask & (VoiceMask::bit(i)))); button->setEnabled(ready);
         button->setSolo(s.soloChannel == i);
         button->setAccessibleName(button->text() + (s.soloChannel == i ? "; Solo" : QString()));

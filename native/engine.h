@@ -73,6 +73,8 @@ public:
     virtual bool hasTaps() const = 0;
     virtual bool readTap(int channel, QVector<float> &left, QVector<float> &right) const = 0;
     virtual QVector<float> notePitches(int channel) const = 0;
+    // Optional changing labels, queried at the audible playhead (not decoder read-ahead).
+    virtual QStringList instrumentNames(qint64) const { return {}; }
     virtual qint64 frame() const = 0;
 };
 std::unique_ptr<MusicTrack> openMusicTrack(const QString &path, int song = 0, bool readPlaylist = true, bool capture = false,
@@ -120,6 +122,7 @@ struct PlayerState {
     bool sharedScopes = false;
     bool scopesSuspended = true;
     QString error, scopeError;
+    QStringList instruments;
 };
 struct ScopeFrame {
     quint64 generation = 0;
@@ -128,6 +131,7 @@ struct ScopeFrame {
     VoiceMask mask = 0; // Channels ready at positionMs; preparing/hidden channels have empty rows.
     QVector<QVector<float>> left, right;
     QVector<QVector<float>> noteHz; // Independent list of active pitches for each source.
+    QStringList instruments;
 };
 struct OutputFrame {
     quint64 generation = 0, token = 0, sequence = 0;
