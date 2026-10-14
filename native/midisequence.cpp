@@ -96,12 +96,7 @@ MidiSequence MidiSequence::parse(const QByteArray &bytes, int rate) {
     for (const auto &event : events) {
         const auto frame=advance(event.tick);
         if (event.tempo) tempo=event.tempo;
-        else {
-            result.events.push_back({frame,event.message});
-            if (result.firstNoteFrame < 0 && event.message.size() == 3 &&
-                (quint8(event.message[0]) & 0xf0) == 0x90 && quint8(event.message[2]) > 0)
-                result.firstNoteFrame = frame;
-        }
+        else result.events.push_back({frame,event.message});
     }
     result.endFrame=advance(endTick);
     return result;

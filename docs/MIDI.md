@@ -12,11 +12,6 @@ MIDI tracks play together as one song, rather than appearing as separate
 subsongs. Sixteen stable cards represent MIDI channels; channel 10 is percussion.
 Some files contain a whole soundtrack as one continuous sequence. Leading rests
 and the declared endpoint are kept; tracks are not guessed to be separate songs.
-For an initial rest of at least one second, the player's status line shows
-`Intro pause · first note in … s`. It counts down to the first positive-velocity
-Note On, freezes on pause and updates after seeking or repeating. This is a
-scheduled note, not a measurement of audible sound; mutes and bank envelopes
-can affect when sound is heard. The hint disappears when that note is reached.
 Several notes and instruments can share a channel. These are musical parts,
 not sixteen hardware oscillators. Preset identities do not depend on the bank.
 Card headings and the main player's Channels buttons show the current SoundFont
