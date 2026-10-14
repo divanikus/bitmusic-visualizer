@@ -22,7 +22,7 @@ foreach ($line in Get-Content -LiteralPath "$playerRoot/SHA256SUMS.txt") {
     if (!$filePath.StartsWith($playerRoot + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase)) { throw 'Manifest path escapes package.' }
     if ((Get-FileHash -LiteralPath $filePath -Algorithm SHA256).Hash -ne $expectedHash) { throw "Package checksum mismatch: $filePath" }
 }
-if (Get-ChildItem -LiteralPath $playerRoot -Recurse -File | Where-Object { $_.Extension -in '.nsf','.nsfe','.vgm','.vgz','.spc','.sid','.gbs','.ay','.mdx','.obj','.pdb' }) {
+if (Get-ChildItem -LiteralPath $playerRoot -Recurse -File | Where-Object { $_.Extension -in '.nsf','.nsfe','.vgm','.vgz','.spc','.sid','.gbs','.ay','.mdx','.obj','.pdb','.rom','.sf2','.sf3' }) {
     throw 'The runtime package includes music or development output.'
 }
 if (Test-Path -LiteralPath (Join-Path $playerRoot 'BitMusicVisualizer.ini')) {

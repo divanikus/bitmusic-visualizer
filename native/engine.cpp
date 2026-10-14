@@ -90,7 +90,7 @@ QByteArray readMusic(const QString &path) {
     }
     if (!(data.startsWith("NESM\x1a") || data.startsWith("NSFE") ||
           data.startsWith("Vgm ") || data.startsWith("SNES-SPC700") || data.startsWith("GBS") || data.startsWith("ZXAYEMUL")))
-        throw std::runtime_error("Supported formats: NSF, NSFE, VGM, VGZ, SPC, GBS, AY (ZXAYEMUL), SID (PSID).");
+        throw std::runtime_error("Supported formats: NSF, NSFE, VGM, VGZ, SPC, GBS, AY (ZXAYEMUL), SID (PSID/RSID).");
     return data;
 }
 }
@@ -486,6 +486,7 @@ void NativePlayer::scopeLoop() {
     struct Voice { std::unique_ptr<MusicTrack> track; QVector<float> history, left, right; };
     std::vector<Voice> voices;
     std::unique_ptr<MusicTrack> shared;
+    std::shared_ptr<const SidRoms> scopeRoms;
     QString path;
     int song = -1;
     QThreadPool preparationPool;
@@ -510,10 +511,11 @@ void NativePlayer::scopeLoop() {
             try {
                 const auto cancelled = [&] { return closing_ || !scopesEnabled_ || revision != scopeRevision_ || current.generation != generation_; };
                 const qint64 target = qint64(current.positionMs) * SampleRate / 1000;
-                if (path != current.info.path || song != current.info.song) {
+                if (path != current.info.path || song != current.info.song || scopeRoms != current.info.sidRoms) {
                     voices.clear(); voices.resize(current.info.voices.size());
                     path = current.info.path; song = current.info.song;
-                    shared = openMusicTrack(path, song, false, true);
+                    scopeRoms = current.info.sidRoms;
+                    shared = openMusicTrack(path, song, false, true, current.info.sidRoms);
                     if (!shared->hasTaps()) shared.reset();
                     sharedScopes_ = bool(shared);
                 }
@@ -593,7 +595,7 @@ void NativePlayer::scopeLoop() {
                         try {
                             auto &voice = voices[i];
                             if (!voice.track) {
-                                voice.track = openMusicTrack(path, song, false, true);
+                                voice.track = openMusicTrack(path, song, false, true, current.info.sidRoms);
                                 voice.track->mute(~bit); voice.track->dry();
                             }
                             if (voice.track->frame() > target) voice.track->seek(0, cancelled);

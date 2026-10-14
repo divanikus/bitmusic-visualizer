@@ -375,7 +375,13 @@ void PlayerWindow::refreshControls() {
         button->setAccessibleName(button->text() + (s.soloChannel == i ? "; Solo" : QString()));
     }
     const auto message = !s.error.isEmpty() ? s.error : !s.scopeError.isEmpty() ? s.scopeError : s.busy ? QString::fromUtf8("Loading…") : QString();
-    status_->setText(message); status_->setVisible(!message.isEmpty());
+    status_->setText(message.section('\n', 0, 0)); status_->setToolTip(message); status_->setVisible(!message.isEmpty());
+    if (s.error.startsWith("C64 ROM required:") && romWarningGeneration_ != s.generation) {
+        romWarningGeneration_ = s.generation;
+        auto warning = new QMessageBox(QMessageBox::Warning, "C64 ROM required", s.error, QMessageBox::Ok, this);
+        warning->setObjectName("romWarning"); warning->setTextFormat(Qt::PlainText);
+        warning->setAttribute(Qt::WA_DeleteOnClose); warning->open();
+    }
 }
 void PlayerWindow::refreshScopes() {
     scopes_.present(player_.state(), scopes_.renderingVisible() ? player_.scopes() : ScopeFrame{},

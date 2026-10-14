@@ -16,6 +16,7 @@
 struct BmTaps;
 struct BmNotes;
 class OutputHistory;
+struct SidRoms;
 
 constexpr int SampleRate = 44100;
 constexpr int BlockFrames = 1024;
@@ -43,6 +44,7 @@ struct SongInfo {
     int durationMs = -1, loopStartMs = 0;
 };
 struct TrackInfo {
+    std::shared_ptr<const SidRoms> sidRoms; // Same ROM bytes in audio and scopes, including cold seeks.
     SoundConfiguration configuration;
     QString path, title, system;
     QStringList voices;
@@ -67,7 +69,8 @@ public:
     virtual QVector<float> notePitches(int channel) const = 0;
     virtual qint64 frame() const = 0;
 };
-std::unique_ptr<MusicTrack> openMusicTrack(const QString &path, int song = 0, bool readPlaylist = true, bool capture = false);
+std::unique_ptr<MusicTrack> openMusicTrack(const QString &path, int song = 0, bool readPlaylist = true, bool capture = false,
+                                          std::shared_ptr<const SidRoms> roms = {});
 
 class GmeTrack : public MusicTrack {
 public:

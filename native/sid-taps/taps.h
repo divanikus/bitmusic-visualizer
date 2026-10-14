@@ -4,12 +4,13 @@
 #include <array>
 #include <cstdint>
 
+// Raised only when C64 execution reads a ROM byte absent from the supplied image
+// and from the player's minimal interrupt/reset scaffolding.
+struct BmSidRomNeeded { int index; };
+
 // Private to one decoder thread. No allocation or locking on chip cycles.
-struct BmSidTaps {
+struct BmSidChipTaps {
     static constexpr int Capacity = 16384;
-    bool capture = false;
-    uint32_t muteMask = 0;
-    unsigned noiseIndex = 0; // Upstream's shared dither cursor must not race between decoders.
     int64_t samples = 0;
     std::array<std::array<float, Capacity>, 3> history{};
     std::array<double, 3> sum{};
@@ -28,7 +29,32 @@ struct BmSidTaps {
     }
     void clear() { samples = 0; sum = {}; cycles = 0; for (auto &v : history) v.fill(0); }
 };
+struct BmSidTaps {
+    static constexpr int Capacity = BmSidChipTaps::Capacity;
+    bool capture = false;
+    bool discardRead = false;
+    uint32_t muteMask = 0;
+    unsigned noiseIndex = 0; // Per decoder, never the upstream singleton cursor.
+    std::array<BmSidChipTaps, 3> chips;
+    std::array<const void *, 3> owners{};
+    int activeChip = 0, count = 0;
+    void bind(const void *owner) {
+        for (int i = 0; i < count; ++i) if (owners[i] == owner) return;
+        if (count < 3) owners[count++] = owner;
+    }
+    void select(const void *owner) {
+        activeChip = -1;
+        for (int i = 0; i < count; ++i) if (owners[i] == owner) { activeChip = i; break; }
+    }
+    void clear() { for (auto &chip : chips) chip.clear(); }
+};
 extern thread_local BmSidTaps *bm_sid_context;
+struct BmSidDiscardRead {
+    BmSidTaps *context = bm_sid_context;
+    bool previous = context && context->discardRead;
+    BmSidDiscardRead() { if (context) context->discardRead = true; }
+    ~BmSidDiscardRead() { if (context) context->discardRead = previous; }
+};
 struct BmSidScope {
     BmSidTaps *previous;
     explicit BmSidScope(BmSidTaps *context) : previous(bm_sid_context) { bm_sid_context = context; }

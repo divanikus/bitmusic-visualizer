@@ -12,8 +12,9 @@ not published GitHub releases. Unreleased lists changes made after the latest ta
 
 - Solo listening: Shift-click a channel button or press Ctrl+Shift+1–9.
   Repeat to restore previous mutes, or select another channel to switch Solo.
-- Commodore 64 SID playback: single-chip PSID files, three voice cards, Full mix,
-  subsongs, seeking and independent mute/Solo. Supports 6581 and 8580 models.
+- Commodore 64 SID playback: PSID/RSID with up to three chips, individual voice
+  cards, Full mix, subsongs, seeking and mute/Solo. Supports 6581 and 8580.
+- Optional C64 ROMs in roms/c64; a missing file is reported only when needed.
 
 ### Distribution
 

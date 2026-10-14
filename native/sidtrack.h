@@ -3,7 +3,8 @@
 
 class SidTrack final : public MusicTrack {
 public:
-    SidTrack(const QString &path, int song = 0, bool readPlaylist = true, bool capture = false);
+    SidTrack(const QString &path, int song = 0, bool readPlaylist = true, bool capture = false,
+             std::shared_ptr<const SidRoms> roms = {});
     ~SidTrack() override;
     const TrackInfo &info() const override { return info_; }
     bool seek(qint64 target, const std::function<bool()> &cancelled = [] { return false; }) override;

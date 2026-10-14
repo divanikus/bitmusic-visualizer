@@ -254,6 +254,7 @@ private:
     QString shownPath_;
     int shownSong_ = -1;
     bool openedOnce_ = false;
+    quint64 romWarningGeneration_ = 0;
     int unknownRangeMs_ = 180000;
 };
 

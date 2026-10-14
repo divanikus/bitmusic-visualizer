@@ -1,6 +1,7 @@
 # Commodore 64 SID
 
-The first SID backend accepts single-chip PSID files, including subsongs.
+The SID backend accepts PSID and RSID files with one, two or three chips,
+including subsongs.
 It uses libsidplayfp 2.16.1 and its bundled reSIDfp core. This complete upstream
 release includes generated 6502 drivers and keeps a small CMake integration
 portable across the existing Windows, Linux and macOS build environments.
@@ -8,14 +9,16 @@ The 3.x split libraries can be evaluated separately; this is not a claim that
 2.16.1 is the newest version.
 
 The file chooses 6581/8580 and PAL/NTSC; unspecified/any uses 6581/PAL. The player
-shows the selected chip model below the title. Layout presets distinguish the
-two models and share the `sid` family so layouts can be transferred. File titles
+shows the selected chip models below the title. Layout presets distinguish
+models and chip addresses and share the `sid` family so layouts can be transferred.
+Existing single-chip source identities are retained; extra voices use the chip
+address to avoid ambiguity when adapting presets between two and three chips. File titles
 are preserved; unnamed subsongs are numbered. There are no invented durations.
 No song-length database or C64 ROMs are supplied or downloaded.
 
 ## Signal boundary
 
-Three mono cards show the actual oscillator DAC output multiplied by its ADSR
+Each chip provides three cards showing its oscillator DAC output multiplied by its ADSR
 envelope, before the common filter and volume stage. Capture reuses the core's
 existing waveform evaluation, including noise, combined waveforms, ring
 modulation and oscillator sync. It does not call the stateful oscillator output
@@ -37,11 +40,20 @@ so it does not disturb oscillators used as modulation/sync sources. Filter state
 is shared; listening to one voice is not an additive decomposition of the mix.
 Voice traces remain available and are dimmed using the existing mute UI.
 
+Multi-SID uses libsidplayfp's fixed stereo mixer: for two chips, L/R weights
+are (1, 0.5) and (0.5, 1); for three, (1, 0.5), (1, 1), (0.5, 1).
+The common gain is 1/sqrt(chip count). Dry cards use the same pan weights.
+This is a playback convention, not stereo hardware inside a SID or file pan data.
+A single SID remains mono. Labels identify chip and voice; there are at most
+nine voice cards, plus the existing optional Full mix.
+
 ## Transport and threading
 
 The small `MusicTrack` interface selects GME or SID by header. Each worker owns
 its decoder. SID uses one audible instance plus one instance for all visible
-voice traces, independent of GUI drawing. The latter sleeps when scopes are
+voice traces across all chips, independent of GUI drawing. Chip identity is
+assigned in backend lock/install order, never allocator address order. Each chip
+has its own bounded history, cycle sum and sample count. The latter sleeps when scopes are
 hidden. Full mix is still captured at audio delivery.
 
 Backward seeks create a fresh C64/SID instance from the bytes already loaded:
@@ -56,17 +68,36 @@ each decoder its own cursor and table-building threads separate fallback cursors
 Shared lookup tables remain read-only during playback. Filter-model tuning is not
 exposed. Patches are hash-checked and replayed from pristine source on configure.
 
+## Optional ROM files
+
+See [filenames, sizes and platform locations](../packaging/ROMS.txt). ROMs are
+read only from the fixed roms/c64 directory, with no download, picker or copying.
+The loaded file owns an immutable image snapshot shared by audio and scope
+instances, including backward seeks. Reopening takes a fresh snapshot.
+Wrong-size/unreadable images count as unavailable, but do not block other tunes.
+
+RSID's BASIC flag requires basic.rom. Otherwise the patched ROM banks detect
+reads from unavailable data/code, excluding the upstream interrupt/reset hooks
+and discarded CPU bus reads. A needed image stops playback with one warning per
+load, naming the image and its location. Self-contained RSID and ordinary PSID
+can use the upstream minimal hooks without any ROM images. This detects runtime
+use, not all future dependencies in advance, and does not prove that a supplied
+image of the correct size is authentic. No music-file repair is attempted.
+
 ## Boundaries and checks
 
-RSID, BASIC/ROM-dependent playback, multi-SID, MUS/STR and song-length databases
-are outside this increment. Unsupported inputs are rejected; the app does not
-repair source files. Some PSID drivers may still rely on ROM behavior absent
-from the upstream replacement stubs. This is not a promise of every C64 tune.
+MUS/STR and song-length databases remain outside this increment. Unsupported
+inputs are rejected; the app does not repair source files. Compatibility depends
+on the upstream C64 emulator and any required user-supplied ROMs; this is not a
+promise of every C64 tune.
 
 `--self-test <fixture-directory> --sid-only` exercises authored fixtures for both
 models/clocks, metadata/subsongs, actual voice frequencies and isolation, exact
 capture/master PCM agreement, rewind/irregular blocks, cancellation, mute/Solo,
 ring/sync preservation, filter boundaries, concurrency and live transport.
+Extended checks cover 2/3 chips with mixed models, self-contained RSID with its
+own CIA interrupt, pan/mute isolation, ROM requirements, a tiny authored test ROM,
+shared ROM snapshots and one-shot UI warnings. No proprietary ROM is a test fixture.
 Add `--decoder-only` to avoid audio/window checks. The decoder portion is also
 included in `--tap-checks ... --decoder-only`, used by cross-platform packaging CI.
 Local music remains private, read-only test input.

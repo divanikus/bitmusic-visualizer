@@ -1,0 +1,22 @@
+Optional external sound files
+=============================
+
+Commodore 64: place your own ROM images in roms/c64/ with these exact names:
+  kernal.rom   8192 bytes
+  basic.rom    8192 bytes
+  chargen.rom  4096 bytes
+
+The roms directory is located:
+  Windows: beside bitmusic_visualizer.exe
+  Linux:   $XDG_DATA_HOME/BitMusicVisualizer/roms
+           (default ~/.local/share/BitMusicVisualizer/roms)
+  macOS:   ~/Library/Application Support/BitMusicVisualizer/roms
+
+Ordinary PSID and self-contained RSID tunes work without these files. A warning
+appears only when the loaded tune needs a missing/unreadable/wrong-size image.
+It gives the exact filename and directory. Add the image, then reopen the tune.
+The BASIC flag requires basic.rom; other requirements are detected on use.
+No ROM files are bundled or downloaded. Size checks do not prove authenticity.
+Images are read only; changing them does not affect an already loaded tune.
+
+MIDI / MT-32 and SoundFont playback are not implemented yet.

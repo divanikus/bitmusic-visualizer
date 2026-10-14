@@ -66,6 +66,7 @@ def main():
         appimage_tool, appimage_runtime = appimage.prepare(stage)
     shutil.copy2(ROOT / 'packaging/README-unix.txt', stage / 'README.txt')
     shutil.copy2(ROOT / 'packaging/THEMES.txt', stage / 'THEMES.txt')
+    shutil.copy2(ROOT / 'packaging/ROMS.txt', stage / 'ROMS.txt')
     revision = subprocess.check_output(['git', '-C', str(ROOT), 'rev-parse', 'HEAD'], text=True).strip()
     dirty = subprocess.check_output(['git', '-C', str(ROOT), 'status', '--porcelain', '--untracked-files=no'], text=True).strip()
     (stage / 'BUILD.txt').write_text(f'Version: {version}\nPlatform: {label}\nSource revision: {revision}\n'

@@ -37,15 +37,15 @@
       ],
       [
         "    ageBusValue(cycles);\n    int s = 0;",
-        "    ageBusValue(cycles);\n    BmSidTaps *const bm = bm_sid_context;\n    for (int n = 0; n < 3; ++n) voice[n].bmMuted = bm && (bm->muteMask & (1u << n));\n    int s = 0;"
+        "    ageBusValue(cycles);\n    BmSidTaps *const context = bm_sid_context;\n    const int chip = context ? context->activeChip : -1;\n    BmSidChipTaps *const bm = context && chip >= 0 ? &context->chips[chip] : nullptr;\n    const bool capture = bm && context->capture;\n    for (int n = 0; n < 3; ++n) voice[n].bmMuted = bm && (context->muteMask & (1u << (chip*3+n)));\n    int s = 0;"
       ],
       [
         "                const int c64Output = externalFilter.clock(sidOutput + INT16_MIN);",
-        "                if (bm && bm->capture) bm->cycle(voice[0].bmOutput, voice[1].bmOutput, voice[2].bmOutput);\n                const int c64Output = externalFilter.clock(sidOutput + INT16_MIN);"
+        "                if (capture) bm->cycle(voice[0].bmOutput, voice[1].bmOutput, voice[2].bmOutput);\n                const int c64Output = externalFilter.clock(sidOutput + INT16_MIN);"
       ],
       [
         "                    buf[s++] = resampler->getOutput(scaleFactor);",
-        "                    buf[s++] = resampler->getOutput(scaleFactor);\n                    if (bm && bm->capture) bm->sample();"
+        "                    buf[s++] = resampler->getOutput(scaleFactor);\n                    if (capture) bm->sample();"
       ]
     ]
   },
@@ -64,6 +64,124 @@
       [
         "double getNoise() const { index = (index + 1) & 0x3ff; return buffer[index]; }",
         "double getNoise() const {\n            // Tables are immutable. Each decoder (or table-building thread)\n            // owns its cursor; the original singleton cursor caused data races.\n            static thread_local unsigned fallback = 0;\n            auto &index = bm_sid_context ? bm_sid_context->noiseIndex : fallback;\n            index = (index + 1) & 0x3ff; return buffer[index];\n        }"
+      ]
+    ]
+  },
+  {
+    "file": "sidplayfp/sidbuilder.cpp",
+    "sha256": "18732bf52022e2f3008a02eed79d13a4b7ae454a4b42186178955ab379c475cb",
+    "edits": [
+      [
+        "#include \"sidemu.h\"",
+        "#include \"sidemu.h\"\n#include \"taps.h\""
+      ],
+      [
+        "            sid->model(model, digiboost);",
+        "            if (bm_sid_context) bm_sid_context->bind(sid);\n            sid->model(model, digiboost);"
+      ]
+    ]
+  },
+  {
+    "file": "builders/residfp-builder/residfp-emu.cpp",
+    "sha256": "ba6b9e397774a1cc1343eaec66060009fd3e093626e9bc459b211e40b69b8b7f",
+    "edits": [
+      [
+        "    m_bufferpos += m_sid.clock(cycles, m_buffer+m_bufferpos);",
+        "    if (bm_sid_context) bm_sid_context->select(static_cast<sidemu *>(this));\n    m_bufferpos += m_sid.clock(cycles, m_buffer+m_bufferpos);"
+      ]
+    ]
+  },
+  {
+    "file": "c64/Banks/SystemROMBanks.h",
+    "sha256": "4a60def853646e9a1ae9aae6d04c568d0bbf3baf1903da4088403b6eed36d25c",
+    "edits": [
+      [
+        "#include \"Bank.h\"",
+        "#include \"Bank.h\"\n#include \"taps.h\""
+      ],
+      [
+        "uint8_t rom[N];",
+        "uint8_t rom[N]{};\n    bool available[N]{};"
+      ],
+      [
+        "{ rom[address & (N-1)]=val; }",
+        "{ rom[address & (N-1)]=val; available[address & (N-1)]=true; }"
+      ],
+      [
+        "void set(const uint8_t* source) { if (source != nullptr) std::memcpy(rom, source, N); }",
+        "void set(const uint8_t* source) {\n        std::fill(std::begin(available), std::end(available), source != nullptr);\n        if (source) std::memcpy(rom, source, N);\n        else std::fill(std::begin(rom), std::end(rom), 0);\n    }"
+      ],
+      [
+        "uint8_t peek(uint_least16_t address) override { return rom[address & (N-1)]; }",
+        "uint8_t peek(uint_least16_t address) override {\n        if (bm_sid_context && !bm_sid_context->discardRead && !available[address & (N-1)])\n            throw BmSidRomNeeded{address >= 0xe000 ? 0 : address >= 0xd000 ? 2 : 1};\n        return rom[address & (N-1)];\n    }"
+      ]
+    ]
+  },
+  {
+    "file": "c64/CPU/mos6510.h",
+    "sha256": "b55d1624044f7bc0aacf0e090f8d73084f89a22ef8956a67b39a400ef227f15c",
+    "edits": [
+      [
+        "#include \"flags.h\"",
+        "#include \"flags.h\"\n#include \"taps.h\""
+      ],
+      [
+        "    inline uint8_t cpuRead(uint_least16_t addr) { return dataBus.cpuRead(addr); }",
+        "    inline uint8_t cpuRead(uint_least16_t addr) { return dataBus.cpuRead(addr); }\n    inline void bmDiscardRead(uint_least16_t addr) { BmSidDiscardRead scope; cpuRead(addr); }"
+      ],
+      [
+        "    inline void FetchDataByte();",
+        "    inline void FetchDataByte();\n    inline void bmFetchDiscardByte();"
+      ],
+      [
+        "    inline void FetchEffAddrDataByte();",
+        "    inline void FetchEffAddrDataByte();\n    inline void bmFetchDiscardAddrDataByte();"
+      ]
+    ]
+  },
+  {
+    "file": "c64/CPU/mos6510.cpp",
+    "sha256": "35ace54f5175d4a63eeecfbe7c8a3eb493a2003980cc95bbb1735e62e729da83",
+    "edits": [
+      [
+        "        cpuRead(Register_ProgramCounter);",
+        "        bmDiscardRead(Register_ProgramCounter);"
+      ],
+      [
+        "    cpuRead(Register_ProgramCounter);",
+        "    bmDiscardRead(Register_ProgramCounter);"
+      ],
+      [
+        "    cpuRead(Cycle_EffectiveAddress);",
+        "    bmDiscardRead(Cycle_EffectiveAddress);"
+      ],
+      [
+        "case BRKn: case BVCr:  case BVSr:",
+        "case BVCr:  case BVSr:"
+      ],
+      [
+        "case EORb: case LDAb:  case LDXb:  case LDYb: case LXAb: case NOPb_:",
+        "case EORb: case LDAb:  case LDXb:  case LDYb: case LXAb:"
+      ],
+      [
+        "case ORAb: case SBCb_: case SBXb:  case RTIn: case RTSn:",
+        "case ORAb: case SBCb_: case SBXb:"
+      ],
+      [
+        "        // Zero Page Addressing Mode Handler - Read & RMW",
+        "        // These instructions discard the fetched byte but retain its bus cycle.\n        case BRKn: case RTIn: case RTSn: case NOPb_:\n            instrTable[buildCycle++].func = &StaticFuncWrapper<&MOS6510::bmFetchDiscardByte>;\n            break;\n\n        // Zero Page Addressing Mode Handler - Read & RMW"
+      ],
+      [
+        "            instrTable[buildCycle++].func = &StaticFuncWrapper<&MOS6510::FetchEffAddrDataByte>;",
+        "            instrTable[buildCycle++].func = (i == NOPa || i == 0x1c || i == 0x3c || i == 0x5c || i == 0x7c || i == 0xdc || i == 0xfc)\n                ? &StaticFuncWrapper<&MOS6510::bmFetchDiscardAddrDataByte>\n                : &StaticFuncWrapper<&MOS6510::FetchEffAddrDataByte>;"
+      ],
+      [
+        "void MOS6510::FetchDataByte()",
+        "void MOS6510::bmFetchDiscardByte() { BmSidDiscardRead scope; FetchDataByte(); }\n\nvoid MOS6510::FetchDataByte()"
+      ],
+      [
+        "void MOS6510::FetchEffAddrDataByte()",
+        "void MOS6510::bmFetchDiscardAddrDataByte() { BmSidDiscardRead scope; FetchEffAddrDataByte(); }\n\nvoid MOS6510::FetchEffAddrDataByte()"
       ]
     ]
   }

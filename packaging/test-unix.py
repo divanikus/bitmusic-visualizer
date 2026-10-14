@@ -35,7 +35,7 @@ def main():
         subprocess.run([str(image.resolve()), '--appimage-extract'], cwd=test,
                        stdout=subprocess.DEVNULL, check=True, timeout=120)
         stage = test / 'squashfs-root'
-    forbidden = {'.nsf', '.nsfe', '.vgm', '.vgz', '.spc', '.ay', '.gbs', '.sid', '.wav', '.pdb', '.obj'}
+    forbidden = {'.nsf', '.nsfe', '.vgm', '.vgz', '.spc', '.ay', '.gbs', '.sid', '.wav', '.pdb', '.obj', '.rom', '.sf2', '.sf3'}
     for path in stage.rglob('*'):
         if path.is_symlink() and not path.resolve().is_relative_to(stage.resolve()):
             raise RuntimeError(f'Escaping bundle symlink: {path}')

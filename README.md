@@ -41,21 +41,31 @@ See the [changelog](CHANGELOG.md) for version history.
 | SNES | SPC | Eight dry DSP voices; shared echo appears in Full mix |
 | Game Boy | GBS | Square 1, Square 2, Wave and Noise, with L/R routing |
 | ZX Spectrum | AY (ZXAYEMUL) | AY A/B/C and beeper; mono output |
-| Commodore 64 | SID (single-chip PSID) | Three pre-filter voices; filter and volume-register samples in Full mix |
+| Commodore 64 | SID (PSID / RSID, up to three chips) | Three pre-filter voices per chip; filter and volume-register samples in Full mix |
 
 VGM is a container: accepting it does **not** mean every chip is supported. PT3,
-VTX, YM, RSID, multi-SID, Amiga/tracker modules and MIDI are not supported yet. There are no
+VTX, YM, Amiga/tracker modules and MIDI are not supported yet. There are no
 invented durations or titles: files without duration data keep playing until
 stopped. Cold seeks can require emulation from an earlier point. Voice traces
 are not guaranteed to be exact separately audible stems after shared effects.
 
 SID uses the file's 6581/8580 and PAL/NTSC flags, with 6581/PAL defaults when
-unspecified. It exposes three hardware voices in mono, with subsongs, seeking,
+unspecified. Each chip exposes three hardware voices, with subsongs, seeking,
 mute and Solo. Voice cards show the envelope-modulated signal before the common
 filter, volume control and output circuitry. Full mix includes these shared
 stages and volume-register digi samples; the latter have no separate voice card
 and can remain audible with all three voices muted. SID keyboard uses the
-experimental waveform estimate. No C64 ROM or song-length database is included.
+experimental waveform estimate. A single SID stays mono; two or three chips use
+six or nine cards and a fixed left/right or left/center/right pan with crossfeed.
+This is a playback convention, not panning metadata in the file.
+
+Optional C64 ROMs go in **roms/c64/**: `kernal.rom` (8192 bytes), `basic.rom`
+(8192 bytes), `chargen.rom` (4096 bytes). Windows uses the folder beside the EXE;
+Linux/macOS use the application data directory alongside themes. No setup dialog
+is needed. A missing or invalid image is reported only when the loaded tune
+needs it; the warning shows the exact path. Add the file and reopen the tune.
+Ordinary PSID and self-contained RSID run without ROMs. No C64 ROM or song-length
+database is included. See [ROM locations](packaging/ROMS.txt).
 See [SID implementation boundaries](docs/SID.md).
 
 ## Run
