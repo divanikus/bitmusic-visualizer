@@ -1,4 +1,4 @@
-Bit Music Visualizer 0.8.0 - portable Windows x64 build
+Bit Music Visualizer 0.8.1 - portable Windows x64 build
 
 1. Extract the whole ZIP to a folder on Windows 10 or Windows 11 (64-bit).
 2. Run bitmusic_visualizer.exe from that folder.
@@ -9,6 +9,8 @@ Keep the EXE, DLLs, platforms folder and qt.conf together. Do not run directly
 from inside the ZIP. Music files are not included or modified by the player.
 
 Supported formats: NSF, NSFE, VGM, VGZ, SPC, Game Boy GBS and Spectrum AY (ZXAYEMUL).
+The platform and sound configuration appear below the track title.
+Hover over the title to see the full title and filename.
 Pencil -> Cards -> View changes the selected card; Add card... adds another view
 of any voice or Full mix. Spectrum offers Line / Bars and an optional Grid.
 Keyboard uses NES pulse/triangle,

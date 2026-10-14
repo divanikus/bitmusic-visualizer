@@ -1,10 +1,10 @@
-Bit Music Visualizer 0.8.0
+Bit Music Visualizer 0.8.1
 
 Linux x64: make the AppImage executable, then run it.
 Build baseline: Ubuntu 22.04 / glibc 2.35; requires system X11/XWayland,
 OpenGL/EGL drivers, PulseAudio (or PipeWire's PulseAudio compatibility) and the
 standard C/C++ runtimes. No root access or installation is required.
-If FUSE is unavailable, use ./BitMusicVisualizer-0.8.0-linux-x64.AppImage --appimage-extract-and-run
+If FUSE is unavailable, use ./BitMusicVisualizer-0.8.1-linux-x64.AppImage --appimage-extract-and-run
 To inspect licenses/sources or replace libraries, use --appimage-extract, then
 run squashfs-root/AppRun. The image includes Qt/libgme/ICU and an AppImage runtime;
 it does not bundle the operating system or graphics drivers.
@@ -15,6 +15,8 @@ blocks it, follow Apple's Privacy & Security instructions for a trusted app.
 Do not disable Gatekeeper globally. macOS 13 or newer is the build target.
 
 Ctrl+O opens a file. The scopes button toggles the waveform window.
+The platform and sound configuration appear below the track title.
+Hover over the title to see the full title and filename.
 Pencil enters layout/theme editing. See docs/VISUALIZATION.md in the source repo.
 The Preset row saves grid/card/stereo layouts; the star sets or clears the default
 for this chip configuration. Related presets can be adapted manually.
