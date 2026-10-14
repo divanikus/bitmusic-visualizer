@@ -12,6 +12,9 @@ not published GitHub releases. Unreleased lists changes made after the latest ta
 
 - Keyboard shortcuts for channel views, mute and visibility, playback and layout reset.
 - A shortcut guide via the keyboard icon in the main player or F1 in either window.
+- Layout presets save the grid, card views, sizes, visibility and stereo display.
+  Select, save and set or clear a default in the editor sidebar; presets from
+  related configurations can be adapted, including base NES to NES + VRC6.
 
 ## [0.7.3](https://github.com/divanikus/bitmusic-visualizer/releases/tag/v0.7.3) — 2026-10-09
 

@@ -180,6 +180,7 @@ ScopeWindow::ScopeWindow() {
     auto content = new QWidget; content->setObjectName("scopeChannels"); scroll->setWidget(content);
     auto channels = new QVBoxLayout(content); channels->setContentsMargins(10, 10, 10, 10); channels->setSpacing(4);
     channels->setSizeConstraint(QLayout::SetMinimumSize);
+    setupPresets(channels);
     channels->addWidget(new QLabel("Cards"));
     auto hint = new QLabel("Drag headers to reorder.\nDrag right/bottom edges to resize."); hint->setWordWrap(true); hint->setObjectName("editorHint"); channels->addWidget(hint);
     channels->addWidget(summary_);
@@ -220,6 +221,7 @@ ScopeWindow::ScopeWindow() {
         const int id = channelList_->currentItem()->data(Qt::UserRole).toInt();
         cards_[id].spectrumBars = spectrumStyle_->currentIndex() == 1;
         cards_[id].spectrumGrid = spectrumGrid_->isChecked();
+        presetEdited();
         update();
     };
     connect(spectrumStyle_, &QComboBox::currentIndexChanged, this, spectrumChanged);
@@ -267,9 +269,9 @@ ScopeWindow::ScopeWindow() {
     });
     connect(rows_, &QSpinBox::valueChanged, this, [this] { layoutChanged(); });
     connect(columns_, &QSpinBox::valueChanged, this, [this] { layoutChanged(); });
-    connect(numbers_, &QCheckBox::toggled, this, [this] { update(); });
-    connect(names_, &QCheckBox::toggled, this, [this] { update(); });
-    connect(stereo_, &QCheckBox::toggled, this, [this] { waveStates_ = {}; update(); });
+    connect(numbers_, &QCheckBox::toggled, this, [this] { presetEdited(); update(); });
+    connect(names_, &QCheckBox::toggled, this, [this] { presetEdited(); update(); });
+    connect(stereo_, &QCheckBox::toggled, this, [this] { presetEdited(); waveStates_ = {}; update(); });
     connect(reset, &QPushButton::clicked, this, [this] { resetLayout(); });
     connect(apply, &QPushButton::clicked, this, [this] { edit_->setChecked(false); });
     connect(colors, &QPushButton::clicked, this, [this] { editColors(); });
@@ -304,6 +306,7 @@ ScopeWindow::ScopeWindow() {
 void ScopeWindow::beginFile() {
     if (gpu_) gpu_->suspend();
     newFile_ = true; frame_ = {}; output_ = {}; waveStates_ = {}; spectrumStates_ = {}; pitchStates_ = {}; cancelDrag();
+    updatePresetStatus();
     if (onChannelsChanged) onChannelsChanged(0);
     outputCapturing_ = false;
     if (onOutputChanged) onOutputChanged(false);
@@ -311,9 +314,16 @@ void ScopeWindow::beginFile() {
 void ScopeWindow::present(const PlayerState &state, const ScopeFrame &frame, const OutputFrame &output) {
     // A newer transport command may mark state busy after a file has already loaded.
     // Always align channel indices with new metadata, even in that intermediate state.
-    const bool reset = state.valid && ((!state.busy && newFile_) || state.info.path != state_.info.path || state.info.voices != state_.info.voices);
+    const bool reset = state.valid && ((!state.busy && newFile_) || state.info.path != state_.info.path ||
+        state.info.voices != state_.info.voices || state.info.configuration.id != state_.info.configuration.id);
     state_ = state;
-    if (reset) { newFile_ = false; resetChannels(!keepGrid_->isChecked()); }
+    if (reset) {
+        newFile_ = false;
+        if (!restoreDefaultPreset()) {
+            presetFile_.clear(); savedPreset_.clear(); presetModified_ = false;
+            resetChannels(!keepGrid_->isChecked()); refreshPresets();
+        }
+    }
     frame_ = frame;
     // A bounded snapshot retry can miss an active audio callback. Keep the last
     // confirmed frame only within this transport generation, never over a seek.
@@ -331,8 +341,11 @@ void ScopeWindow::present(const PlayerState &state, const ScopeFrame &frame, con
     if (renderingVisible()) update();
 }
 void ScopeWindow::resetLayout() {
+    presetFile_.clear(); savedPreset_.clear(); presetModified_ = false;
+    suggestedPresetName_.clear();
     if (waveOptions_.output) { waveOptions_.output = false; rememberWaves(); }
     numbers_->setChecked(true); names_->setChecked(true); stereo_->setChecked(false); resetChannels(true);
+    refreshPresets();
     update();
 }
 void ScopeWindow::resetGrid() {
@@ -399,7 +412,7 @@ void ScopeWindow::layoutChanged() {
         outputCapturing_ = capture; output_ = {}; outputMono_.clear(); waveStates_[ScopeTheme::FullMix] = {};
         if (onOutputChanged) onOutputChanged(capture);
     }
-    update();
+    presetEdited(); update();
 }
 void ScopeWindow::rebuildList() {
     const int selected = channelList_->currentItem() ? channelList_->currentItem()->data(Qt::UserRole).toInt() : 0;

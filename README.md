@@ -17,6 +17,8 @@ See the [changelog](CHANGELOG.md) for version history.
 - Mono or stereo waveforms; optional Full mix showing the PCM sent to the audio
   device, including active voices, volume and shared effects.
 - Editable grid: hide, reorder and resize cards in whole grid cells.
+- Named layout presets with optional defaults per sound configuration and transfer
+  between related configurations, such as NES and NES + VRC6.
 - Waveform, frequency spectrum and keyboard cards; add multiple views of a source.
   Keyboard can highlight several notes at once. NES pulse/triangle, Sega PSG,
   Game Boy Square/Wave and AY A/B/C use chip pitches; other voices and Full mix
@@ -69,8 +71,8 @@ shows/hides the separate window; closing that window keeps playback running.
 
 In the scope editor, drag cards to reorder and drag their edges/corners to resize.
 Apply finishes editing. Reset restores the grid and visibility, keeping colors.
-Keep grid retains only row/column counts when opening a new file. Layouts are
-session-local. Full mix starts hidden and can be enabled in Cards.
+Keep grid retains only row/column counts when opening a new file without an
+assigned preset. Full mix starts hidden and can be enabled in Cards.
 Theme selection applies immediately; Save theme asks for a name.
 Click the window-size icon next to the background eyedropper to reveal
 **width × height** fields beside it in screen pixels. Changes resize the whole window immediately;
@@ -80,7 +82,20 @@ Select a card in the editor's **Cards** list, then change **View** to Waveform,
 Spectrum or Keyboard. **Add card…** creates another view of any voice or Full mix,
 so a waveform and its keyboard can sit next to each other. Added cards use the same
 grid, resizing and source colors. Reset or opening a new file restores the original
-waveform cards; Keep grid still preserves only the grid dimensions.
+waveform cards unless a preset is assigned to the new file's sound configuration.
+
+The editor sidebar's **Preset** selector applies a saved layout immediately.
+The **disk icon** saves under a name; **★** assigns it as the default for this
+sound configuration. Click the star again to clear that default. Configurations
+without an assigned preset keep the previous file-opening behavior, including
+Keep grid. Changing subsongs preserves current edits.
+
+Presets save the grid, card sources/views/order/sizes/visibility, spectrum options,
+labels and stereo display. A `*` marks unsaved edits; saving is explicit. The list
+also shows presets from the same platform family marked **(adapt)**. Shared
+hardware channels keep their cards, missing channels are skipped and new channels
+start as waveforms. Save the adapted layout under another name to keep it or
+assign it as a default. See [preset details](docs/VISUALIZATION.md#layout-presets).
 
 See [waveform controls](docs/VISUALIZATION.md) and [theme format](packaging/THEMES.txt).
 
@@ -104,7 +119,7 @@ On macOS, use Command for Ctrl and Option for Alt; the in-app guide uses native 
 Numbers follow original channel numbers, even after reordering; duplicate cards
 of a channel change together. Shortcuts leave text/number fields, dropdowns and
 dialogs alone. Reset keeps colors, effects, volume and window size; Full mix
-returns to hidden. View/layout edits remain session-local.
+returns to hidden. View/layout edits remain session-local until saved as a preset.
 
 ## Settings and diagnostics
 
@@ -116,6 +131,9 @@ returns to hidden. View/layout edits remain session-local.
 
 Linux defaults are `~/.config` and `~/.local/share`. Missing/corrupt saved themes
 fall back to Default. Unsaved color edits are not written automatically.
+Layout presets are INI files in **presets/** alongside the themes directory.
+Missing, corrupt or incompatible default presets fall back to ordinary layout
+initialization. Default assignments are stored in the application's settings.
 
 `--software-scopes` disables GPU effects for that launch. `--diagnostics` enables
 bounded local logs (beside the EXE on Windows, in the app's data directory elsewhere).

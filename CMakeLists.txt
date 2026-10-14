@@ -46,6 +46,7 @@ target_sources(bitmusic_visualizer PRIVATE native/gpuchecks.cpp native/scopewave
 target_sources(bitmusic_visualizer PRIVATE native/pacingchecks.cpp native/spectrum.cpp native/scopeviews.cpp native/viewchecks.cpp)
 target_sources(bitmusic_visualizer PRIVATE native/psgnoteschecks.cpp native/chipnoteschecks.cpp)
 target_sources(bitmusic_visualizer PRIVATE native/shortcuts.cpp native/shortcutchecks.cpp)
+target_sources(bitmusic_visualizer PRIVATE native/soundconfig.cpp native/scopepreset.cpp native/scopepresets.cpp native/presetchecks.cpp)
 if(WIN32)
   enable_language(RC)
   configure_file(native/app.rc.in "${CMAKE_CURRENT_BINARY_DIR}/app.rc" @ONLY)

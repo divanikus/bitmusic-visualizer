@@ -38,3 +38,8 @@ inline QString playerThemesDirectory() {
         .filePath("BitMusicVisualizer/themes");
 #endif
 }
+
+inline QString playerPresetsDirectory() {
+    // Alongside themes, including the isolated themes root used by all self-tests.
+    return QDir::cleanPath(QDir(playerThemesDirectory()).absoluteFilePath("../presets"));
+}

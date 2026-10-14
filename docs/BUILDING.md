@@ -42,6 +42,12 @@ mute and visibility, input/dialog protection, transport and reset. It also check
 the main-window help button and F1 guide, saving screenshots with isolated
 preferences and silent playback. It is included in the complete native suite.
 
+`--self-test test-output --presets-only` checks preset serialization/validation,
+hardware identities, same-platform transfer, default assignment/removal/restart,
+missing/corrupt defaults, Keep grid and live NSF/VGZ application without transport
+or mute changes. It saves editor screenshots and isolates settings and presets.
+It also runs in the complete native suite.
+
 ## Linux / macOS
 
 Set `QT_ROOT_DIR` to the Qt kit (Linux `gcc_64`, macOS `macos`). With the compiler,

@@ -11,7 +11,8 @@ cards, keeping their entries in the list.
 
 Cards of the same source share colors, audio capture and mute state. Moving or
 hiding a card never mutes its source. Added cards and view choices, like sizes and
-order, last for the current file/session. Opening another file or pressing Reset
+order, last for the current file/session unless explicitly saved as a preset.
+Opening another file without an assigned preset, or pressing Reset,
 restores the original waveform cards. Keep grid preserves only rows and columns.
 Changing subsongs within a file keeps the layout. Themes remain color presets.
 
@@ -24,6 +25,57 @@ hidden. Removed cards stay removed until added again or reset.
 F2–F4 also change hidden cards and Full mix, preserving their visibility and size.
 **Ctrl+Shift+R** additionally unmutes all voices and both audio outputs; the editor's
 **Reset** button continues to reset only the layout.
+
+## Layout presets
+
+**Preset** lives at the top of the existing editor sidebar: a dropdown, star and
+disk icon. The dropdown applies immediately. The disk asks only for a name;
+Save changes to Replace when that name already exists for this configuration.
+A different configuration's preset cannot be overwritten under the same name.
+An asterisk after a selected name means there are unsaved edits. No edits are
+written automatically, including changes made with shortcuts.
+
+The star assigns the **saved version** as the default for the current sound
+configuration. Clicking the filled star clears that assignment. Its tooltip names
+the configuration/default. Reset changes the current layout and leaves saved
+presets/defaults intact; the star also allows clearing the assignment after Reset
+or when the assigned file is missing. To replace an existing default, select a
+different saved preset and click its star.
+
+Defaults apply when opening a file with the same hardware/channel configuration.
+Subsong switches keep current edits. Configurations without an assigned valid
+default retain existing initialization, including Keep grid, label/stereo
+preferences and the saved Full mix choice. A preset supplies its own grid even
+when Keep grid is checked. Mono sources still draw one lane even if the preset
+has Stereo enabled. Presets do not change audio mutes/outputs, volume, theme,
+wave/effect/FPS/renderer settings or window geometry.
+
+The list contains exact matches first, then **(adapt)** presets from the same
+platform family. NES variants share the five base voices; expansion channels
+match by their chip and role, not ambiguous names such as Square 3. Transfer
+retains matching cards, duplicates, order, sizes and hidden states, skips absent
+sources and appends waveform cards for newly available channels. Intentionally
+removed cards stay removed. Full mix is transferable. The saved grid is kept;
+cards that do not fit remain in the list as Overflow. An adaptation exceeding
+the 128-card limit is rejected. Save an adapted layout under its own name before
+assigning it as the new configuration's default. Cross-configuration transfer
+is always manual; base NES defaults never automatically apply to NES + VRC6.
+
+VGM/VGZ share configuration IDs; NSF/NSFE with the same chips do too. Song titles,
+file paths, compression and display system tags do not determine compatibility.
+VGM groups use chip families (YM2612, or PSG/YM2413), since metadata cannot reliably
+identify a console. Separate PSG voices and a grouped PSG source are distinct
+roles and are not merged during transfer. Unverified backend variants use opaque
+source identities and do not borrow another configuration's channel mappings.
+
+Presets are portable UTF-8 INI files in `presets/` alongside `themes/`, using the
+same platform storage policy. Version 1 stores a `[Preset]` group with a hardware
+configuration ID/family/source list, Rows/Columns, Numbers/Names/Stereo and card
+count. Ordered `[Card1]`, `[Card2]`, etc. groups store Source, View (0 waveform,
+1 spectrum, 2 keyboard), Width/Height in cells, Visible, Bars and Grid. The file
+contains no music paths. Files are validated before applying and saved atomically.
+Invalid default files use the ordinary initial layout; the star can clear their
+assignment. Defaults are bound to exact configurations in application settings.
 
 ## Window size
 

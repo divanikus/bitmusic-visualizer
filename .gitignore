@@ -15,6 +15,7 @@ Thumbs.db
 *.log.previous
 BitMusicVisualizer.ini
 themes/
+presets/
 *.nsf
 *.nsfe
 *.vgm

@@ -5,6 +5,7 @@
 #include "scopegpu.h"
 #include "scopewave.h"
 #include "scopegrid.h"
+#include "scopepreset.h"
 #include <QWidget>
 #include <QSlider>
 #include <QHash>
@@ -23,6 +24,7 @@ class QTimer;
 class QChronoTimer;
 class QDialog;
 class QComboBox;
+class QVBoxLayout;
 
 class Timeline : public QSlider {
 public:
@@ -164,6 +166,19 @@ private:
     void markThemeEdited();
     void applyTheme();
     void saveTheme();
+    void setupPresets(QVBoxLayout *layout);
+    ScopePreset currentPreset() const;
+    void applyPreset(const ScopePreset &preset, const QString &file);
+    bool restoreDefaultPreset();
+    void refreshPresets();
+    void updatePresetStatus();
+    void presetEdited();
+    void savePreset();
+    QComboBox *presets_ = nullptr;
+    QPushButton *presetDefault_ = nullptr, *presetSave_ = nullptr;
+    QString presetFile_, defaultPresetFile_, suggestedPresetName_;
+    QByteArray savedPreset_;
+    bool applyingPreset_ = false, presetModified_ = false;
     TitleBar *titleBar_;
     QPushButton *edit_;
     QPushButton *windowSize_ = nullptr;

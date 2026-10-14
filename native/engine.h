@@ -1,4 +1,5 @@
 #pragma once
+#include "soundconfig.h"
 #include <QByteArray>
 #include <QStringList>
 #include <QThread>
@@ -42,6 +43,7 @@ struct SongInfo {
     int durationMs = -1, loopStartMs = 0;
 };
 struct TrackInfo {
+    SoundConfiguration configuration;
     QString path, title, system;
     QStringList voices;
     QVector<SongInfo> playlist;

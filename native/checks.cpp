@@ -43,6 +43,7 @@ void checkViews(QApplication &app, const QString &directory, QTextStream &log);
 void checkFrameRates(QApplication &app, const QString &directory, QTextStream &log);
 void checkLayoutSpans(QApplication &app, const QString &directory, QTextStream &log);
 void checkShortcuts(QApplication &app, const QString &directory, QTextStream &log);
+void checkPresets(QApplication &app, const QString &directory, QTextStream &log);
 
 namespace {
 void require(bool condition, const char *message) { if (!condition) throw std::runtime_error(message); }
@@ -714,6 +715,7 @@ int runChecks(QApplication &app, const QStringList &arguments) {
     app.setProperty("settingsFileForTests", settingsDirectory.filePath("BitMusicVisualizer.ini"));
     app.setProperty("themesDirectoryForTests", settingsDirectory.filePath("themes"));
     try {
+        if (arguments.contains("--presets-only")) { checkPresets(app, directory, log); return 0; }
         if (arguments.contains("--shortcuts-only")) { checkShortcuts(app, directory, log); return 0; }
         if (arguments.contains("--views-only")) { checkViews(app, directory, log); return 0; }
         if (arguments.contains("--layout-only")) { checkLayoutSpans(app, directory, log); return 0; }
@@ -758,6 +760,7 @@ int runChecks(QApplication &app, const QStringList &arguments) {
         checkLayoutSpans(app, directory, log);
         checkViews(app, directory, log);
         checkShortcuts(app, directory, log);
+        checkPresets(app, directory, log);
         checkStereoOutputs(app, directory);
         log << "Stereo/mono capability, output PCM isolation, lane dimming, controls and transport preservation PASS\n"; log.flush();
         checkRing(); log << "Concurrent PCM ring: 500000 samples, variable callback sizes, exact order PASS\n"; log.flush();
