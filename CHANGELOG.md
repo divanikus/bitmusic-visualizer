@@ -10,7 +10,8 @@ not published GitHub releases. Unreleased lists changes made after the latest ta
 
 ### Added
 
-- A Sound line in the main player shows the current sound configuration.
+- The main player shows the platform and sound configuration below the track title.
+  Hover over the title to see the filename.
 
 ## [0.8.0](https://github.com/divanikus/bitmusic-visualizer/releases/tag/v0.8.0) — 2026-10-14
 

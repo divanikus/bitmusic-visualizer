@@ -244,7 +244,7 @@ private:
     void showShortcutsHelp();
     NativePlayer player_;
     ScopeWindow scopes_;
-    QLabel *title_, *subtitle_, *sound_, *clock_, *total_, *status_;
+    QLabel *title_, *subtitle_, *clock_, *total_, *status_;
     QPushButton *play_, *stop_, *previous_, *next_, *repeat_, *showScopes_;
     QToolButton *leftOutput_, *rightOutput_;
     Timeline *timeline_;
