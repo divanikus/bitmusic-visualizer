@@ -84,6 +84,28 @@ waveform cards; Keep grid still preserves only the grid dimensions.
 
 See [waveform controls](docs/VISUALIZATION.md) and [theme format](packaging/THEMES.txt).
 
+## Keyboard shortcuts
+
+Click the keyboard icon in the main player's title bar, or press **F1** in either
+window, to open the shortcut guide.
+
+| Key | Action |
+| --- | --- |
+| 1–9 | Cycle that channel's cards: Waveform → Spectrum → Keyboard |
+| Ctrl+1–9 | Mute / unmute that channel |
+| Alt+1–9 | Hide / show that channel's cards |
+| F2 / F3 / F4 | Set all cards to Waveform / Spectrum / Keyboard |
+| F5 | Play the current track from the beginning |
+| F7 / F8 | Resume / pause |
+| Ctrl+Shift+R | Restore default cards/layout and enable all voices and L/R outputs |
+
+These work in either player window, with the number row or numpad (Num Lock on).
+On macOS, use Command for Ctrl and Option for Alt; the in-app guide uses native key labels.
+Numbers follow original channel numbers, even after reordering; duplicate cards
+of a channel change together. Shortcuts leave text/number fields, dropdowns and
+dialogs alone. Reset keeps colors, effects, volume and window size; Full mix
+returns to hidden. View/layout edits remain session-local.
+
 ## Settings and diagnostics
 
 | Platform | Settings | Themes |

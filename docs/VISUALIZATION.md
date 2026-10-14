@@ -15,6 +15,16 @@ order, last for the current file/session. Opening another file or pressing Reset
 restores the original waveform cards. Keep grid preserves only rows and columns.
 Changing subsongs within a file keeps the layout. Themes remain color presets.
 
+The main player's keyboard icon or **F1** opens the [shortcut guide](../README.md#keyboard-shortcuts).
+Digits refer to audio channel numbers, not grid slots. If several cards share
+a channel, a digit cycles them together based on its original card's current
+view (or the first remaining card if the original was removed). Alt+digit hides
+all of that channel's cards when any are enabled, and shows them when all are
+hidden. Removed cards stay removed until added again or reset.
+F2–F4 also change hidden cards and Full mix, preserving their visibility and size.
+**Ctrl+Shift+R** additionally unmutes all voices and both audio outputs; the editor's
+**Reset** button continues to reset only the layout.
+
 ## Window size
 
 Click the window-size icon (a rectangle with diagonal arrows) next to the

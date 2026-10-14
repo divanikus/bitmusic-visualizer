@@ -31,6 +31,26 @@ bool ScopeWindow::outputEnabled() const {
     for (int id : visibleChannels()) if (sourceFor(id) == ScopeTheme::FullMix) return true;
     return false;
 }
+void ScopeWindow::cycleSourceView(int source) {
+    if (!state_.valid || source < 0 || source >= state_.info.voices.size()) return;
+    int first = order_.contains(source) ? source : -1;
+    if (first < 0) for (int id : order_) if (sourceFor(id) == source) { first = id; break; }
+    if (first < 0) return;
+    const auto next = ViewKind((int(cards_[first].kind)+1)%3);
+    for (int id : order_) if (sourceFor(id) == source) cards_[id].kind = next;
+    layoutChanged(); updateViewEditor();
+}
+void ScopeWindow::toggleSourceVisibility(int source) {
+    if (!state_.valid || source < 0 || source >= state_.info.voices.size()) return;
+    bool hide = false;
+    for (int id : order_) if (sourceFor(id) == source && !hidden_[id]) hide = true;
+    for (int id : order_) if (sourceFor(id) == source) hidden_[id] = hide;
+    layoutChanged(); updateViewEditor();
+}
+void ScopeWindow::setAllViews(ViewKind kind) {
+    for (int id : order_) cards_[id].kind = kind;
+    layoutChanged(); updateViewEditor();
+}
 void ScopeWindow::updateViewEditor() {
     const auto item = channelList_->currentItem();
     const int id = item ? item->data(Qt::UserRole).toInt() : -1;

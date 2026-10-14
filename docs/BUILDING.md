@@ -36,6 +36,12 @@ counts are not monitor-presented FPS. Add `--software-scopes` to check CPU drawi
 multi-note keyboards, duplicate cards, audio continuity and transport changes.
 Add `--software-scopes` for CPU rendering. These checks also run in the complete native suite.
 
+`--self-test test-output --shortcuts-only` exercises keyboard events in both
+windows, number-row/numpad mapping, duplicate/reordered/hidden cards, independent
+mute and visibility, input/dialog protection, transport and reset. It also checks
+the main-window help button and F1 guide, saving screenshots with isolated
+preferences and silent playback. It is included in the complete native suite.
+
 ## Linux / macOS
 
 Set `QT_ROOT_DIR` to the Qt kit (Linux `gcc_64`, macOS `macos`). With the compiler,

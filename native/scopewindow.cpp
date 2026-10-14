@@ -1,4 +1,5 @@
 #include "window.h"
+#include "shortcuts.h"
 #include "palette.h"
 #include "appsettings.h"
 #include "renderersettings.h"
@@ -269,11 +270,7 @@ ScopeWindow::ScopeWindow() {
     connect(numbers_, &QCheckBox::toggled, this, [this] { update(); });
     connect(names_, &QCheckBox::toggled, this, [this] { update(); });
     connect(stereo_, &QCheckBox::toggled, this, [this] { waveStates_ = {}; update(); });
-    connect(reset, &QPushButton::clicked, this, [this] {
-        if (waveOptions_.output) { waveOptions_.output = false; rememberWaves(); }
-        numbers_->setChecked(true); names_->setChecked(true); stereo_->setChecked(false); resetChannels(true);
-        update();
-    });
+    connect(reset, &QPushButton::clicked, this, [this] { resetLayout(); });
     connect(apply, &QPushButton::clicked, this, [this] { edit_->setChecked(false); });
     connect(colors, &QPushButton::clicked, this, [this] { editColors(); });
     connect(showAll, &QPushButton::clicked, this, [this] { hidden_.fill(false); layoutChanged(); });
@@ -332,6 +329,11 @@ void ScopeWindow::present(const PlayerState &state, const ScopeFrame &frame, con
     stereo_->setToolTip(state.valid && !state.info.stereoOutput ? "Mono source: one waveform per card; stereo preference is kept"
         : "Show left and right lanes with the same time and amplitude scale");
     if (renderingVisible()) update();
+}
+void ScopeWindow::resetLayout() {
+    if (waveOptions_.output) { waveOptions_.output = false; rememberWaves(); }
+    numbers_->setChecked(true); names_->setChecked(true); stereo_->setChecked(false); resetChannels(true);
+    update();
 }
 void ScopeWindow::resetGrid() {
     QSignalBlocker blockRows(rows_), blockColumns(columns_);
@@ -427,6 +429,7 @@ void ScopeWindow::updateList() {
         const auto size = QString("%1 x %2").arg(span.width()).arg(span.height());
         item->setText(label + (span == QSize(1, 1) ? QString() : "  [" + size + "]"));
         item->setToolTip(label + " - " + status + "\nSize: " + size + " cells (columns x rows).\nMove earlier, hide another card or enlarge the grid if it overflows.");
+        if (source < 9) item->setToolTip(item->toolTip() + '\n' + channelShortcutHint(source));
         if (source == ScopeTheme::FullMix) item->setToolTip(item->toolTip() + "\nFinal audio after volume, voice mutes and effects.");
         item->setForeground(QColor(visible.contains(channel) ? "#c3f1e7" : "#81969f"));
         item->setCheckState(hidden_[channel] ? Qt::Unchecked : Qt::Checked);

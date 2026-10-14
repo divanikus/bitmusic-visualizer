@@ -1,4 +1,5 @@
 #include "window.h"
+#include "shortcuts.h"
 #include "appsettings.h"
 #include <QApplication>
 #include <QCloseEvent>
@@ -144,6 +145,7 @@ PlayerWindow::PlayerWindow() {
     )");
     auto root = new QVBoxLayout(this); root->setContentsMargins(14, 6, 14, 12); root->setSpacing(6);
     auto titleBar = new TitleBar(this); titleBar->setTitle(QApplication::applicationName()); root->addWidget(titleBar);
+    setupShortcutsHelp(titleBar);
     auto header = new QHBoxLayout; header->setSpacing(8);
     auto text = new QVBoxLayout; text->setSpacing(2);
     title_ = new QLabel(QString::fromUtf8("Open a file")); title_->setObjectName("title"); title_->setMinimumWidth(0); title_->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
@@ -273,6 +275,7 @@ void PlayerWindow::rebuildChannels(const PlayerState &state) {
         auto button = new ChannelButton; button->setText(QString("%1  %2").arg(i + 1, 2, 10, QLatin1Char('0')).arg(state.info.voices[i]));
         button->setObjectName(QString("voice%1").arg(i)); button->setCheckable(true); button->setChecked(true); button->setMinimumHeight(32); button->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
         button->setToolTip(state.info.voices[i] + "\nPressed: channel is audible"); channels_->addWidget(button, i / 2, i % 2);
+        if (i < 9) button->setToolTip(button->toolTip() + '\n' + channelShortcutHint(i));
         connect(button, &QToolButton::toggled, this, [this, i](bool audible) {
             auto mask = player_.state().muteMask; if (audible) mask &= ~(uint32_t(1) << i); else mask |= uint32_t(1) << i; player_.setMuteMask(mask);
         });

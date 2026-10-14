@@ -37,6 +37,11 @@ private:
 class ScopeWindow : public FrameWindow {
 public:
     ScopeWindow();
+    enum class ViewKind { Waveform, Spectrum, Keyboard };
+    void cycleSourceView(int source);
+    void toggleSourceVisibility(int source);
+    void setAllViews(ViewKind kind);
+    void resetLayout();
     void present(const PlayerState &state, const ScopeFrame &frame, const OutputFrame &output = {});
     void beginFile();
     std::function<void(bool)> onVisibilityChanged;
@@ -67,7 +72,6 @@ private:
     void paintContents(QPainter &p, bool waves);
     QVector<ScopeLane> waveLanes();
     QByteArray chromeKey(bool dynamic = true) const;
-    enum class ViewKind { Waveform, Spectrum, Keyboard };
     struct Card {
         int source = 0;
         ViewKind kind = ViewKind::Waveform;
@@ -211,6 +215,7 @@ public:
     ScopeWindow &scopeWindow() { return scopes_; }
     void refresh();
 protected:
+    bool eventFilter(QObject *object, QEvent *event) override;
     void closeEvent(QCloseEvent *) override;
     void dragEnterEvent(QDragEnterEvent *) override;
     void dropEvent(QDropEvent *) override;
@@ -220,6 +225,8 @@ private:
     void rebuildChannels(const PlayerState &state);
     void setScopesVisible(bool visible);
     void playSong(int song);
+    void setupShortcutsHelp(TitleBar *bar);
+    void showShortcutsHelp();
     NativePlayer player_;
     ScopeWindow scopes_;
     QLabel *title_, *subtitle_, *clock_, *total_, *status_;
