@@ -64,8 +64,14 @@ also runs under `--tap-checks`. See [VGM boundaries](VGM.md).
 YM2608/YM2610/2610B/Y8950 with synthetic ADPCM and on-demand ROM scenarios,
 single/dual/mixed chips, actual PCM alignment, stereo, mute/Solo, timer-driven
 CSM, clocks/volumes, seeking/repeat and live cards. Add `--decoder-only` for
-headless checks. YM2203 checks include six/twelve individual voices and bit-exact
-comparisons of every FM algorithm/mute combination against the upstream core.
+headless checks. All accepted Yamaha cores are compared bit for bit with their
+unmodified upstream output across FM algorithms, shared DAC/clipping, rhythm,
+OPL3 four-operator pairs, noise and internal rate conversion. Individual voice
+checks cover every single/dual type, including YM2610B, high-numbered mutes,
+70-voice live controls and the maximum 184-source configuration. YM2203 additionally
+compares every FM mute combination. Theme/preset checks cover expanded source
+counts and older 32-palette files. Synthetic maximum-size decoding is a stress
+check, not a guarantee of real-time performance for every combination.
 Optional additional Yamaha VGM/VGZ paths are read only.
 The decoder portion also runs in `--tap-checks`. ymfm is a pinned static C++
 dependency; no new SDK or runtime DLL is required. Tests need no proprietary

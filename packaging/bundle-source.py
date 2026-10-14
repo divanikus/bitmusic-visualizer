@@ -24,6 +24,9 @@ def bundle(destination):
                 'native/gme-taps/pokey.h', 'cmake/PatchGme.cmake',
                 'native/yamahatrack.cpp', 'native/yamahasamplechecks.cpp', 'native/romfiles.cpp',
                 'native/ymfm-voices/opn.cpp', 'native/ymfm-voices/ym2203.h',
+                'native/ymfm-voices/opm.cpp', 'native/ymfm-voices/opl.cpp',
+                'native/ymfm-voices/voices.h', 'native/voicemask.h',
+                'native/yamahaallvoicechecks.cpp',
                 'native/yamahavoicechecks.cpp', 'LICENSES/ymfm-voices-BSD-3-Clause.txt',
                 'packaging/YAMAHA-ROMS.txt', 'cmake/Ymfm.cmake', 'LICENSES/ymfm-BSD-3-Clause.txt'}
     if not required.issubset(paths):

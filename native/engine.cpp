@@ -188,7 +188,7 @@ GmeTrack::GmeTrack(const QString &path, int song, bool readPlaylist, bool captur
         if (psgNotes) {
             if (count == 4) info_.tonalMask = 7;
             else if (count == 8 || count == 10) {
-                psgNoteChannel_ = count-1; info_.tonalMask = 1u << psgNoteChannel_;
+                psgNoteChannel_ = count-1; info_.tonalMask = VoiceMask::bit(psgNoteChannel_);
             }
         }
         for (int i = 0; i < count; ++i) info_.voices << QString::fromUtf8(gme_voice_name(emu_, i));
@@ -234,7 +234,7 @@ float GmeTrack::noteHz(int channel) const {
     return notePitches(channel).value(0, 0);
 }
 QVector<float> GmeTrack::notePitches(int channel) const {
-    if (channel < 0 || channel >= 32 || !(info_.tonalMask & (1u << channel))) return {-1};
+    if (channel < 0 || channel >= VoiceMask::Capacity || !(info_.tonalMask & (VoiceMask::bit(channel)))) return {-1};
     QVector<float> pitches;
     const bool grouped = channel == psgNoteChannel_;
     const int first = grouped ? 0 : channel, end = grouped ? 3 : channel+1;
@@ -245,7 +245,7 @@ QVector<float> GmeTrack::notePitches(int channel) const {
     }
     return pitches;
 }
-void GmeTrack::mute(uint32_t mask) { muteMask_ = mask; gme_mute_voices(emu_, static_cast<int>(mask)); }
+void GmeTrack::mute(VoiceMask mask) { muteMask_ = mask; gme_mute_voices(emu_, static_cast<int>(mask.low32())); }
 void GmeTrack::dry() { dry_ = true; gme_disable_echo(emu_, 1); }
 
 NativePlayer::NativePlayer() : outputHistory_(std::make_unique<OutputHistory>()) { start(QThread::HighPriority); }
@@ -272,7 +272,7 @@ void NativePlayer::setScopeFrameRate(int fps) {
     // Only reschedule capture. Changing FPS must not invalidate prepared voices.
     scopeWake_.notify_all();
 }
-void NativePlayer::setScopeMask(uint32_t mask) {
+void NativePlayer::setScopeMask(VoiceMask mask) {
     {
         std::lock_guard lock(scopeWaitMutex_);
         if (scopeMask_.exchange(mask) == mask) return;
@@ -284,7 +284,7 @@ void NativePlayer::setScopeMask(uint32_t mask) {
         std::lock_guard lock(scopeMutex_);
         scope_.mask &= mask;
         for (int i = 0; i < scope_.channels.size(); ++i)
-            if (!(scope_.mask & (uint32_t(1) << i))) {
+            if (!(scope_.mask & (VoiceMask::bit(i)))) {
                 scope_.channels[i].clear();
                 if (i < scope_.left.size()) scope_.left[i].clear();
                 if (i < scope_.right.size()) scope_.right[i].clear();
@@ -318,7 +318,7 @@ void NativePlayer::load(const QString &path, int song) {
     submit({0, path, song, 0, true, true});
 }
 void NativePlayer::seek(int ms, bool playing) { submit({0, {}, 0, std::clamp(ms, 0, 3600000), false, playing}); }
-void NativePlayer::setMuteMask(uint32_t mask) {
+void NativePlayer::setMuteMask(VoiceMask mask) {
     std::lock_guard lock(stateMutex_);
     // A manual mute action takes over the currently audible set.
     state_.soloChannel = -1;
@@ -326,14 +326,14 @@ void NativePlayer::setMuteMask(uint32_t mask) {
 }
 void NativePlayer::toggleSolo(int channel) {
     std::lock_guard lock(stateMutex_);
-    if (!state_.valid || state_.busy || channel < 0 || channel >= state_.info.voices.size() || channel >= 32) return;
+    if (!state_.valid || state_.busy || channel < 0 || channel >= state_.info.voices.size() || channel >= VoiceMask::Capacity) return;
     if (state_.soloChannel == channel) {
         state_.soloChannel = -1;
         muteMask_.store(beforeSoloMask_);
     } else {
         if (state_.soloChannel < 0) beforeSoloMask_ = muteMask_.load();
         state_.soloChannel = channel;
-        muteMask_.store(~(uint32_t(1) << channel));
+        muteMask_.store(~(VoiceMask::bit(channel)));
     }
 }
 PlayerState NativePlayer::state() const {
@@ -544,11 +544,11 @@ void NativePlayer::scopeLoop() {
                     const int count = int(voices.size());
                     frame.channels.resize(count); frame.left.resize(count); frame.right.resize(count);
                     frame.noteHz.resize(count);
-                    for (int i = 0; i < count; ++i) if (mask & (uint32_t(1) << i)) {
+                    for (int i = 0; i < count; ++i) if (mask & (VoiceMask::bit(i))) {
                         if (shared->readTap(i, frame.left[i], frame.right[i])) {
                             frame.channels[i].resize(ScopeFrames);
                             for (int j = 0; j < ScopeFrames; ++j) frame.channels[i][j] = (frame.left[i][j] + frame.right[i][j]) * .5f;
-                            frame.mask |= uint32_t(1) << i;
+                            frame.mask |= VoiceMask::bit(i);
                             frame.noteHz[i] = shared->notePitches(i);
                         }
                     }
@@ -559,7 +559,7 @@ void NativePlayer::scopeLoop() {
                     });
                     continue;
                 }
-                uint32_t ready = 0;
+                VoiceMask ready = 0;
                 auto renderToTarget = [&](Voice &voice) {
                     std::array<short, ScopeFrames * 2> samples{};
                     if (voice.history.isEmpty()) {
@@ -582,7 +582,7 @@ void NativePlayer::scopeLoop() {
                 };
                 // Advance working channels first, without seeking or clearing their history.
                 for (size_t i = 0; i < voices.size() && !cancelled(); ++i) {
-                    auto &voice = voices[i]; const auto bit = uint32_t(1) << i;
+                    auto &voice = voices[i]; const auto bit = VoiceMask::bit(i);
                     if (!(mask & bit)) { voice = {}; continue; }
                     if (!voice.track || voice.history.isEmpty()) continue;
                     const auto lag = target - voice.track->frame();
@@ -592,12 +592,12 @@ void NativePlayer::scopeLoop() {
                 // Prepare a bounded batch in parallel, preserving the dedicated
                 // master/audio threads. Finish this batch before admitting more
                 // voices, so some panels return promptly even after a long seek.
-                std::atomic<uint32_t> prepared{ready};
+                SharedVoiceMask prepared{ready};
                 std::exception_ptr preparationError;
                 std::mutex errorMutex;
                 int pending = 0;
                 for (size_t checked = 0; checked < voices.size() && !cancelled() && pending < preparationPool.maxThreadCount(); ++checked) {
-                    const auto i = checked; const auto bit = uint32_t(1) << i;
+                    const auto i = checked; const auto bit = VoiceMask::bit(i);
                     if (!(mask & bit) || (ready & bit)) continue;
                     ++pending;
                     preparationPool.start([&, i, bit] {
@@ -632,14 +632,14 @@ void NativePlayer::scopeLoop() {
                     QVector<QVector<float>> left(history.size()), right(history.size());
                     QVector<QVector<float>> notes(history.size(), QVector<float>{-1});
                     for (size_t i = 0; i < voices.size(); ++i)
-                        if (ready & (uint32_t(1) << i)) {
+                        if (ready & (VoiceMask::bit(i))) {
                             history[static_cast<int>(i)] = voices[i].history;
                             notes[int(i)] = voices[i].track->notePitches(int(i));
                             left[static_cast<int>(i)] = voices[i].left; right[static_cast<int>(i)] = voices[i].right;
                         }
                     std::lock_guard lock(scopeMutex_);
                     if (!cancelled()) scope_ = {current.generation, current.positionMs, history, ready, left, right, notes};
-                    const uint32_t available = voices.size() == 32 ? ~0u : (uint32_t(1) << voices.size()) - 1;
+                    const auto available = VoiceMask::first(int(voices.size()));
                     preparing = (ready & mask) != (mask & available);
                 }
             } catch (const std::exception &error) {

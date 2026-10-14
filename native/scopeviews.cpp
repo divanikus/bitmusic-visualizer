@@ -63,15 +63,15 @@ void ScopeWindow::updateViewEditor() {
     spectrumStyle_->setCurrentIndex(valid && cards_[id].spectrumBars ? 1 : 0);
     spectrumGrid_->setChecked(!valid || cards_[id].spectrumGrid);
     const int source = valid ? sourceFor(id) : -1;
-    const bool exact = source >= 0 && source < 32 && (state_.info.tonalMask & (1u << source));
+    const bool exact = source >= 0 && source < VoiceMask::Capacity && (state_.info.tonalMask & (VoiceMask::bit(source)));
     keyboardHint_->setVisible(valid && cards_[id].kind == ViewKind::Keyboard);
     keyboardHint_->setText(exact ? "Notes from chip oscillators. All active tonal pitches are shown." : "Estimated from audio: one pitch. Chords, noise and drums may be inaccurate.");
-    addCard_->setEnabled(state_.valid && order_.size() < 128);
+    addCard_->setEnabled(state_.valid && order_.size() < 512);
     removeCard_->setEnabled(valid);
     removeCard_->setToolTip("Remove this card without muting its source. Add card... or Reset can bring it back.");
 }
 void ScopeWindow::addCard() {
-    if (!state_.valid || order_.size() >= 128) return;
+    if (!state_.valid || order_.size() >= 512) return;
     const auto selected = channelList_->currentItem();
     const int selectedId = selected ? selected->data(Qt::UserRole).toInt() : 0;
     QDialog dialog(this); dialog.setObjectName("addCardDialog"); dialog.setWindowTitle("Add visualization card");
@@ -83,7 +83,7 @@ void ScopeWindow::addCard() {
     source->setCurrentIndex(source->findData(sourceFor(selectedId))); form->addRow("Source", source);
     auto kind = new QComboBox; kind->setObjectName("newCardView"); styleCombo(kind);
     for (auto type : {ViewKind::Waveform, ViewKind::Spectrum, ViewKind::Keyboard}) kind->addItem(viewName(type), int(type));
-    kind->setCurrentIndex((sourceFor(selectedId) < 32 && (state_.info.tonalMask & (1u << sourceFor(selectedId)))) ? 2 : 1);
+    kind->setCurrentIndex((sourceFor(selectedId) < VoiceMask::Capacity && (state_.info.tonalMask & (VoiceMask::bit(sourceFor(selectedId))))) ? 2 : 1);
     form->addRow("View", kind);
     auto note = new QLabel("Add another view of a channel or the final mix.\nCards share their source's colors.\nKeyboard shows all available chip notes, or estimates one pitch from audio.");
     note->setWordWrap(true); layout->addWidget(note);
@@ -130,7 +130,7 @@ void ScopeWindow::paintSpectrumAxes(QPainter &p, int card, const QRectF &plot, b
 }
 void ScopeWindow::paintKeyboard(QPainter &p, int card, const QRectF &plot, bool muted) {
     const int source = sourceFor(card);
-    const bool exact = source < 32 && (state_.info.tonalMask & (1u << source));
+    const bool exact = source < VoiceMask::Capacity && (state_.info.tonalMask & (VoiceMask::bit(source)));
     const auto pitches = keyboardPitches(card);
     QMap<int, float> keysDown;
     for (float hz : pitches) if (hz > 0) keysDown.insert(qRound(69+12*std::log2(hz/440.)), hz);
@@ -183,7 +183,7 @@ void ScopeWindow::paintKeyboard(QPainter &p, int card, const QRectF &plot, bool 
 QVector<float> ScopeWindow::keyboardPitches(int card) const {
     if (!channelReady(card)) return {-1};
     const int source = sourceFor(card);
-    if (source < 32 && (state_.info.tonalMask & (1u << source))) return frame_.noteHz.value(source, QVector<float>{-1});
+    if (source < VoiceMask::Capacity && (state_.info.tonalMask & (VoiceMask::bit(source)))) return frame_.noteHz.value(source, QVector<float>{-1});
     const auto& estimate = pitchStates_[source];
     if (estimate.generation != state_.generation || estimate.hz < 0) return {-1};
     return estimate.hz > 0 ? QVector<float>{estimate.hz} : QVector<float>{};
@@ -192,7 +192,7 @@ void ScopeWindow::updateKeyboardNotes() {
     for (int card : displayedChannels()) {
         const int source = sourceFor(card);
         if (viewFor(card) != ViewKind::Keyboard || !channelReady(card) ||
-            (source < 32 && (state_.info.tonalMask & (1u << source)))) continue;
+            (source < VoiceMask::Capacity && (state_.info.tonalMask & (VoiceMask::bit(source))))) continue;
         const bool mix = source == ScopeTheme::FullMix;
         const int position = mix ? output_.positionMs : frame_.positionMs;
         const quint64 sequence = mix ? output_.sequence : 0;

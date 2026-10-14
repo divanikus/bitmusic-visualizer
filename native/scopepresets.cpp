@@ -80,8 +80,8 @@ void ScopeWindow::setupPresets(QVBoxLayout *layout) {
         if (candidate.configuration.id == state_.info.configuration.id) applyPreset(candidate, file);
         else {
             const auto adapted = candidate.adapted(state_.info.configuration);
-            if (adapted.cards.size() > 128) {
-                refreshPresets(); QMessageBox::warning(this, "Too many cards", "This transfer would exceed 128 cards. Remove some duplicate cards in the original preset first."); return;
+            if (adapted.cards.size() > 512) {
+                refreshPresets(); QMessageBox::warning(this, "Too many cards", "This transfer would exceed 512 cards. Remove some duplicate cards in the original preset first."); return;
             }
             suggestedPresetName_ = QFileInfo(file).completeBaseName() + " - " + state_.info.configuration.name;
             suggestedPresetName_.replace('/', '-');
@@ -129,7 +129,7 @@ void ScopeWindow::applyPreset(const ScopePreset &preset, const QString &file) {
     numbers_->setChecked(preset.numbers); names_->setChecked(preset.names); stereo_->setChecked(preset.stereo);
     cards_.clear(); order_.clear();
     for (int i = 0; i <= ScopeTheme::FullMix; ++i) cards_.push_back({i});
-    hidden_ = QVector<bool>(33, true); spans_ = QVector<QSize>(33, QSize(1, 1)); QSet<int> used;
+    hidden_ = QVector<bool>(ScopeTheme::FullMix+1, true); spans_ = QVector<QSize>(ScopeTheme::FullMix+1, QSize(1, 1)); QSet<int> used;
     for (const auto &card : preset.cards) {
         const int source = card.source == "mix" ? ScopeTheme::FullMix : int(state_.info.configuration.sources.indexOf(card.source));
         if (source < 0) continue;

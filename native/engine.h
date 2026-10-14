@@ -1,5 +1,6 @@
 #pragma once
 #include "soundconfig.h"
+#include "voicemask.h"
 #include <QByteArray>
 #include <QStringList>
 #include <QThread>
@@ -55,7 +56,7 @@ struct TrackInfo {
     int loopStartMs = 0;
     int songs = 0, song = 0, durationMs = -1;
     bool stereoOutput = false;
-    uint32_t tonalMask = 0; // Sources with chip pitch metadata (possibly several tones).
+    VoiceMask tonalMask = 0; // Sources with chip pitch metadata (possibly several tones).
 };
 
 // A decoder instance belongs to exactly one worker. Audio and scopes never share it.
@@ -65,7 +66,7 @@ public:
     virtual const TrackInfo &info() const = 0;
     virtual bool seek(qint64 frame, const std::function<bool()> &cancelled = [] { return false; }) = 0;
     virtual void render(short *out, int frames) = 0;
-    virtual void mute(uint32_t mask) = 0;
+    virtual void mute(VoiceMask mask) = 0;
     virtual void dry() = 0;
     virtual bool hasTaps() const = 0;
     virtual bool readTap(int channel, QVector<float> &left, QVector<float> &right) const = 0;
@@ -84,7 +85,7 @@ public:
     const TrackInfo &info() const { return info_; }
     bool seek(qint64 frame, const std::function<bool()> &cancelled = [] { return false; });
     void render(short *out, int frames);
-    void mute(uint32_t mask);
+    void mute(VoiceMask mask);
     void dry();
     bool hasTaps() const { return taps_ != nullptr; }
     bool readTap(int channel, QVector<float>& left, QVector<float>& right) const;
@@ -97,7 +98,7 @@ private:
     BmNotes *notes_ = nullptr;
     TrackInfo info_;
     qint64 frame_ = 0;
-    uint32_t muteMask_ = 0;
+    VoiceMask muteMask_ = 0;
     bool dry_ = false;
     int psgNoteChannel_ = -1;
 };
@@ -108,7 +109,7 @@ struct PlayerState {
     bool valid = false, busy = false, playing = false;
     bool repeat = false;
     int positionMs = 0;
-    uint32_t muteMask = 0;
+    VoiceMask muteMask = 0;
     int soloChannel = -1; // Temporary exclusive listening; not a saved preference.
     uint32_t outputMask = 3; // Bit 0: left speaker, bit 1: right speaker.
     uint64_t starvations = 0, outputErrors = 0;
@@ -121,7 +122,7 @@ struct ScopeFrame {
     quint64 generation = 0;
     int positionMs = 0;
     QVector<QVector<float>> channels;
-    uint32_t mask = 0; // Channels ready at positionMs; preparing/hidden channels have empty rows.
+    VoiceMask mask = 0; // Channels ready at positionMs; preparing/hidden channels have empty rows.
     QVector<QVector<float>> left, right;
     QVector<QVector<float>> noteHz; // Independent list of active pitches for each source.
 };
@@ -137,13 +138,13 @@ public:
     ~NativePlayer() override;
     void load(const QString &path, int song = 0);
     void seek(int milliseconds, bool playing);
-    void setMuteMask(uint32_t mask);
+    void setMuteMask(VoiceMask mask);
     void toggleSolo(int channel);
     void setVolume(float value) { volume_.store(value); }
     void setOutputMask(uint32_t mask) { outputMask_.store(mask & 3u); }
     void setRepeat(bool enabled) { repeat_.store(enabled); }
     void setScopesEnabled(bool enabled);
-    void setScopeMask(uint32_t mask);
+    void setScopeMask(VoiceMask mask);
     void setScopeFrameRate(int fps);
     int scopeFrameRate() const { return scopeFrameRate_.load(); }
     void setOutputScopesEnabled(bool enabled);
@@ -160,7 +161,7 @@ private:
     std::mutex scopeWaitMutex_;
     std::condition_variable scopeWake_;
     PlayerState state_;
-    uint32_t beforeSoloMask_ = 0; // Guarded with state_.soloChannel by stateMutex_.
+    VoiceMask beforeSoloMask_ = 0; // Guarded with state_.soloChannel by stateMutex_.
     ScopeFrame scope_;
     std::optional<Command> pending_;
     PcmRing ring_;
@@ -176,9 +177,9 @@ private:
     std::atomic<uint64_t> scopeBlocks_{0};
     std::atomic<bool> sharedScopes_{false};
     std::atomic<qint64> playedFrame_{0}, endFrame_{-1};
-    std::atomic<uint32_t> muteMask_{0};
+    SharedVoiceMask muteMask_{0};
     std::atomic<uint32_t> outputMask_{3};
-    std::atomic<uint32_t> scopeMask_{0xffffffffu};
+    SharedVoiceMask scopeMask_{~VoiceMask{}};
     std::atomic<float> volume_{0.65f};
     std::atomic<uint64_t> starvations_{0}, outputErrors_{0};
 };

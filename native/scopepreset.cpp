@@ -1,3 +1,4 @@
+#include "voicemask.h"
 #include "scopepreset.h"
 #include <QFile>
 #include <QRegularExpression>
@@ -42,11 +43,11 @@ bool ScopePreset::load(const QString &path, QString &error) {
     valid &= !c.name.isEmpty() && c.name.size() <= 160 && !c.name.contains(QRegularExpression("[\\r\\n=;\\[\\]]"));
     QSet<QString> sources;
     for (const auto &source : c.sources) { valid &= token.match(source).hasMatch() && source != "mix" && !sources.contains(source); sources.insert(source); }
-    valid &= c.sources.size() >= 1 && c.sources.size() <= 32;
+    valid &= c.sources.size() >= 1 && c.sources.size() <= VoiceMask::Capacity;
     candidate.rows = integer("Preset/Rows", 1, 16); candidate.columns = integer("Preset/Columns", 1, 8);
     candidate.numbers = integer("Preset/Numbers", 0, 1); candidate.names = integer("Preset/Names", 0, 1);
     candidate.stereo = integer("Preset/Stereo", 0, 1);
-    const int count = integer("Preset/Cards", 0, 128);
+    const int count = integer("Preset/Cards", 0, 512);
     if (valid) for (int i = 0; i < count; ++i) {
         const auto group = QString("Card%1/").arg(i+1);
         PresetCard card; card.source = ini.value(group+"Source").toString();

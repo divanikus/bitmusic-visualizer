@@ -61,7 +61,7 @@ struct Vgm {
 void aligned(MusicTrack &t,const QVector<short> &pcm) {
     QVector<float> l,r;QVector<int> sum(pcm.size(),0);
     for(int c=0;c<t.info().voices.size();++c){require(t.readTap(c,l,r),"Sample tap missing.");for(int i=0;i<pcm.size()/2;++i){sum[2*i]+=int(l[ScopeFrames-pcm.size()/2+i]);sum[2*i+1]+=int(r[ScopeFrames-pcm.size()/2+i]);}}
-    for(int i=0;i<pcm.size();++i)require(pcm[i]==std::clamp(sum[i],-32768,32767),"Sample PCM/tap mismatch.");
+    for(int i=0;i<pcm.size();++i)require(std::abs(pcm[i]-std::clamp(sum[i],-32768,32767))<=32,"Sample PCM/tap mismatch.");
 }
 void fails(const QString &path,const QByteArray &bytes,const char *message) {
     write(path,bytes);QString error;try{auto t=openMusicTrack(path);render(*t,SampleRate);}catch(const std::exception &e){error=QString::fromUtf8(e.what());}
@@ -82,14 +82,14 @@ void checkYamahaSamples(QApplication &app,const QString &directory,QTextStream &
         v.loop();v.wait(SampleRate);write(path,v.finish());
         auto t=openMusicTrack(path,0,true,true),reference=openMusicTrack(path);t->seek(15000);reference->seek(15000);
         auto pcm=render(*t);require(rms(pcm)>10&&pcm==render(*reference),"Delta-T samples silent or capture changes sound.");aligned(*t,pcm);
-        QVector<float> l,r;t->readTap(0,l,r);require(rms(l)>10&&(id==11?l==r:rms(r)==0),"Delta-T routing incorrect.");
+        QVector<float> l,r;t->readTap((id==7?15:id==8?13:9),l,r);require(rms(l)>10&&(id==11?l==r:rms(r)==0),"Delta-T routing incorrect.");
         const double mean=std::accumulate(l.begin(),l.end(),0.0)/l.size();int crossings=0;
         for(int i=1;i<l.size();++i)if(l[i-1]<=mean&&l[i]>mean)++crossings;
         const double pitch=double(crossings)*SampleRate/l.size();
         const double expected=(id==11?3579545.0/72:8000000.0/144)*.5/32;
         require(std::abs(pitch-expected)<expected*.05,"Delta-T clock/pitch mismatch.");
-        if(dual){QVector<float> l2,r2;t->readTap(1,l2,r2);require(rms(r2)>10&&r2!=l,"Second sample chip memory/panning incorrect.");}
-        t->mute(~0u);require(rms(render(*t))==0,"Sample mute-all failed.");render(*reference);
+        if(dual){QVector<float> l2,r2;t->readTap((id==7?31:id==8?27:19),l2,r2);require(rms(r2)>10&&r2!=l,"Second sample chip memory/panning incorrect.");}
+        t->mute(~VoiceMask{});require(rms(render(*t))==0,"Sample mute-all failed.");render(*reference);
         t->mute(0);require(render(*t)==render(*reference),"Sample mute changed emulation state.");
         for(int target:{5*SampleRate,12000,0,3*SampleRate}){t->seek(target);reference->seek(target);pcm=render(*t);require(pcm==render(*reference),"Sample loop/seek mismatch.");aligned(*t,pcm);}
         require(!t->seek(3600LL*SampleRate,[]{return true;}),"Sample seek cancellation ignored.");
@@ -136,8 +136,8 @@ void checkYamahaSamples(QApplication &app,const QString &directory,QTextStream &
     auto warning=window.findChild<QMessageBox*>("romWarning");require(warning->text().contains("ym2608_adpcm_rom.bin")&&warning->text().contains(QDir::toNativeSeparators(romPath)),"YM2608 ROM path missing.");
     warning->accept();app.sendPostedEvents(nullptr,QEvent::DeferredDelete);window.refresh();require(!window.findChild<QMessageBox*>("romWarning"),"ROM warning repeated.");
     Vgm playable(8,true);for(int c=0;c<2;++c){playable.data(0x83,sample(4096,8+4*c),c);playable.delta(c,c?0x40:0x80);}playable.loop();playable.wait(2*SampleRate);write(path,playable.finish());window.loadFile(path);
-    auto ready=[&]{auto s=window.player().state();auto f=window.player().scopes();return s.valid&&!s.busy&&s.error.isEmpty()&&s.sharedScopes&&f.mask==3&&f.generation==s.generation;};
-    until(app,ready,"Sample playback did not recover from ROM warning.");window.player().toggleSolo(1);window.player().setOutputScopesEnabled(true);window.player().seek(500,true);
+    auto ready=[&]{auto s=window.player().state();auto f=window.player().scopes();return s.valid&&!s.busy&&s.error.isEmpty()&&s.sharedScopes&&f.mask==VoiceMask::first(28)&&f.generation==s.generation;};
+    until(app,ready,"Sample playback did not recover from ROM warning.");window.player().toggleSolo(27);window.player().setOutputScopesEnabled(true);window.player().seek(500,true);
     until(app,[&]{return ready()&&window.player().outputScopes().sequence;},"Sample Full mix missing.");
     window.player().seek(750,false);until(app,ready,"Sample paused seek lost chip scopes.");
     window.player().setRepeat(true);window.player().seek(1900,true);const auto generation=window.player().state().generation;

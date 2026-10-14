@@ -93,3 +93,31 @@ void requireSupportedVgm(const VgmHeader &h) {
         throw std::runtime_error(("Unsupported sound chip in VGM/VGZ: " + h.unsupported.join(", ") +
             ".\nThis player cannot play this chip configuration yet.").toStdString());
 }
+
+QVector<YamahaVoice> yamahaVoices(const VgmYamahaChip &chip) {
+    QVector<YamahaVoice> result;
+    const bool opn=chip.id==7||chip.id==8, opl=chip.id>=9;
+    const int fm=chip.id==3?8:chip.id==6?3:opn?6:chip.id==12?18:9;
+    for(int c=0;c<fm;++c) {
+        if(chip.id==8&&!chip.variant&&(c==0||c==3)) continue;
+        QString label=QString("FM %1").arg(c+1);
+        if(chip.id==3&&c==7) label+=" / Noise";
+        if(opl&&c==6) label+=" / Bass drum";
+        if(opl&&c==7) label+=" / Hi-hat + Snare";
+        if(opl&&c==8) label+=" / Tom + Cymbal";
+        if(chip.id==12) {
+            if(c%9<3) label+=QString(" / %1+%2 (4-op)").arg(c+1).arg(c+4);
+            else if(c%9<6) label+=" (2-op only)";
+        }
+        result.push_back({c,QString("fm:%1").arg(c),label});
+    }
+    if(chip.id==6||opn) for(int c=0;c<3;++c)
+        result.push_back({(opn?6:3)+c,QString("ssg:%1").arg(c),QString("PSG %1").arg(QChar('A'+c))});
+    if(opn) {
+        const char *drums[]={"Bass drum","Snare","Cymbal","Hi-hat","Tom","Rim shot"};
+        for(int c=0;c<6;++c) result.push_back({9+c,QString("adpcm-a:%1").arg(c),
+            chip.id==7?QString::fromLatin1(drums[c]):QString("ADPCM-A %1").arg(c+1)});
+    }
+    if(opn||chip.id==11) result.push_back({opn?15:9,"adpcm-b:0","ADPCM-B"});
+    return result;
+}

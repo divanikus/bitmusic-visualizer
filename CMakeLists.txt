@@ -55,7 +55,8 @@ target_sources(bitmusic_visualizer PRIVATE native/shortcuts.cpp native/shortcutc
 target_sources(bitmusic_visualizer PRIVATE native/sidtrack.cpp native/sidchecks.cpp native/romfiles.cpp)
 target_sources(bitmusic_visualizer PRIVATE native/pokeytrack.cpp native/vgm.cpp native/pokeychecks.cpp)
 target_sources(bitmusic_visualizer PRIVATE native/yamahatrack.cpp native/yamahachecks.cpp native/yamahasamplechecks.cpp)
-target_sources(bitmusic_visualizer PRIVATE native/yamahavoicechecks.cpp)
+target_sources(bitmusic_visualizer PRIVATE native/yamahavoicechecks.cpp
+  native/yamahaallvoicechecks.cpp)
 target_link_libraries(bitmusic_visualizer PRIVATE bitmusic_ymfm)
 target_link_libraries(bitmusic_visualizer PRIVATE bitmusic_sid)
 target_sources(bitmusic_visualizer PRIVATE native/soundconfig.cpp native/scopepreset.cpp native/scopepresets.cpp native/presetchecks.cpp)

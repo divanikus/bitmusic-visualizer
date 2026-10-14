@@ -52,12 +52,13 @@ The Yamaha VGM backend uses Aaron Giles's [ymfm](https://github.com/aaronsgiles/
 under BSD-3-Clause. Its complete notice is in
 [LICENSES/ymfm-BSD-3-Clause.txt](LICENSES/ymfm-BSD-3-Clause.txt).
 `cmake/Ymfm.cmake` pins the revision/archive hash; packaging includes its complete
-upstream source. The derived YM2203 capture in `native/ymfm-voices/` is also
+upstream source. The derived OPN/OPM/OPL capture in `native/ymfm-voices/` is also
 BSD-3-Clause, copyright Aaron Giles and Bit Music Visualizer contributors;
 its complete notice is in
 [LICENSES/ymfm-voices-BSD-3-Clause.txt](LICENSES/ymfm-voices-BSD-3-Clause.txt).
-The wrapper compiles the unchanged upstream OPN implementation with our derived
-class, exposing individual voices without altering its source files. These
+The wrappers compile the unchanged upstream implementations with derived
+classes and an SSG resampler specialization, exposing individual FM, PSG and
+sample voices without altering the upstream source files. These
 additions are included in the complete corresponding application-source bundle.
 `native/yamahatrack.cpp` is original MIT scheduling, resampling and mixing code.
 No libvgm source is used.

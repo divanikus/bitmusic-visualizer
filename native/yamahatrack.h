@@ -10,7 +10,7 @@ public:
     const TrackInfo &info() const override { return info_; }
     bool seek(qint64 frame, const std::function<bool()> &cancelled = [] { return false; }) override;
     void render(short *out, int frames) override;
-    void mute(uint32_t mask) override { muteMask_ = mask; }
+    void mute(VoiceMask mask) override { muteMask_ = mask; }
     void dry() override {} // Chip mix includes its complete synthesis, with no added effects.
     bool hasTaps() const override;
     bool readTap(int channel, QVector<float> &left, QVector<float> &right) const override;
@@ -21,5 +21,5 @@ private:
     std::unique_ptr<Impl> impl_;
     TrackInfo info_;
     qint64 frame_ = 0;
-    uint32_t muteMask_ = 0;
+    VoiceMask muteMask_ = 0;
 };

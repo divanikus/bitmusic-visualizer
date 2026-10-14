@@ -137,7 +137,7 @@ void checkYamahaVoices(QApplication &app,const QString &directory,QTextStream &l
     auto ready=[&]{auto s=window.player().state();auto f=window.player().scopes();return s.valid&&!s.busy&&s.error.isEmpty()&&s.sharedScopes&&f.mask==63&&f.generation==s.generation&&std::abs(s.positionMs-f.positionMs)<200;};
     until(app,ready,"YM2203 live six-card scopes missing.");window.refresh();
     auto stereo=window.scopeWindow().findChild<QCheckBox*>("scopeStereo");require(stereo&&!stereo->isEnabled(),"Mono YM2203 stereo control enabled.");
-    window.player().toggleSolo(4);require(window.player().state().muteMask==~(1u<<4),"YM2203 PSG B Solo maps to the wrong voice.");
+    window.player().toggleSolo(4);require(window.player().state().muteMask==~VoiceMask::bit(4),"YM2203 PSG B Solo maps to the wrong voice.");
     window.player().setOutputScopesEnabled(true);window.player().seek(500,true);
     until(app,[&]{return ready()&&window.player().outputScopes().sequence;},"YM2203 Full mix missing.");
     window.player().seek(750,false);until(app,ready,"YM2203 paused seek lost voices.");

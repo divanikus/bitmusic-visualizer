@@ -10,8 +10,8 @@ FetchContent_Declare(ymfm URL "${YMFM_ARCHIVE}"
   DOWNLOAD_EXTRACT_TIMESTAMP TRUE)
 FetchContent_MakeAvailable(ymfm)
 add_library(bitmusic_ymfm STATIC
-  "${PROJECT_SOURCE_DIR}/native/ymfm-voices/opn.cpp" "${ymfm_SOURCE_DIR}/src/ymfm_opm.cpp"
-  "${ymfm_SOURCE_DIR}/src/ymfm_opl.cpp" "${ymfm_SOURCE_DIR}/src/ymfm_ssg.cpp"
+  "${PROJECT_SOURCE_DIR}/native/ymfm-voices/opn.cpp" "${PROJECT_SOURCE_DIR}/native/ymfm-voices/opm.cpp"
+  "${PROJECT_SOURCE_DIR}/native/ymfm-voices/opl.cpp" "${ymfm_SOURCE_DIR}/src/ymfm_ssg.cpp"
   "${ymfm_SOURCE_DIR}/src/ymfm_adpcm.cpp" "${ymfm_SOURCE_DIR}/src/ymfm_pcm.cpp")
 target_include_directories(bitmusic_ymfm SYSTEM PUBLIC "${ymfm_SOURCE_DIR}/src")
 target_compile_features(bitmusic_ymfm PUBLIC cxx_std_17)

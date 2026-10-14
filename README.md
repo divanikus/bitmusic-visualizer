@@ -43,7 +43,7 @@ See the [changelog](CHANGELOG.md) for version history.
 | ZX Spectrum | AY (ZXAYEMUL) | AY A/B/C and beeper; mono output |
 | Commodore 64 | SID (PSID / RSID, up to three chips) | Three pre-filter voices per chip; filter and volume-register samples in Full mix |
 | Atari 400/800 / 5200 | VGM, VGZ with one POKEY | Four mono hardware voices, mute/Solo and Full mix |
-| Yamaha FM/sample systems | VGM, VGZ with YM2203, YM2151, YM2608, YM2610/2610B, YM3526, YM3812, Y8950 or YMF262 | YM2203: three FM and three PSG voices; other chips: one mix card per chip. Supported chips can be combined or doubled |
+| Yamaha FM/sample systems | VGM, VGZ with YM2203, YM2151, YM2608, YM2610/2610B, YM3526, YM3812, Y8950 or YMF262 | Individual FM, PSG and sample voices, with mute/Solo. Supported chips can be combined or doubled |
 
 VGM is a container: accepting it does **not** mean every chip is supported. PT3,
 VTX, YM, Amiga/tracker modules and MIDI are not supported yet. There are no
@@ -52,9 +52,10 @@ stopped. Cold seeks can require emulation from an earlier point. Voice traces
 are not guaranteed to be exact separately audible stems after shared effects.
 
 Unsupported declared VGM chips are reported by name instead of silently skipped.
-YM2203 has separate **FM 1–3** and **PSG A/B/C** cards with individual mute/Solo.
-The other new Yamaha cards are labeled **mix**: they contain the whole chip,
-including the SSG and sample sections where present. Mute/Solo controls that chip.
+Yamaha cards follow hardware voices: FM channels, PSG A/B/C, rhythm or ADPCM-A
+voices, and ADPCM-B where present. OPL rhythm shares FM 7–9; an OPL3 four-operator
+pair appears on its first channel, with the second silent while paired.
+Cards show signals before shared DAC/clipping; Full mix shows the audible result.
 YM2151, YM2608, YM2610/2610B and YMF262 support stereo; YM2203, Y8950 and ordinary
 OPL/OPL2 are mono. Mixing these new chips with the existing Sega/POKEY paths is
 not supported yet. This does not add MDX or other non-VGM formats.

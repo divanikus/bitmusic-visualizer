@@ -351,8 +351,11 @@ void ScopeWindow::resetLayout() {
 void ScopeWindow::resetGrid() {
     QSignalBlocker blockRows(rows_), blockColumns(columns_);
     const int count = int(state_.info.voices.size()) + (waveOptions_.output ? 1 : 0);
-    const int columns = count > 32 ? 3 : count > 5 ? 2 : 1;
-    columns_->setValue(columns); rows_->setValue(std::max(1, (count + columns - 1) / columns));
+    // Large configurations must leave room for the plot below each heading.
+    // Overflow stays available in the editor, just like a user-sized grid.
+    const int columns = count > 32 ? std::min(8,(count+7)/8) : count > 5 ? 2 : 1;
+    columns_->setValue(columns);
+    rows_->setValue(std::clamp((count + columns - 1) / columns, 1, count > 32 ? 8 : 16));
 }
 void ScopeWindow::resetChannels(bool grid) {
     if (colorDialog_) colorDialog_->reject();
@@ -372,12 +375,12 @@ QVector<int> ScopeWindow::visibleChannels() const {
     for (int channel : order_) if (gridLayout_.contains(channel)) result.push_back(channel);
     return result;
 }
-uint32_t ScopeWindow::visibleMask() const {
-    uint32_t mask = 0;
+VoiceMask ScopeWindow::visibleMask() const {
+    VoiceMask mask = 0;
     for (int card : visibleChannels()) {
         const int source = sourceFor(card);
         if (source < ScopeTheme::FullMix)
-            mask |= uint32_t(1) << source;
+            mask |= VoiceMask::bit(source);
     }
     return mask;
 }
@@ -388,7 +391,7 @@ bool ScopeWindow::channelReady(int channel) const {
     channel = sourceFor(channel);
     if (state_.busy) return false;
     if (channel == ScopeTheme::FullMix) return output_.sequence && output_.generation == state_.generation && outputMono_.size() == ScopeFrames;
-    return frame_.generation == state_.generation && (frame_.mask & (uint32_t(1) << channel)) &&
+    return frame_.generation == state_.generation && (frame_.mask & (VoiceMask::bit(channel))) &&
         channel < frame_.channels.size() && frame_.channels[channel].size() == ScopeFrames;
 }
 bool ScopeWindow::channelStereo(int channel) const {
@@ -560,7 +563,7 @@ QVector<ScopeLane> ScopeWindow::waveLanes() {
         const auto plot = panelRect(card).adjusted(12, edit_->isChecked() || names_->isChecked() || numbers_->isChecked() ? 32 : 10, -12, -10);
         if (plot.width() < 2 || plot.height() < 2) continue;
         const bool stereo = channelStereo(card), mix = source == ScopeTheme::FullMix;
-        const bool muted = !mix && (state_.muteMask & (uint32_t(1) << source));
+        const bool muted = !mix && (state_.muteMask & (VoiceMask::bit(source)));
         const auto &left = mix ? (stereo ? output_.left : outputMono_) : (stereo ? frame_.left[source] : frame_.channels[source]);
         const auto &right = mix ? (stereo ? output_.right : outputMono_) : (stereo ? frame_.right[source] : frame_.channels[source]);
         const int position = mix ? output_.positionMs : frame_.positionMs;
@@ -763,7 +766,7 @@ void ScopeWindow::paintContents(QPainter &p, bool waves) {
         p.setClipRect(card);
         const int source = sourceFor(channel);
         const bool mix = source == ScopeTheme::FullMix;
-        const bool muted = (!mix && (state_.muteMask & (uint32_t(1) << source))) || state_.outputMask == 0;
+        const bool muted = (!mix && (state_.muteMask & (VoiceMask::bit(source)))) || state_.outputMask == 0;
         const auto colors = theme_.colors(source);
         auto dimmed = [muted](QColor color) { if (muted) color.setAlpha(115); return color; };
         p.setPen(QPen(floating ? QColor("#a2e5d5") : colors.border, floating ? 2 : 1));

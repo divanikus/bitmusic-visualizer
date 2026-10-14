@@ -158,8 +158,8 @@ void checkWaveUi(QApplication &app, const QString &directory) {
         ScopeFrame frame; frame.generation = 1; frame.mask = 1; frame.channels = {tone(7000)};
         OutputFrame output; output.generation = 1; output.sequence = 2; output.left = tone(7000); output.right = QVector<float>(ScopeFrames, 0);
         scope.present(state, frame);
-        uint32_t voiceMask = 0; bool capturing = false;
-        scope.onChannelsChanged = [&](uint32_t mask) { voiceMask = mask; };
+        VoiceMask voiceMask = 0; bool capturing = false;
+        scope.onChannelsChanged = [&](VoiceMask mask) { voiceMask = mask; };
         scope.onOutputChanged = [&](bool enabled) { capturing = enabled; };
         require(mixItem(scope)->checkState() == Qt::Unchecked && !scope.outputEnabled(), "Full mix must start unchecked.");
         edit(app, scope, [&](QDialog *dialog) {
@@ -212,7 +212,7 @@ void checkWaveUi(QApplication &app, const QString &directory) {
         bool colorsOpened = false;
         QTimer::singleShot(30, &scope, [&] {
             auto dialog = scope.findChild<QDialog *>("scopeColorsDialog"); if (!dialog) return;
-            colorsOpened = dialog->findChild<QComboBox *>("colorChannel")->currentIndex() == ScopeTheme::FullMix;
+            colorsOpened = dialog->findChild<QComboBox *>("colorChannel")->currentData().toInt() == ScopeTheme::FullMix;
             dialog->findChild<QLineEdit *>("backgroundHex")->setText("#394755");
             dialog->findChild<QDialogButtonBox *>()->button(QDialogButtonBox::Save)->click();
         });

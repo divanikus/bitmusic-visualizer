@@ -239,7 +239,7 @@ PlayerWindow::PlayerWindow() {
         if (volume->value()) { savedVolume = volume->value(); volume->setValue(0); } else volume->setValue(savedVolume);
     });
     connect(all, &QPushButton::clicked, this, [this] { player_.setMuteMask(0); });
-    connect(none, &QPushButton::clicked, this, [this] { player_.setMuteMask(0xffffffffu); });
+    connect(none, &QPushButton::clicked, this, [this] { player_.setMuteMask(~VoiceMask{}); });
     connect(songs_, &QListWidget::itemActivated, this, [this](QListWidgetItem *item) { playSong(songs_->row(item)); });
     connect(timeline_, &QSlider::sliderReleased, this, [this] { player_.seek(timeline_->value(), player_.state().playing); });
     connect(timeline_, &QSlider::sliderMoved, this, [this](int value) { clock_->setText(timeText(value)); });
@@ -252,7 +252,7 @@ PlayerWindow::PlayerWindow() {
         QSignalBlocker block(showScopes_); showScopes_->setChecked(visible);
         showScopes_->setToolTip(visible ? QString::fromUtf8("Hide scopes") : QString::fromUtf8("Show scopes"));
     };
-    scopes_.onChannelsChanged = [this](uint32_t mask) { player_.setScopeMask(mask); };
+    scopes_.onChannelsChanged = [this](VoiceMask mask) { player_.setScopeMask(mask); };
     scopes_.onOutputChanged = [this](bool enabled) { player_.setOutputScopesEnabled(enabled && scopes_.renderingVisible()); };
     scopes_.onRefreshRequested = [this] { refreshScopes(); };
     scopes_.onFrameRateChanged = [this](int fps) { player_.setScopeFrameRate(fps); };
@@ -308,7 +308,7 @@ void PlayerWindow::rebuildChannels(const PlayerState &state) {
         if (i < 9) button->setToolTip(button->toolTip() + '\n' + channelShortcutHint(i));
         button->onSolo = [this, i] { player_.toggleSolo(i); refresh(); };
         connect(button, &QToolButton::toggled, this, [this, i](bool audible) {
-            auto mask = player_.state().muteMask; if (audible) mask &= ~(uint32_t(1) << i); else mask |= uint32_t(1) << i; player_.setMuteMask(mask);
+            auto mask = player_.state().muteMask; if (audible) mask &= ~(VoiceMask::bit(i)); else mask |= VoiceMask::bit(i); player_.setMuteMask(mask);
         });
     }
 }
@@ -370,7 +370,7 @@ void PlayerWindow::refreshControls() {
     }
     for (int i = 0; i < channels_->count(); ++i) {
         auto button = static_cast<ChannelButton *>(channels_->itemAt(i)->widget()); QSignalBlocker block(button);
-        button->setChecked(!(s.muteMask & (uint32_t(1) << i))); button->setEnabled(ready);
+        button->setChecked(!(s.muteMask & (VoiceMask::bit(i)))); button->setEnabled(ready);
         button->setSolo(s.soloChannel == i);
         button->setAccessibleName(button->text() + (s.soloChannel == i ? "; Solo" : QString()));
     }

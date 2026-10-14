@@ -209,8 +209,8 @@ void checkViews(QApplication& app, const QString& directory, QTextStream& log) {
     scope.findChild<QSpinBox*>("gridColumns")->setValue(2); scope.findChild<QSpinBox*>("gridRows")->setValue(4);
     auto list = scope.findChild<QListWidget*>("scopeChannelList");
     list->setCurrentRow(0); add(scope, 0, 2); add(scope, 0, 1); pump(app, 250);
-    const int keyboard = 33, spectrum = 35;
-    require(scope.visibleChannels().contains(keyboard) && scope.visibleChannels().contains(34), "Added cards not visible.");
+    const int keyboard = ScopeTheme::FullMix+1, spectrum = ScopeTheme::FullMix+3;
+    require(scope.visibleChannels().contains(keyboard) && scope.visibleChannels().contains(keyboard+1), "Added cards not visible.");
     require(player.player().scopes().mask == 31, "Duplicate views changed voice capture mask.");
     const auto note = player.player().scopes().noteHz;
     require(note.size() == 5 && note[0].value(0) > 400 && note[1].isEmpty(), "Live note snapshot is missing.");
@@ -223,7 +223,7 @@ void checkViews(QApplication& app, const QString& directory, QTextStream& log) {
     auto before = image(); require(!before.isNull(), "View framebuffer empty.");
     before.save(QDir(directory).filePath("native-views.png"));
     player.player().setMuteMask(1); pump(app, 160); require(image() != before, "Mute did not dim keyboard/wave cards.");
-    scope.findChild<QPushButton*>("editLayout")->click(); add(scope, 32, 1); pump(app, 100);
+    scope.findChild<QPushButton*>("editLayout")->click(); add(scope, ScopeTheme::FullMix, 1); pump(app, 100);
     require(scope.outputEnabled() && scope.visibleChannels().contains(spectrum), "Added mix did not enable capture.");
     scope.findChild<QPushButton*>("applyLayout")->click();
     player.player().seek(1800, false);

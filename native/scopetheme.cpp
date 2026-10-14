@@ -28,8 +28,9 @@ bool ScopeTheme::load(const QString &path, QString &error) {
     if (file.size() > 65536) { error = "Theme file is too large (maximum 64 KiB)."; return false; }
     file.close();
     QSettings ini(path, QSettings::IniFormat); ini.setFallbacksEnabled(false);
-    if (ini.value("Theme/Version").toString() != "1" || ini.value("Theme/Slots").toString() != QString::number(SlotCount)) {
-        error = "Expected theme Version=1 and Slots=32."; return false;
+    const int storedSlots = ini.value("Theme/Slots").toInt();
+    if (ini.value("Theme/Version").toString() != "1" || (storedSlots != 32 && storedSlots != SlotCount)) {
+        error = "Expected theme Version=1 and Slots=32 or 256."; return false;
     }
     const QRegularExpression rgb("^#[0-9A-Fa-f]{6}$");
     auto read = [&](const QString &key, QColor &color) {
@@ -39,9 +40,10 @@ bool ScopeTheme::load(const QString &path, QString &error) {
     };
     ScopeTheme candidate;
     if (!read("Theme/WindowBackground", candidate.windowBackground)) return false;
-    for (int slot = 0; slot < SlotCount; ++slot)
+    for (int slot = 0; slot < storedSlots; ++slot)
         for (size_t field = 0; field < keys.size(); ++field)
             if (!read(tileGroup(slot) + '/' + keys[field], candidate.tiles[slot].*members[field])) return false;
+    for (int slot=storedSlots;slot<SlotCount;++slot) candidate.tiles[slot]=candidate.tiles[slot%storedSlots];
     // Optional extension: existing 32-slot themes still load, preserving their
     // former output color until the user gives Full mix its own palette.
     candidate.fullMix = candidate.tiles[0];
@@ -54,7 +56,7 @@ bool ScopeTheme::load(const QString &path, QString &error) {
 
 bool ScopeTheme::save(const QString &path, QString &error) const {
     error.clear();
-    QByteArray data("; Bit Music Visualizer scope theme. Tile numbers follow the original channel order.\n[Theme]\nVersion=1\nSlots=32\nWindowBackground=");
+    QByteArray data("; Bit Music Visualizer scope theme. Tile numbers follow the original channel order.\n[Theme]\nVersion=1\nSlots=256\nWindowBackground=");
     data += windowBackground.name().toUpper().toUtf8() + '\n';
     for (int slot = 0; slot < SlotCount; ++slot) {
         data += "\n[" + tileGroup(slot).toUtf8() + "]\n";

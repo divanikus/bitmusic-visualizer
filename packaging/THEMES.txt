@@ -2,7 +2,7 @@ Scope color themes
 ==================
 Place .ini files here, then open the Theme dropdown in the scope editor.
 Selecting an entry immediately applies it. Default restores the built-in colors.
-Save theme... asks only for a name, then automatically writes all 32 tile palettes,
+Save theme... asks only for a name, then automatically writes all 256 tile palettes,
 the Full mix palette and window background to themes/<name>.ini. Existing names show Replace;
 Cancel keeps the previous file. Names may contain spaces and Unicode characters.
 Empty names, path separators, reserved system names and Default are not accepted.
@@ -28,17 +28,19 @@ the user's preferences; no data is written inside the app bundle or AppImage.
 
 Themes survive music file changes. Tile01 belongs to the first channel in a newly
 opened file, Tile02 to the second, etc. Moving/hiding tiles keeps their colors.
-Apply to all copies all five colors into all 32 entries, including unused ones,
+Apply to all copies all five colors into all 256 entries, including unused ones,
 and Full mix. Full mix has its own palette regardless of its position in the grid.
 Grid Reset keeps the theme. The background pipette remains in the upper toolbar.
 User themes only control scope colors; player controls keep their dark palette.
 
-Files are UTF-8 INI with opaque #RRGGBB colors. Theme and Tile01 through Tile32
-must all be present with their required fields. Use Save theme... as a template.
+Files are UTF-8 INI with opaque #RRGGBB colors. Theme and Tile01 through Tile256
+must all be present with their required fields. Existing Slots=32 files are also
+accepted: their first 32 palettes stay unchanged and repeat for higher channels.
+Use Save theme... as a template.
 
 [Theme]
 Version=1
-Slots=32
+Slots=256
 WindowBackground=#171E24
 
 [Tile01]
@@ -48,7 +50,7 @@ Border=#314047
 Background=#1B252B
 Axis=#293E48
 
-...repeat the five keys in [Tile02] through [Tile32].
+...repeat the five keys in [Tile02] through [Tile256].
 
 [FullMix]
 Waveform=#75E2CB
@@ -59,7 +61,7 @@ Axis=#293E48
 
 FullMix is optional for compatibility with older themes: if absent, its colors
 come from Tile01. If present, all five keys must be valid. Saving always writes
-this group. Version=1 and Slots=32 still describe the hardware-voice palettes.
+this group. Version=1 and Slots=256 describe the current hardware-voice palettes.
 
 Invalid/missing fields on manual selection leave the current theme unchanged and
 show an error. Startup silently falls back to Default instead of opening an error dialog.

@@ -864,7 +864,7 @@ int runChecks(QApplication &app, const QStringList &arguments) {
             require(scope.channels.size() == s.info.voices.size(), "Scope channel mapping mismatch.");
             require(std::any_of(scope.channels[0].begin(), scope.channels[0].end(), [](float v) { return std::abs(v) > 100; }), "Active scope is silent.");
             window.findChild<QToolButton *>("voice0")->click();
-            require(window.player().state().muteMask & 1, "UI mute did not apply.");
+            require(bool(window.player().state().muteMask & 1), "UI mute did not apply.");
             window.findChild<QToolButton *>("voice0")->click();
             window.findChild<QPushButton *>("primary")->click();
             until(app, [&] { return !window.player().state().busy; }, "Pause stuck.");

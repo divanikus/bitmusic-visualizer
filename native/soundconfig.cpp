@@ -37,10 +37,8 @@ SoundConfiguration soundConfiguration(const QByteArray &data, const QStringList 
         c.family = "yamaha-vgm";
         for (const auto &chip : chips) {
             names << chip.name;
-            if (chip.id == 6) {
-                const auto prefix = QString("ym2203.%1.").arg(chip.instance);
-                add(prefix+"fm",3); add(prefix+"ssg",3);
-            } else c.sources << chip.name.toLower() + ".mix:" + QString::number(chip.instance);
+            for(const auto &voice:yamahaVoices(chip))
+                c.sources << chip.name.toLower()+QString(".%1.").arg(chip.instance)+voice.key;
             hardware += QString("%1:%2:%3;").arg(chip.id).arg(chip.instance).arg(chip.pan);
             if (chip.variant) hardware += "variant;";
         }

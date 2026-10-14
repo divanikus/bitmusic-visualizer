@@ -65,8 +65,8 @@ void checkLayoutSpans(QApplication &app, const QString &directory, QTextStream &
     rows->setValue(3); columns->setValue(3);
     auto list = scope.findChild<QListWidget *>("scopeChannelList"); list->item(8)->setCheckState(Qt::Checked);
     scope.present(state, frame, output); pump(app);
-    uint32_t mask = 255; int updates = 0; bool capture = scope.outputEnabled();
-    scope.onChannelsChanged = [&](uint32_t value) { mask = value; ++updates; };
+    VoiceMask mask = 255; int updates = 0; bool capture = scope.outputEnabled();
+    scope.onChannelsChanged = [&](VoiceMask value) { mask = value; ++updates; };
     scope.onOutputChanged = [&](bool value) { capture = value; };
     auto pitch = [&] { return QPointF(scope.cardRect(1).left()-scope.cardRect(0).left(), scope.cardRect(3).top()-scope.cardRect(0).top()); };
     auto start = scope.panelRect(0).bottomRight()-QPointF(6,6), end = start+pitch();
@@ -106,19 +106,19 @@ void checkLayoutSpans(QApplication &app, const QString &directory, QTextStream &
     require(scope.panelRect(0) == scope.cardRect(0) && mask == 255 && capture, "Vertical shrink did not restore overflow capture.");
     // Full mix has the same resize/reorder semantics without a hardware bit.
     require(list->model()->moveRows({}, 8, 1, {}, 0), "Cannot move Full mix first.");
-    start = QPointF(scope.panelRect(32).right()-3, scope.panelRect(32).center().y()); end = start+QPointF(pitch().x(), 0);
+    start = QPointF(scope.panelRect(ScopeTheme::FullMix).right()-3, scope.panelRect(ScopeTheme::FullMix).center().y()); end = start+QPointF(pitch().x(), 0);
     mouse(scope, QEvent::MouseButtonPress, start); mouse(scope, QEvent::MouseMove, end); mouse(scope, QEvent::MouseButtonRelease, end); pump(app);
-    require(scope.panelRect(32) == scope.cardRect(0).united(scope.cardRect(1)) && mask == 127 && capture, "Full mix span aliases a voice or has a special size.");
-    start = scope.panelRect(32).topLeft()+QPointF(15,15); end = scope.cardRect(2).center();
+    require(scope.panelRect(ScopeTheme::FullMix) == scope.cardRect(0).united(scope.cardRect(1)) && mask == 127 && capture, "Full mix span aliases a voice or has a special size.");
+    start = scope.panelRect(ScopeTheme::FullMix).topLeft()+QPointF(15,15); end = scope.cardRect(2).center();
     mouse(scope, QEvent::MouseButtonPress, start); mouse(scope, QEvent::MouseMove, end); mouse(scope, QEvent::MouseButtonRelease, end); pump(app);
-    require(scope.panelRect(32) == scope.cardRect(1).united(scope.cardRect(2)) && list->item(1)->data(Qt::UserRole).toInt() == 32,
+    require(scope.panelRect(ScopeTheme::FullMix) == scope.cardRect(1).united(scope.cardRect(2)) && list->item(1)->data(Qt::UserRole).toInt() == ScopeTheme::FullMix,
             "Dragging a wide card lost its span/order.");
     // A drop onto the second cell of the wide card targets that card, not a
     // channel at the same numeric index as the cell.
     start = scope.panelRect(0).topLeft()+QPointF(15,15);
     end = QPointF((scope.cardRect(1).right()+scope.cardRect(2).left())*.5, scope.cardRect(1).center().y());
     mouse(scope, QEvent::MouseButtonPress, start); mouse(scope, QEvent::MouseMove, end); mouse(scope, QEvent::MouseButtonRelease, end); pump(app);
-    require(list->item(0)->data(Qt::UserRole).toInt() == 32, "Drop hit testing ignored the internal cell gap of a wide card.");
+    require(list->item(0)->data(Qt::UserRole).toInt() == ScopeTheme::FullMix, "Drop hit testing ignored the internal cell gap of a wide card.");
     scope.present(state, frame, output); scope.findChild<QCheckBox *>("scopeStereo")->setChecked(true);
     scope.grab().save(QDir(directory).filePath("native-span-editor.png"));
     scope.findChild<QPushButton *>("applyLayout")->click(); pump(app); scope.present(state, frame, output); pump(app);
@@ -128,10 +128,10 @@ void checkLayoutSpans(QApplication &app, const QString &directory, QTextStream &
     scope.present(state, frame, output); pump(app);
     require(first != picture(), "Spanning cards stopped updating their waveform.");
     // Subsong changes retain spans; resizing the window does not mutate cells.
-    ++state.generation; scope.present(state, {}); require(scope.panelRect(32) == scope.cardRect(0).united(scope.cardRect(1)), "Subsong reset a card size.");
-    scope.resize(640, 500); pump(app); require(scope.panelRect(32) == scope.cardRect(0).united(scope.cardRect(1)), "Window resize changed the cell span.");
+    ++state.generation; scope.present(state, {}); require(scope.panelRect(ScopeTheme::FullMix) == scope.cardRect(0).united(scope.cardRect(1)), "Subsong reset a card size.");
+    scope.resize(640, 500); pump(app); require(scope.panelRect(ScopeTheme::FullMix) == scope.cardRect(0).united(scope.cardRect(1)), "Window resize changed the cell span.");
     scope.findChild<QPushButton *>("editLayout")->click(); columns->setValue(1);
-    require(scope.panelRect(32) == scope.cardRect(0), "Grid shrink did not clamp a wide card.");
+    require(scope.panelRect(ScopeTheme::FullMix) == scope.cardRect(0), "Grid shrink did not clamp a wide card.");
     scope.findChild<QCheckBox *>("keepGrid")->setChecked(true); scope.beginFile(); scope.present(state, {});
     require(columns->value() == 1 && rows->value() == 3 && scope.panelRect(0) == scope.cardRect(0), "New file retained card order/size or lost Keep grid.");
     scope.findChild<QPushButton *>("resetLayout")->click();

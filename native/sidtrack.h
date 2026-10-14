@@ -9,7 +9,7 @@ public:
     const TrackInfo &info() const override { return info_; }
     bool seek(qint64 target, const std::function<bool()> &cancelled = [] { return false; }) override;
     void render(short *out, int frames) override;
-    void mute(uint32_t mask) override;
+    void mute(VoiceMask mask) override;
     void dry() override {} // Captured voices are already before the shared filter.
     bool hasTaps() const override;
     bool readTap(int channel, QVector<float> &left, QVector<float> &right) const override;

@@ -96,7 +96,7 @@ void checkPresets(QApplication &app, const QString &directory, QTextStream &log)
     log << "Presets: stable hardware identities, NSF/NSFE and VGM/VGZ matching, expansion transfer, INI roundtrip and validation PASS\n"; log.flush();
 
     ScopeWindow scope; scope.resize(1080, 720); scope.show(); PlayerState state; state.valid = true; state.info = nes;
-    int masks = 0; scope.onChannelsChanged = [&](uint32_t) { ++masks; }; scope.present(state, {});
+    int masks = 0; scope.onChannelsChanged = [&](VoiceMask) { ++masks; }; scope.present(state, {});
     scope.findChild<QPushButton *>("editLayout")->click(); pump(app);
     auto combo = scope.findChild<QComboBox *>("scopePreset");
     auto star = scope.findChild<QPushButton *>("presetDefault");
@@ -109,7 +109,7 @@ void checkPresets(QApplication &app, const QString &directory, QTextStream &log)
     require(masks == 1 && list->count() == 5 && rows->value() == 3 && columns->value() == 3 &&
         !scope.findChild<QCheckBox *>("channelNumbers")->isChecked() && scope.findChild<QCheckBox *>("scopeStereo")->isChecked(),
         "Preset apply did not restore grid/labels/stereo/cards atomically.");
-    require(scope.visibleChannels() == QVector<int>({2,0,32}) && list->item(0)->data(Qt::UserRole).toInt() == 2,
+    require(scope.visibleChannels() == QVector<int>({2,0,ScopeTheme::FullMix}) && list->item(0)->data(Qt::UserRole).toInt() == 2,
         "Preset lost order, hidden duplicate or Full mix placement.");
     list->setCurrentRow(1);
     require(view->currentIndex() == 1 && scope.findChild<QComboBox *>("spectrumStyle")->currentIndex() == 1 &&

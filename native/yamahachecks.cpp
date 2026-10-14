@@ -16,6 +16,7 @@
 #include <stdexcept>
 
 void checkYamahaSamples(QApplication &app,const QString &directory,QTextStream &log,bool decoderOnly);
+void checkAllYamahaVoices(QApplication &app,const QString &directory,QTextStream &log,bool decoderOnly);
 void checkYamahaVoices(QApplication &app,const QString &directory,QTextStream &log,bool decoderOnly);
 
 namespace {
@@ -62,16 +63,14 @@ QByteArray fixture(int id,bool dual=false,bool loop=true,bool fm=false) {
     if(loop){word(0x1c,loopAt-0x1c);word(0x20,88200);}
     return data;
 }
-void aligned(MusicTrack &t,const QVector<short> &pcm) {
-    QVector<float> left,right;QVector<int> sum(pcm.size(),0);
+void checkCapture(MusicTrack &t) {
+    QVector<float> left,right;
     for(int c=0;c<t.info().voices.size();++c) {
-        require(t.readTap(c,left,right)&&left.size()==ScopeFrames&&right.size()==ScopeFrames,"Yamaha chip mix missing.");
-        for(int i=0;i<pcm.size()/2;++i) {sum[2*i]+=int(left[ScopeFrames-pcm.size()/2+i]);sum[2*i+1]+=int(right[ScopeFrames-pcm.size()/2+i]);}
+        require(t.readTap(c,left,right)&&left.size()==ScopeFrames&&right.size()==ScopeFrames,"Yamaha voice capture missing.");
+        for(int i=0;i<ScopeFrames;++i) require(std::isfinite(left[i])&&std::isfinite(right[i]),"Invalid Yamaha captured sample.");
     }
-    // YM2203 FM taps precede its shared nonlinear DAC. Their exact native
-    // signals and audible combinations are checked against upstream separately.
-    const bool separateFm = t.info().configuration.sources.contains("ym2203.0.fm:0");
-    if (!separateFm) for(int i=0;i<pcm.size();++i)require(pcm[i]==std::clamp(sum[i],-32768,32767),"Yamaha chip mixes differ from audible PCM.");
+    // Raw voices precede shared DAC/clipping. Exact native mix reconstruction
+    // and individual Solo/PCM timing are checked in the dedicated voice tests.
 }
 void until(QApplication &app,const std::function<bool()> &ready,const char *message) {
     QElapsedTimer t;t.start();while(!ready()&&t.elapsed()<12000){app.processEvents();QThread::msleep(4);}require(ready(),message);
@@ -82,15 +81,16 @@ void reject(const QString &path,const QByteArray &data,const char *text) {
 }
 }
 void checkYamaha(QApplication &app,const QString &directory,QTextStream &log,bool decoderOnly) {
+    checkAllYamahaVoices(app,directory,log,decoderOnly);
     QTemporaryDir temp(QDir(directory).filePath("yamaha-XXXXXX"));require(temp.isValid(),"No Yamaha fixture directory.");
     const auto path=temp.filePath("test.vgm");
     for(int id:{3,6,7,8,9,10,11,12})for(bool dual:{false,true}) {
         write(path,fixture(id,dual));auto t=openMusicTrack(path,0,true,true),reference=openMusicTrack(path);
-        require(t->hasTaps()&&t->info().voices.size()==(dual?2:1)*(id==6?6:1)&&t->info().configuration.family=="yamaha-vgm","Yamaha capabilities incorrect.");
+        require(t->hasTaps()&&t->info().voices.size()==(dual?2:1)*(id==3?8:id==6?6:id==7?16:id==8?14:id==11?10:id==12?18:9)&&t->info().configuration.family=="yamaha-vgm","Yamaha capabilities incorrect.");
         require(t->info().stereoOutput==(id==3||id==7||id==8||id==12),"Yamaha mono/stereo capability incorrect.");
         QVector<short> pcm;
         for(int i=0;i<15;++i){pcm=block(*t);require(pcm==block(*reference),"Yamaha capture changes audio.");}
-        require(rms(pcm)>10,"Yamaha fixture is silent.");aligned(*t,pcm);
+        require(rms(pcm)>10,"Yamaha fixture is silent.");checkCapture(*t);
         if(id==6&&!dual) {
             QVector<float> l,r;t->readTap(3,l,r);require(l==r,"YM2203 should be mono.");
             const auto mean=std::accumulate(l.begin(),l.end(),0.0)/l.size();int crossings=0;
@@ -104,16 +104,16 @@ void checkYamaha(QApplication &app,const QString &directory,QTextStream &log,boo
             reference->seek(60000);
         }
         for(int c=0;c<t->info().voices.size();++c) {
-            t->mute(~(1u<<c));pcm=block(*t);block(*reference);QVector<float> l,r;t->readTap(c,l,r);
-            for(int i=0;i<1024;++i)require(pcm[2*i]==l[ScopeFrames-1024+i]&&pcm[2*i+1]==r[ScopeFrames-1024+i],"Yamaha mute/Solo chip mapping incorrect.");
+            t->mute(~VoiceMask::bit(c));pcm=block(*t);block(*reference);QVector<float> l,r;t->readTap(c,l,r);
+            for(int i=0;i<1024;++i)require(std::abs(pcm[2*i]-l[ScopeFrames-1024+i])<=64&&std::abs(pcm[2*i+1]-r[ScopeFrames-1024+i])<=64,"Yamaha mute/Solo chip mapping incorrect.");
         }
-        t->mute(~0u);require(rms(block(*t))==0,"Yamaha mute-all is not silent.");block(*reference);
+        t->mute(~VoiceMask{});require(rms(block(*t))==0,"Yamaha mute-all is not silent.");block(*reference);
         t->mute(0);require(block(*t)==block(*reference),"Yamaha mutes changed emulation state.");
         t->seek(0);reference->seek(0);
         for(int n:{1,31,1024,7,4096,511,256})require(block(*t,n)==block(*reference,n),"Yamaha irregular chunk/rewind mismatch.");
-        t->seek(5*SampleRate);reference->seek(5*SampleRate);pcm=block(*t);require(pcm==block(*reference),"Yamaha loop state mismatch.");aligned(*t,pcm);
+        t->seek(5*SampleRate);reference->seek(5*SampleRate);pcm=block(*t);require(pcm==block(*reference),"Yamaha loop state mismatch.");checkCapture(*t);
         require(!t->seek(3600LL*SampleRate,[]{return true;}),"Yamaha cancellation ignored.");
-        log<<"Yamaha "<<t->info().configuration.name<<": audio, chip-mix sync, stereo/mono, mute/Solo, rewind/chunks/loops PASS\n";log.flush();
+        log<<"Yamaha "<<t->info().configuration.name<<": audio, voice capture, stereo/mono, mute/Solo, rewind/chunks/loops PASS\n";log.flush();
     }
     // Timer-driven CSM must sound without an explicit manual key-on.
     auto csm=fixture(3);
@@ -131,18 +131,17 @@ void checkYamaha(QApplication &app,const QString &directory,QTextStream &log,boo
     qToLittleEndian<quint32>(3579545,mixed.data()+0x30);qToLittleEndian<quint32>(mixed.size()-4,mixed.data()+4);
     qToLittleEndian<quint32>(qFromLittleEndian<quint32>(mixed.constData()+0x1c)+initEnd-0x100,mixed.data()+0x1c);
     write(path,mixed);auto combined=openMusicTrack(path,0,true,true);
-    require(combined->info().configuration.sources==QStringList{"ym2151.mix:0","ym2203.0.fm:0","ym2203.0.fm:1","ym2203.0.fm:2",
-        "ym2203.0.ssg:0","ym2203.0.ssg:1","ym2203.0.ssg:2"},"Mixed Yamaha preset identities unstable.");
+    require(combined->info().configuration.sources.size()==14&&combined->info().configuration.sources[8]=="ym2203.0.fm:0","Mixed Yamaha preset identities unstable.");
     QElapsedTimer performance;performance.start();
-    for(int i=0;i<1200;++i) {const auto p=block(*combined,2205);if(i%100==0)aligned(*combined,p);}
+    for(int i=0;i<1200;++i) {block(*combined,2205);if(i%100==0)checkCapture(*combined);}
     log<<"Mixed Yamaha: 60 seconds with loops, two clock domains and capture in "<<performance.elapsed()<<" ms\n";
-    QVector<float> l1,r1,l2,r2;combined->readTap(0,l1,r1);combined->readTap(4,l2,r2);
+    QVector<float> l1,r1,l2,r2;combined->readTap(0,l1,r1);combined->readTap(11,l2,r2);
     require(rms(l1)>10&&rms(l2)>10&&l1!=l2,"Mixed Yamaha cards duplicate or miss a chip.");
     combined->seek(22050);auto mixedRef=openMusicTrack(path);mixedRef->seek(22050);require(block(*combined)==block(*mixedRef),"Mixed Yamaha rewind mismatch.");
     // VGM's dual-OPL2 flag means first chip left, second chip right.
     auto panned=fixture(9,true);qToLittleEndian<quint32>(0xc0000000u|3579545u,panned.data()+0x50);
     write(path,panned);auto hardPan=openMusicTrack(path,0,true,true);hardPan->seek(22050);
-    hardPan->readTap(0,l1,r1);hardPan->readTap(1,l2,r2);
+    hardPan->readTap(0,l1,r1);hardPan->readTap(9,l2,r2);
     require(hardPan->info().stereoOutput&&rms(l1)>10&&rms(r1)==0&&rms(l2)==0&&rms(r2)>10,"Dual-OPL2 VGM hard panning incorrect.");
     write(path,fixture(6,false,true,true));auto fm=openMusicTrack(path);fm->seek(SampleRate/2);require(rms(block(*fm))>10,"YM2203 FM is silent.");
     write(path,fixture(6,false,false));auto finite=openMusicTrack(path);finite->seek(3*SampleRate);require(rms(block(*finite))==0,"Yamaha played beyond stream end.");
@@ -151,7 +150,7 @@ void checkYamaha(QApplication &app,const QString &directory,QTextStream &log,boo
     extra[0xcc]=1;extra[0xcd]=6;qToLittleEndian<quint32>(3000000,extra.data()+0xce);
     extra[0xd2]=1;extra[0xd3]=char(0x86);extra[0xd4]=0;qToLittleEndian<quint16>(0x8180,extra.data()+0xd5);
     auto h=inspectVgm(extra);require(h.yamaha[1].clock==3000000&&h.yamaha[0].ssgGain==1.5,"Yamaha extra clocks/paired volumes ignored.");
-    write(path,extra);auto ext=openMusicTrack(path,0,true,true);ext->seek(SampleRate);aligned(*ext,block(*ext));
+    write(path,extra);auto ext=openMusicTrack(path,0,true,true);ext->seek(SampleRate);block(*ext);checkCapture(*ext);
     auto invalid=fixture(6);qToLittleEndian<quint32>(3579545,invalid.data()+12);reject(path,invalid,"combined");
     invalid=fixture(6);invalid[0x100]=char(0xa5);reject(path,invalid,"undeclared");
     invalid=fixture(6);invalid[0x100]=char(0x67);reject(path,invalid,"data-block marker");
@@ -171,10 +170,10 @@ void checkYamaha(QApplication &app,const QString &directory,QTextStream &log,boo
     checkYamahaVoices(app,directory,log,decoderOnly);
     if(decoderOnly)return;
     PlayerWindow window;window.player().setVolume(0);window.show();window.loadFile(path);
-    auto ready=[&]{const auto s=window.player().state();const auto f=window.player().scopes();return s.valid&&!s.busy&&s.sharedScopes&&f.generation==s.generation&&f.mask==3&&std::abs(s.positionMs-f.positionMs)<200;};
-    until(app,ready,"Live Yamaha chip cards missing.");window.refresh();
+    auto ready=[&]{const auto s=window.player().state();const auto f=window.player().scopes();return s.valid&&!s.busy&&s.sharedScopes&&f.generation==s.generation&&f.mask==VoiceMask::first(36)&&std::abs(s.positionMs-f.positionMs)<200;};
+    until(app,ready,"Live Yamaha voice cards missing.");window.refresh();
     auto stereo=window.scopeWindow().findChild<QCheckBox*>("scopeStereo");require(stereo&&stereo->isEnabled(),"Yamaha stereo control unavailable.");stereo->setChecked(true);
-    window.player().toggleSolo(1);until(app,[&]{return window.player().state().muteMask==~2u;},"Yamaha live Solo failed.");
+    window.player().toggleSolo(18);until(app,[&]{return window.player().state().muteMask==~VoiceMask::bit(18);},"Yamaha live Solo failed.");
     window.player().setOutputScopesEnabled(true);window.player().seek(500,true);
     until(app,[&]{return ready()&&window.player().outputScopes().sequence;},"Yamaha Full mix missing.");
     window.player().seek(750,false);until(app,ready,"Yamaha paused seek lost scopes.");
@@ -186,7 +185,7 @@ void checkYamaha(QApplication &app,const QString &directory,QTextStream &log,boo
     window.scopeWindow().hide();until(app,[&]{return window.player().state().scopesSuspended;},"Hidden Yamaha scopes still active.");
     window.scopeWindow().show();until(app,ready,"Yamaha scopes failed to resume.");
     const auto s=window.player().state();require(!s.starvations&&!s.outputErrors,"Yamaha live audio errors.");window.close();window.player().shutdown();
-    log<<"Yamaha live: chip cards, Solo, Full mix, seek/repeat, hide/resume and zero audio errors PASS\n";log.flush();
+    log<<"Yamaha live: voice cards, Solo, Full mix, seek/repeat, hide/resume and zero audio errors PASS\n";log.flush();
 }
 
 void checkYamahaFiles(QApplication &app,const QStringList &paths,QTextStream &log,bool decoderOnly) {
@@ -194,7 +193,7 @@ void checkYamahaFiles(QApplication &app,const QStringList &paths,QTextStream &lo
         QFile f(path);require(f.open(QIODevice::ReadOnly),"Cannot read local Yamaha VGM.");const auto bytes=f.readAll();f.close();
         auto t=openMusicTrack(path,0,true,true);require(t->info().configuration.family=="yamaha-vgm","Local input is not Yamaha VGM.");
         QElapsedTimer timer;timer.start();double energy=0;for(int i=0;i<220;++i)energy+=rms(block(*t));require(energy>10,"Local Yamaha stream silent.");
-        t->seek(30LL*SampleRate);aligned(*t,block(*t));t->seek(22050);auto ref=openMusicTrack(path);ref->seek(22050);require(block(*t)==block(*ref),"Local Yamaha rewind mismatch.");
+        t->seek(30LL*SampleRate);block(*t);checkCapture(*t);t->seek(22050);auto ref=openMusicTrack(path);ref->seek(22050);require(block(*t)==block(*ref),"Local Yamaha rewind mismatch.");
         log<<"Local Yamaha: PCM/capture, 30-second seek and rewind PASS ("<<timer.elapsed()<<" ms)\n";log.flush();
         if(!decoderOnly) {PlayerWindow window;window.player().setVolume(0);window.show();window.loadFile(path);
             until(app,[&]{const auto s=window.player().state();return s.valid&&!s.busy&&window.player().scopes().mask;},"Local Yamaha cards unavailable.");

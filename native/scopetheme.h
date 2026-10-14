@@ -1,5 +1,6 @@
 #pragma once
 #include <QColor>
+#include "voicemask.h"
 #include <QString>
 #include <array>
 
@@ -9,7 +10,7 @@ struct ScopeColors {
 };
 
 struct ScopeTheme {
-    static constexpr int SlotCount = 32;
+    static constexpr int SlotCount = VoiceMask::Capacity;
     static constexpr int FullMix = SlotCount; // Display-only ID; never a voice-mask bit.
     std::array<ScopeColors, SlotCount> tiles;
     ScopeColors fullMix = ScopeColors::defaults(0);

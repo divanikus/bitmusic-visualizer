@@ -8,7 +8,7 @@ public:
     const TrackInfo &info() const override { return info_; }
     bool seek(qint64 frame, const std::function<bool()> &cancelled = [] { return false; }) override;
     void render(short *out, int frames) override;
-    void mute(uint32_t mask) override { muteMask_ = mask & 15; }
+    void mute(VoiceMask mask) override { muteMask_ = mask.low32() & 15; }
     void dry() override {} // No shared echo or artificial stereo.
     bool hasTaps() const override;
     bool readTap(int channel, QVector<float> &left, QVector<float> &right) const override;

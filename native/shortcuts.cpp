@@ -139,7 +139,7 @@ bool PlayerWindow::eventFilter(QObject *object, QEvent *event) {
     if (digit || mix) {
         const int source = mix ? ScopeTheme::FullMix : key - Qt::Key_1;
         if (!mix && source >= state.info.voices.size()) return true;
-        if (modifiers == Qt::ControlModifier) player_.setMuteMask(state.muteMask ^ (uint32_t(1) << source));
+        if (modifiers == Qt::ControlModifier) player_.setMuteMask(state.muteMask ^ (VoiceMask::bit(source)));
         else if (modifiers == Qt::AltModifier) scopes_.toggleSourceVisibility(source);
         else scopes_.cycleSourceView(source);
     } else if (output) {

@@ -276,7 +276,7 @@ void checkSid(QApplication &app,const QString &directory,QTextStream &log,bool d
         until(app,prepared,"Multi-SID live scopes did not prepare.");multi.refresh();
         require(multi.scopeWindow().findChild<QCheckBox *>("scopeStereo")->isEnabled(),"Multi-SID stereo option disabled.");
         p.setOutputScopesEnabled(true);p.toggleSolo(chips*3-1);
-        require(p.state().muteMask==~(1u<<(chips*3-1)),"Multi-SID last voice Solo failed.");
+        require(p.state().muteMask==~VoiceMask::bit(chips*3-1),"Multi-SID last voice Solo failed.");
         until(app,[&]{return prepared() && p.state().positionMs>=2500 && p.outputScopes().sequence;},"Multi-SID live Full mix stalled.");
         for(int ms:{5000,200,1000}) {p.seek(ms,false);until(app,prepared,"Multi-SID paused seek stalled.");}
         p.toggleSolo(chips*3-1);require(p.state().muteMask==0,"Multi-SID Solo restore failed.");

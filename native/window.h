@@ -47,7 +47,7 @@ public:
     void present(const PlayerState &state, const ScopeFrame &frame, const OutputFrame &output = {});
     void beginFile();
     std::function<void(bool)> onVisibilityChanged;
-    std::function<void(uint32_t)> onChannelsChanged;
+    std::function<void(VoiceMask)> onChannelsChanged;
     std::function<void(bool)> onOutputChanged;
     std::function<void()> onRefreshRequested;
     std::function<void(int)> onFrameRateChanged;
@@ -102,13 +102,13 @@ private:
         bool stereo = false;
         QVector<float> left, right;
     };
-    std::array<SpectrumState, 33> spectrumStates_{};
+    std::array<SpectrumState, VoiceMask::Capacity+1> spectrumStates_{};
     struct PitchState {
         quint64 generation = 0, sequence = 0;
         int position = -1;
         float hz = -1;
     };
-    std::array<PitchState, 33> pitchStates_{};
+    std::array<PitchState, VoiceMask::Capacity+1> pitchStates_{};
     void editEffects();
     void editRenderer();
     void restoreEffects();
@@ -126,7 +126,7 @@ private:
         int position = -1;
         bool stereo = false;
     };
-    std::array<WaveState, 33> waveStates_{};
+    std::array<WaveState, VoiceMask::Capacity+1> waveStates_{};
     ScopeGpu *gpu_ = nullptr;
     bool gpuFailed_ = false;
     QImage chromeImage_;
@@ -141,7 +141,7 @@ private:
     void resetGrid();
     void rebuildList();
     void updateList();
-    uint32_t visibleMask() const;
+    VoiceMask visibleMask() const;
     QString channelName(int channel) const;
     bool channelReady(int channel) const;
     bool channelStereo(int channel) const;

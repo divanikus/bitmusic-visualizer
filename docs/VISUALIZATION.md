@@ -200,7 +200,14 @@ halo. Both support brightness up to 100%. Effects apply only to GPU rendering
 and increase graphics load. Hidden/minimized windows suspend scope work.
 
 Renderer, effects, waveform controls (including frame rate) and the original Full mix card's visibility are saved separately
-from color themes. Grid/card layout remains session-local. A theme contains 32
+from color themes. Grid/card layout remains session-local unless saved as a preset. A theme contains 256
 voice palettes, Full mix colors and the window background. Colors stay with their
 original channel when cards move; a newly opened file assigns palettes by channel
-number. Apply to all fills unused palettes too.
+number. Apply to all fills unused palettes too. Existing 32-palette themes load
+unchanged for their first 32 channels and repeat those colors for higher channels.
+The color dialog lists at least 32 palettes, or all voices in the loaded file.
+Full mix has its own palette and never takes a voice's color slot.
+
+Large configurations use a default grid with at most eight rows and eight columns
+to leave room for waveforms. Extra cards remain in the editor; hiding or moving
+cards frees positions for them. Grid dimensions can still be set up to 16 × 8.

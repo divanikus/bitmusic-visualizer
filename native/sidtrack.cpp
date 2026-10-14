@@ -107,7 +107,7 @@ SidTrack::SidTrack(const QString &path, int song, bool readPlaylist, bool captur
 }
 SidTrack::~SidTrack() = default;
 bool SidTrack::hasTaps() const { return impl_->taps.capture; }
-void SidTrack::mute(uint32_t mask) { impl_->taps.muteMask = mask & ((1u << (impl_->chips*3))-1); }
+void SidTrack::mute(VoiceMask mask) { impl_->taps.muteMask = mask.low32() & ((1u << (impl_->chips*3))-1); }
 void SidTrack::render(short *out, int frames) {
     auto &d = *impl_; BmSidScope scope(&d.taps);
     try { while (frames > 0) {

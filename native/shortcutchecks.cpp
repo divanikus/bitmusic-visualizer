@@ -56,14 +56,14 @@ void checkSolo(QApplication &app, PlayerWindow &window, const QString &directory
     const auto generation = player.state().generation;
     const auto visibility = scope.visibleChannels();
     focus(app, *voice(1)); click(*voice(1), Qt::ShiftModifier);
-    require(player.state().soloChannel == 1 && player.state().muteMask == ~uint32_t(2) &&
+    require(player.state().soloChannel == 1 && player.state().muteMask == ~VoiceMask(2) &&
         voice(1)->isChecked() && voice(1)->property("solo").toBool() && !voice(0)->isChecked(),
         "Shift-click did not solo a previously muted voice.");
     require(player.state().generation == generation && scope.visibleChannels() == visibility,
         "Solo restarted playback or changed the grid.");
     window.grab().save(QDir(directory).filePath("native-solo-player.png"));
     focus(app, scope); key(scope, Qt::Key_3, soloKeys);
-    require(player.state().soloChannel == 2 && player.state().muteMask == ~uint32_t(4),
+    require(player.state().soloChannel == 2 && player.state().muteMask == ~VoiceMask(4),
         "Solo shortcut did not switch to another voice from scopes.");
     key(scope, Qt::Key_3, soloKeys, true);
     key(scope, Qt::Key_9, soloKeys);
@@ -77,16 +77,16 @@ void checkSolo(QApplication &app, PlayerWindow &window, const QString &directory
 
     // Manual controls take over the visible audible set and clear the Solo marker.
     key(window, Qt::Key_1, soloKeys); click(*voice(1)); window.refresh();
-    require(player.state().soloChannel == -1 && player.state().muteMask == ~uint32_t(3) &&
+    require(player.state().soloChannel == -1 && player.state().muteMask == ~VoiceMask(3) &&
         !voice(0)->property("solo").toBool(), "Manual channel click retained Solo or lost the audible set.");
     key(window, Qt::Key_2, soloKeys); key(window, Qt::Key_1, Qt::ControlModifier);
-    require(player.state().soloChannel == -1 && player.state().muteMask == ~uint32_t(3),
+    require(player.state().soloChannel == -1 && player.state().muteMask == ~VoiceMask(3),
         "Mute shortcut did not leave Solo consistently.");
     for (const QString action : {"enableAllChannels", "disableAllChannels"}) {
         key(window, Qt::Key_1, soloKeys);
         window.findChild<QPushButton *>(action)->click(); window.refresh();
         require(player.state().soloChannel == -1 && player.state().muteMask ==
-            (action == "enableAllChannels" ? 0u : 0xffffffffu), "All-channel action did not cancel Solo.");
+            (action == "enableAllChannels" ? VoiceMask{} : ~VoiceMask{}), "All-channel action did not cancel Solo.");
     }
     player.setMuteMask(2); key(window, Qt::Key_1, soloKeys);
     key(window, Qt::Key_R, soloKeys);
@@ -99,7 +99,7 @@ void checkSolo(QApplication &app, PlayerWindow &window, const QString &directory
     player.seek(1000, false); player.toggleSolo(2);
     require(player.state().soloChannel == 0, "Solo changed during a pending seek.");
     until(app, [&] { return !player.state().busy; });
-    require(player.state().soloChannel == 0 && player.state().muteMask == ~uint32_t(1), "Seek lost Solo.");
+    require(player.state().soloChannel == 0 && player.state().muteMask == ~VoiceMask(1), "Seek lost Solo.");
     key(window, Qt::Key_F7); until(app, [&] { return !player.state().busy && player.state().playing; });
     window.findChild<QPushButton *>("stop")->click(); until(app, [&] { return !player.state().busy; });
     require(player.state().soloChannel == 0 && player.state().positionMs == 0 && !player.state().playing,

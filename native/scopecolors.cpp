@@ -39,18 +39,18 @@ void ScopeWindow::editColors(int selectedChannel) {
     auto layout = new QVBoxLayout(&dialog); layout->setContentsMargins(18, 16, 18, 16); layout->setSpacing(14);
     auto channel = new QComboBox; channel->setObjectName("colorChannel"); channel->setAccessibleName("Channel");
     styleCombo(channel);
-    for (int id = 0; id < ScopeTheme::SlotCount; ++id)
-        channel->addItem(QString("%1  %2").arg(id + 1, 2, 10, QLatin1Char('0')).arg(state_.info.voices.value(id, "Unused tile")));
-    channel->addItem("Full mix");
-    if (selectedChannel >= 0 && selectedChannel <= ScopeTheme::FullMix) channel->setCurrentIndex(selectedChannel);
-    else if (channelList_->currentItem()) channel->setCurrentIndex(sourceFor(channelList_->currentItem()->data(Qt::UserRole).toInt()));
+    for (int id = 0; id < std::max(32, int(state_.info.voices.size())); ++id)
+        channel->addItem(QString("%1  %2").arg(id + 1, 2, 10, QLatin1Char('0')).arg(state_.info.voices.value(id, "Unused tile")), id);
+    channel->addItem("Full mix", ScopeTheme::FullMix);
+    if (selectedChannel >= 0 && selectedChannel <= ScopeTheme::FullMix) channel->setCurrentIndex(selectedChannel == ScopeTheme::FullMix ? channel->count()-1 : selectedChannel);
+    else if (channelList_->currentItem()) channel->setCurrentIndex(channel->findData(sourceFor(channelList_->currentItem()->data(Qt::UserRole).toInt())));
     layout->addWidget(channel);
     auto fields = new QGridLayout; fields->setHorizontalSpacing(10); fields->setVerticalSpacing(10);
     layout->addLayout(fields);
     const std::array<QString, 5> labels = {"Waveform", "Label", "Axis", "Border", "Card background"};
     const std::array<QString, 5> keys = {"waveform", "label", "axis", "border", "background"};
     const std::array<QColor ScopeColors::*, 5> members = {&ScopeColors::waveform, &ScopeColors::label, &ScopeColors::axis, &ScopeColors::border, &ScopeColors::background};
-    auto colorAt = [&](int i) -> QColor & { return theme_.colors(channel->currentIndex()).*members[i]; };
+    auto colorAt = [&](int i) -> QColor & { return theme_.colors(channel->currentData().toInt()).*members[i]; };
     std::array<QLineEdit *, 5> hex{};
     std::array<QPushButton *, 5> swatches{};
     for (int i = 0; i < int(labels.size()); ++i) {
@@ -106,8 +106,8 @@ void ScopeWindow::editColors(int selectedChannel) {
         });
     }
     connect(channel, &QComboBox::currentIndexChanged, &dialog, load);
-    connect(reset, &QPushButton::clicked, &dialog, [&] { theme_.colors(channel->currentIndex()) = ScopeColors::defaults(channel->currentIndex()); load(); update(); });
-    connect(all, &QPushButton::clicked, &dialog, [&] { const auto selected = theme_.colors(channel->currentIndex()); theme_.tiles.fill(selected); theme_.fullMix = selected; update(); });
+    connect(reset, &QPushButton::clicked, &dialog, [&] { theme_.colors(channel->currentData().toInt()) = ScopeColors::defaults(channel->currentData().toInt()); load(); update(); });
+    connect(all, &QPushButton::clicked, &dialog, [&] { const auto selected = theme_.colors(channel->currentData().toInt()); theme_.tiles.fill(selected); theme_.fullMix = selected; update(); });
     connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
     connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
     load();
