@@ -39,6 +39,7 @@ int main(int argc, char **argv) {
     if (arguments.contains("--gpu-soak")) return runGpuSoak(app, arguments);
     if (arguments.contains("--self-test")) return runChecks(app, arguments);
     QDir().mkpath(QDir(playerRomsDirectory()).filePath("c64"));
+    QDir().mkpath(QDir(playerRomsDirectory()).filePath("ymfm"));
     PlayerWindow window;
     window.show();
     if (arguments.contains("--diagnostics") && !diagnostics.active())

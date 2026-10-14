@@ -60,12 +60,15 @@ mono UI and named unsupported-chip errors. Add `--decoder-only` for headless
 checks; optional additional POKEY file paths are read only. The decoder portion
 also runs under `--tap-checks`. See [VGM boundaries](VGM.md).
 
-`--self-test test-output --yamaha-only` checks YM2203/YM2151/OPL/OPL2/OPL3,
+`--self-test test-output --yamaha-only` checks YM2203/YM2151/OPL/OPL2/OPL3 and
+YM2608/YM2610/2610B/Y8950 with synthetic ADPCM and on-demand ROM scenarios,
 single/dual/mixed chips, actual PCM alignment, stereo, chip mute/Solo, timer-driven
 CSM, clocks/volumes, seeking/repeat and live cards. Add `--decoder-only` for
 headless checks. Optional additional Yamaha VGM/VGZ paths are read only.
 The decoder portion also runs in `--tap-checks`. ymfm is a pinned static C++
-dependency; no new SDK, runtime DLL or system ROM is required for these chips.
+dependency; no new SDK or runtime DLL is required. Tests need no proprietary
+ROMs. Real YM2608 rhythm playback uses the user's optional ROM (see
+[locations](../packaging/YAMAHA-ROMS.txt)).
 
 ## Linux / macOS
 
@@ -124,7 +127,7 @@ their first release is described as tested.
 
 ## Dependencies and sources
 
-CMake fetches hash-pinned libgme, libsidplayfp and zlib source archives. `.runtime/sources/`
+CMake fetches hash-pinned libgme, libsidplayfp, ymfm and zlib source archives. `.runtime/sources/`
 caches them. Packaging additionally downloads the exact Qt source archives in
 `packaging/sources.json`, verifies hashes and includes them with notices generated
 from the installed SDK's `sbom/` files. Missing source or notices fails packaging.

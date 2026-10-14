@@ -159,7 +159,8 @@ bool SidTrack::readTap(int channel, QVector<float> &left, QVector<float> &right)
     return true;
 }
 
-std::unique_ptr<MusicTrack> openMusicTrack(const QString &path, int song, bool playlist, bool capture, std::shared_ptr<const SidRoms> roms) {
+std::unique_ptr<MusicTrack> openMusicTrack(const QString &path, int song, bool playlist, bool capture,
+                                        std::shared_ptr<const SidRoms> roms, std::shared_ptr<const YamahaRoms> yamahaRoms) {
     QFile file(path);
     if (file.open(QIODevice::ReadOnly)) {
         const auto magic = file.read(4);
@@ -168,7 +169,7 @@ std::unique_ptr<MusicTrack> openMusicTrack(const QString &path, int song, bool p
     auto data = readMusicFile(path);
     if (data.startsWith("Vgm ")) {
         const auto header = inspectVgm(data); requireSupportedVgm(header);
-        if (!header.yamaha.isEmpty()) return std::make_unique<YamahaTrack>(path, std::move(data), song, playlist, capture);
+        if (!header.yamaha.isEmpty()) return std::make_unique<YamahaTrack>(path, std::move(data), song, playlist, capture, std::move(yamahaRoms));
         if (header.pokeyClock) return std::make_unique<PokeyTrack>(path, std::move(data), song, playlist, capture);
     }
     return std::make_unique<GmeTrack>(path, song, playlist, capture, std::move(data));

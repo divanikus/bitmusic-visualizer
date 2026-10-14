@@ -15,6 +15,8 @@
 #include <numeric>
 #include <stdexcept>
 
+void checkYamahaSamples(QApplication &app,const QString &directory,QTextStream &log,bool decoderOnly);
+
 namespace {
 void require(bool ok,const char *message) { if(!ok)throw std::runtime_error(message); }
 void write(const QString &path,const QByteArray &data) { QFile f(path);require(f.open(QIODevice::WriteOnly)&&f.write(data)==data.size(),"Cannot write Yamaha fixture."); }
@@ -25,13 +27,13 @@ QByteArray fixture(int id,bool dual=false,bool loop=true,bool fm=false) {
     QByteArray data(0x100,'\0');data.replace(0,4,"Vgm ");
     auto word=[&](int p,quint32 n){qToLittleEndian(n,data.data()+p);};
     word(8,0x171);word(0x34,0x100-0x34);
-    const int offset=id==3?0x30:id==6?0x44:id==9?0x50:id==10?0x54:0x5c;
-    const int op=id==3?0x54:id==6?0x55:id==9?0x5a:id==10?0x5b:0x5e;
-    const quint32 clock=id==6?4000000:id==12?14318180:3579545;
+    const int offset=id==3?0x30:0x44+(id-6)*4;
+    const int op=id==3?0x54:id==6?0x55:id==7?0x56:id==8?0x58:id==9?0x5a:id==10?0x5b:id==11?0x5c:0x5e;
+    const quint32 clock=id==6?4000000:id==7||id==8?8000000:id==12?14318180:3579545;
     word(offset,clock|(dual?0x40000000u:0));
     auto reg=[&](int chip,int address,int value){data+=char(op+chip*0x50+(address>>8));data+=char(address);data+=char(value);};
     for(int c=0;c<(dual?2:1);++c) {
-        if(id==6) {
+        if(id>=6 && id<=8) {
             reg(c,7,0x3f); // SSG initially silent.
             if(!fm) {reg(c,0,80+40*c);reg(c,1,0);reg(c,7,0x3e);reg(c,8,15);}
             else {
@@ -78,10 +80,10 @@ void reject(const QString &path,const QByteArray &data,const char *text) {
 void checkYamaha(QApplication &app,const QString &directory,QTextStream &log,bool decoderOnly) {
     QTemporaryDir temp(QDir(directory).filePath("yamaha-XXXXXX"));require(temp.isValid(),"No Yamaha fixture directory.");
     const auto path=temp.filePath("test.vgm");
-    for(int id:{3,6,9,10,12})for(bool dual:{false,true}) {
+    for(int id:{3,6,7,8,9,10,11,12})for(bool dual:{false,true}) {
         write(path,fixture(id,dual));auto t=openMusicTrack(path,0,true,true),reference=openMusicTrack(path);
         require(t->hasTaps()&&t->info().voices.size()==(dual?2:1)&&t->info().configuration.family=="yamaha-vgm","Yamaha capabilities incorrect.");
-        require(t->info().stereoOutput==(id==3||id==12),"Yamaha mono/stereo capability incorrect.");
+        require(t->info().stereoOutput==(id==3||id==7||id==8||id==12),"Yamaha mono/stereo capability incorrect.");
         QVector<short> pcm;
         for(int i=0;i<15;++i){pcm=block(*t);require(pcm==block(*reference),"Yamaha capture changes audio.");}
         require(rms(pcm)>10,"Yamaha fixture is silent.");aligned(*t,pcm);
@@ -147,9 +149,11 @@ void checkYamaha(QApplication &app,const QString &directory,QTextStream &log,boo
     write(path,extra);auto ext=openMusicTrack(path,0,true,true);ext->seek(SampleRate);aligned(*ext,block(*ext));
     auto invalid=fixture(6);qToLittleEndian<quint32>(3579545,invalid.data()+12);reject(path,invalid,"combined");
     invalid=fixture(6);invalid[0x100]=char(0xa5);reject(path,invalid,"undeclared");
-    invalid=fixture(6);invalid[0x100]=char(0x67);reject(path,invalid,"Unsupported command");
+    invalid=fixture(6);invalid[0x100]=char(0x67);reject(path,invalid,"data-block marker");
     invalid=fixture(6);invalid.chop(1);qToLittleEndian<quint32>(invalid.size()-4,invalid.data()+4);reject(path,invalid,"no end");
     invalid=extra;qToLittleEndian<quint32>(0xffffffffu,invalid.data()+0xc8);reject(path,invalid,"volume header");
+    invalid=fixture(6);invalid.insert(invalid.size()-1,QByteArray::fromHex("6462e803"));
+    qToLittleEndian<quint32>(invalid.size()-4,invalid.data()+4);reject(path,invalid,"changing wait lengths");
     write(path,fixture(12,true));
     auto concurrent=[path]{auto t=openMusicTrack(path,0,true,true);t->seek(50000);return block(*t);};
     auto a=std::async(std::launch::async,concurrent),b=std::async(std::launch::async,concurrent);require(a.get()==b.get(),"Yamaha instances interfere.");
@@ -158,6 +162,7 @@ void checkYamaha(QApplication &app,const QString &directory,QTextStream &log,boo
     const int written=gzwrite(gz,data.constData(),unsigned(data.size()));const auto closed=gzclose(gz);require(written==data.size()&&closed==Z_OK,"Yamaha VGZ write failed.");
     auto compressed=openMusicTrack(zipped);require(rms(block(*compressed))>10,"Yamaha VGZ is silent.");
     log<<"Yamaha: FM/SSG, extra clock/volume, EOF, concurrency, gzip and invalid inputs PASS\n";log.flush();
+    checkYamahaSamples(app,directory,log,decoderOnly);
     if(decoderOnly)return;
     PlayerWindow window;window.player().setVolume(0);window.show();window.loadFile(path);
     auto ready=[&]{const auto s=window.player().state();const auto f=window.player().scopes();return s.valid&&!s.busy&&s.sharedScopes&&f.generation==s.generation&&f.mask==3&&std::abs(s.positionMs-f.positionMs)<200;};

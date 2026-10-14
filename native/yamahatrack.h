@@ -4,7 +4,8 @@
 // One source/card per complete chip, not per FM operator or hardware voice.
 class YamahaTrack final : public MusicTrack {
 public:
-    YamahaTrack(const QString &path, QByteArray data, int song, bool playlist, bool capture);
+    YamahaTrack(const QString &path, QByteArray data, int song, bool playlist, bool capture,
+                std::shared_ptr<const YamahaRoms> roms = {});
     ~YamahaTrack() override;
     const TrackInfo &info() const override { return info_; }
     bool seek(qint64 frame, const std::function<bool()> &cancelled = [] { return false; }) override;

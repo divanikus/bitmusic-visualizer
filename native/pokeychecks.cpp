@@ -114,7 +114,7 @@ void checkPokey(QApplication &app,const QString &directory,QTextStream &log,bool
     const auto written=gzwrite(gz,bytes.constData(),unsigned(bytes.size()));const auto closed=gzclose(gz);
     require(written==bytes.size() && closed==Z_OK,"VGZ compression failed.");
     auto zipped=openMusicTrack(compressed);require(rms(block(*zipped))>10,"POKEY VGZ failed.");
-    for(const auto &chip: {std::pair<int,const char*>{0x48,"YM2608"},{0x84,"NES APU"},{0xc0,"WonderSwan"},{0xb8,"SCSP"}}) {
+    for(const auto &chip: {std::pair<int,const char*>{0x60,"YMF278B"},{0x84,"NES APU"},{0xc0,"WonderSwan"},{0xb8,"SCSP"}}) {
         QByteArray data(0x100,'\0');data.replace(0,4,"Vgm ");qToLittleEndian<quint32>(0x171,data.data()+8);
         qToLittleEndian<quint32>(0x100-0x34,data.data()+0x34);qToLittleEndian<quint32>(1000000,data.data()+chip.first);
         data+=char(0x66);qToLittleEndian<quint32>(data.size()-4,data.data()+4);rejected(path,data,chip.second);
@@ -153,9 +153,9 @@ void checkPokey(QApplication &app,const QString &directory,QTextStream &log,bool
     scope.show();until(app,ready,"POKEY scopes did not resume.");
     const auto state=window.player().state();require(!state.starvations&&!state.outputErrors,"POKEY live audio errors.");
     const auto badPath=temp.filePath("unsupported.vgm");auto bad=fixture();
-    qToLittleEndian<quint32>(0,bad.data()+0xb0);qToLittleEndian<quint32>(4000000,bad.data()+0x48);write(badPath,bad);
+    qToLittleEndian<quint32>(0,bad.data()+0xb0);qToLittleEndian<quint32>(4000000,bad.data()+0x60);write(badPath,bad);
     window.loadFile(badPath);
-    until(app,[&]{return window.player().state().error.contains("YM2608");},"Unsupported VGM error did not reach the UI.");
+    until(app,[&]{return window.player().state().error.contains("YMF278B");},"Unsupported VGM error did not reach the UI.");
     require(!window.player().state().playing,"Unsupported VGM kept playing.");
     window.loadFile(path);until(app,ready,"POKEY did not recover after unsupported VGM.");
     window.close();window.player().shutdown();

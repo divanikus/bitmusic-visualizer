@@ -18,16 +18,19 @@ chip/buffer state and replays commands. Source files are never changed.
 
 ## Yamaha chip mixes
 
-The separate ymfm backend accepts YM2203, YM2151, YM3526 (OPL), YM3812 (OPL2)
-and YMF262 (OPL3). Each complete chip is one source with a `mix` label. These
+The separate ymfm backend accepts YM2203, YM2151, YM2608, YM2610/2610B,
+YM3526 (OPL), YM3812 (OPL2), Y8950 and YMF262 (OPL3).
+Each complete chip is one source with a `mix` label. These
 types may be combined, with up to two instances of each. Existing Sega files
 retain their detailed GME voice cards. Mixed new-Yamaha/Sega/POKEY streams are
 explicitly rejected rather than partially played.
 
-YM2203 combines FM and its three SSG outputs into mono. OPL/OPL2 are mono;
-YM2151 uses native L/R. OPL3's A+C outputs map to left and B+D to right.
+YM2203 combines FM and its three SSG outputs into mono. OPL/OPL2 and Y8950 are
+mono; YM2151 uses native L/R. YM2608 and YM2610/2610B combine stereo FM/ADPCM with
+centered SSG. OPL3's A+C outputs map to left and B+D to right.
 The dual-OPL2 header flag hard-pans chip 1 left and chip 2 right. Ordinary dual
-mono chips remain mono. Chip identity includes type/instance/pan convention,
+mono chips remain mono. Chip identity includes type/instance/pan convention
+and the YM2610B variant,
 with stable source keys for presets. Keyboard uses estimated pitch, not notes
 read from registers; a chip mix may contain many simultaneous pitches.
 
@@ -35,26 +38,51 @@ Register writes use VGM's 44.1 kHz timeline. Native synthesis uses exact clock
 dividers and scheduled timer callbacks, including CSM. A causal 64-tap,
 128-phase windowed-sinc filter converts native chip outputs to 44.1 kHz.
 Its short rate-dependent delay is identical in audible PCM and captured samples.
-YM2203 uses ymfm's minimum-output-rate mode (clock/24), with the core's internal
-FM/SSG rate conversion. This is not a claim of cycle-perfect hardware output.
+OPN chips use ymfm's minimum-output-rate mode: clock/24 for YM2203, clock/48 for
+YM2608 and clock/144 for YM2610/2610B, including internal FM/SSG rate conversion.
+This is not a claim of cycle-perfect hardware output.
 
 All chips keep running when muted; capture precedes chip mutes. Fixed mix
 headroom and file-specified relative/absolute volumes are applied consistently,
-including YM2203's paired SSG volume and alternate clocks for second chips.
+including paired SSG volumes and alternate clocks for second chips.
 Master clipping happens after summing enabled chip cards. The gain does not
 change when Solo/mutes change. Full mix retains the normal final-output stage.
 
 GD3 metadata, compressed input, repeat, rewind/replay and cancellable seeks are
 supported. At a finite command-stream end output becomes silent. Unsupported
 commands, undeclared chip targets, mismatched duration and malformed extended
-headers are errors; no source file is rewritten. This subset needs no ROMs and
-accepts no sample data blocks/stream commands. YM2608/YM2610, sample-based chips,
-MDX and other non-VGM containers remain separate work.
+headers are errors; no source file is rewritten. Loops whose leading 0x62/63
+waits would change length on later passes are rejected instead of mistimed.
+DAC stream commands (0x90-95)
+and compressed PCM stream banks are not implemented in this backend. Other
+sample chips, MDX and non-VGM containers remain separate work.
 
-Authored tests cover the five chip types, dual and mixed clocks, native stereo,
+### Sample memory and the optional rhythm ROM
+
+VGM image blocks 0x81 (YM2608 ADPCM-B), 0x82/83 (YM2610 ADPCM-A/B) and 0x88
+(Y8950 ADPCM-B) are applied at their stream positions, with independent banks
+per chip. Bit 31 of block size selects the second chip. Sparse regions default
+to 0xff; offsets, lengths and declarations are validated before playback. Each
+bank is limited to the 24-bit address space (16 MiB). Register-driven Delta-T
+RAM uploads are supported. Backward seeking recreates memory and replays the
+same blocks/writes; it never retains data from a future point in the track.
+Missing sample memory on an actual read is an error, not a silent missing part.
+
+YM2608's internal rhythm ROM is separate from VGM's external ADPCM-B data.
+Provide `roms/ymfm/ym2608_adpcm_rom.bin`, exactly 8192 bytes, at the
+[platform-specific location](../packaging/YAMAHA-ROMS.txt). The warning appears
+only on a rhythm read, gives the exact path and asks to reopen the track.
+FM, SSG and external ADPCM-B do not require this ROM. A loaded tune retains one
+immutable snapshot shared by audio and scopes, including rewind. No ROM is
+bundled or downloaded; the size check does not authenticate its contents.
+
+Authored tests cover all accepted chip types, dual and mixed clocks, native stereo,
 dual-OPL2 panning, FM/SSG and timer-driven CSM, expected SSG pitch, exact
 PCM/chip-mix alignment, mute preservation, chunking/rewind, one-minute looping
 history, concurrency, extra clocks/volumes, malformed input and live transport.
+Synthetic ADPCM tests cover both sample engines, sparse/timed/dual-chip banks,
+CPU uploads, rewind/loops, YM2610B's extra FM channels and on-demand ROM warnings
+with immutable cross-worker snapshots. Fixtures contain no game or ROM data.
 These are adapter checks; real music and hardware-fidelity comparisons are not
 part of the redistributable fixtures.
 
@@ -69,7 +97,7 @@ part of the redistributable fixtures.
   suppression of pure tones above its 12 kHz cutoff. Special SKCTL modes,
   including serial/two-tone operation and SKCTL reset, are rejected. Standard
   SKCTL value 3 and non-audio register writes are accepted.
-- Unsupported declared chips, such as YM2608, WonderSwan and NES APU inside VGM,
+- Unsupported declared chips, such as YMF278B, WonderSwan and NES APU inside VGM,
   are reported before playback. NSF support does not imply NES VGM support.
   Partial playback that silently drops a declared unsupported chip is rejected.
 - Header inspection respects file version, command-data start and the extra

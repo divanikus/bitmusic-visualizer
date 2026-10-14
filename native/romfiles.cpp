@@ -32,3 +32,22 @@ void missingSidRom(const SidRoms &roms, int index) {
         .arg(names[index], roms.problem[index]).arg(sizes[index])
         .arg(QDir::toNativeSeparators(QDir(roms.directory).filePath(names[index]))).toStdString());
 }
+
+std::shared_ptr<const YamahaRoms> loadYamahaRoms() {
+    auto result = std::make_shared<YamahaRoms>();
+    result->path = QDir(playerRomsDirectory()).filePath("ymfm/ym2608_adpcm_rom.bin");
+    QFile file(result->path);
+    if (!file.exists()) result->problem = "File is missing.";
+    else if (!file.open(QIODevice::ReadOnly)) result->problem = "File cannot be read.";
+    else {
+        auto bytes = file.read(8193);
+        if (bytes.size() == 8192 && file.error() == QFile::NoError) result->rhythm = bytes;
+        else result->problem = "Expected exactly 8192 bytes.";
+    }
+    return result;
+}
+void missingYamahaRom(const YamahaRoms &roms) {
+    throw std::runtime_error(QString("YM2608 ROM required: ym2608_adpcm_rom.bin\n%1\n"
+        "This track uses the chip's rhythm samples. Place your 8192-byte ROM at:\n%2\nThen reopen the music file.")
+        .arg(roms.problem, QDir::toNativeSeparators(roms.path)).toStdString());
+}

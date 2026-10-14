@@ -43,7 +43,7 @@ See the [changelog](CHANGELOG.md) for version history.
 | ZX Spectrum | AY (ZXAYEMUL) | AY A/B/C and beeper; mono output |
 | Commodore 64 | SID (PSID / RSID, up to three chips) | Three pre-filter voices per chip; filter and volume-register samples in Full mix |
 | Atari 400/800 / 5200 | VGM, VGZ with one POKEY | Four mono hardware voices, mute/Solo and Full mix |
-| Yamaha FM systems | VGM, VGZ with YM2203, YM2151, YM3526, YM3812 or YMF262 | One complete chip-mix card per chip; supported chips can be combined or doubled |
+| Yamaha FM/sample systems | VGM, VGZ with YM2203, YM2151, YM2608, YM2610/2610B, YM3526, YM3812, Y8950 or YMF262 | One complete chip-mix card per chip; supported chips can be combined or doubled |
 
 VGM is a container: accepting it does **not** mean every chip is supported. PT3,
 VTX, YM, Amiga/tracker modules and MIDI are not supported yet. There are no
@@ -53,10 +53,15 @@ are not guaranteed to be exact separately audible stems after shared effects.
 
 Unsupported declared VGM chips are reported by name instead of silently skipped.
 New Yamaha cards are labeled **mix**: they contain the whole chip, including the
-SSG section of YM2203. Mute/Solo controls the whole chip. YM2151 and YMF262 support
-stereo; YM2203 and ordinary OPL/OPL2 are mono. Mixing these new chips with the
-existing Sega/POKEY paths is not supported yet. YM2608/YM2610 and other sample-based
-chips remain unsupported. This does not add MDX or other non-VGM formats.
+SSG and sample sections where present. Mute/Solo controls the whole chip.
+YM2151, YM2608, YM2610/2610B and YMF262 support stereo; YM2203, Y8950 and ordinary
+OPL/OPL2 are mono. Mixing these new chips with the existing Sega/POKEY paths is
+not supported yet. This does not add MDX or other non-VGM formats.
+
+YM2608 rhythm playback needs your **roms/ymfm/ym2608_adpcm_rom.bin** (8192 bytes).
+It is requested only when the track uses those rhythm samples. FM/SSG playback
+and sample data embedded in VGM do not need it. No ROM is bundled or downloaded.
+See [ROM locations](packaging/YAMAHA-ROMS.txt) and [VGM limits](docs/VGM.md).
 
 POKEY uses GME's SAP sound core: ordinary tones, polynomial noise, volume-only
 audio, joined dividers and high-pass effects. One POKEY is supported; dual POKEY,

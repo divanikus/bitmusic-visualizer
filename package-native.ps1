@@ -99,6 +99,8 @@ try {
     Copy-Item -LiteralPath "$PSScriptRoot/packaging/THEMES.txt" -Destination "$stageRoot/themes/README.txt"
     New-Item -ItemType Directory -Force -Path "$stageRoot/roms/c64" | Out-Null
     Copy-Item -LiteralPath "$PSScriptRoot/packaging/ROMS.txt" -Destination "$stageRoot/roms/c64/README.txt"
+    New-Item -ItemType Directory -Force -Path "$stageRoot/roms/ymfm" | Out-Null
+    Copy-Item -LiteralPath "$PSScriptRoot/packaging/YAMAHA-ROMS.txt" -Destination "$stageRoot/roms/ymfm/README.txt"
     Copy-Item -LiteralPath "$PSScriptRoot/THIRD-PARTY.md" -Destination $licenseRoot
 
     # Fail packaging if a binary imports a DLL that is neither shipped nor a Windows component.

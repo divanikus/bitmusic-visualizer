@@ -1,0 +1,16 @@
+Optional YM2608 rhythm ROM
+
+Filename: ym2608_adpcm_rom.bin
+Size: exactly 8192 bytes
+
+Windows: roms/ymfm/ beside bitmusic_visualizer.exe.
+Linux: $XDG_DATA_HOME/BitMusicVisualizer/roms/ymfm/
+       (normally ~/.local/share/BitMusicVisualizer/roms/ymfm/).
+macOS: ~/Library/Application Support/BitMusicVisualizer/roms/ymfm/.
+
+This ROM is needed only when a track uses YM2608 rhythm samples. FM, SSG and
+VGM-embedded ADPCM samples do not require it. The player shows the exact path
+when needed. Add the ROM and reopen the music file.
+
+Provide your own ROM. No ROMs are included or downloaded by the application.
+YM2610/2610B and Y8950 use sample data contained in the VGM file.

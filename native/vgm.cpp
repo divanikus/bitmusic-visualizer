@@ -34,16 +34,17 @@ VgmHeader inspectVgm(const QByteArray &data) {
     };
     for (const auto &chip : chips) {
         if (h.version < chip.version || chip.offset+4 > h.headerEnd || !word(chip.offset)) continue;
-        const int id = chip.offset == 0x30 ? 3 : chip.offset == 0x44 ? 6 :
-            chip.offset == 0x50 ? 9 : chip.offset == 0x54 ? 10 : chip.offset == 0x5c ? 12 : -1;
+        const int id = chip.offset == 0x30 ? 3 : chip.offset >= 0x44 && chip.offset <= 0x5c ?
+            6 + (chip.offset-0x44)/4 : -1;
         if (id >= 0) {
             const auto raw = word(chip.offset), clock = raw & 0x3fffffffu;
             const bool dual = raw & 0x40000000u, variant = raw & 0x80000000u;
-            if (clock < 100000 || clock > 20000000 || (variant && !(id == 9 && dual)))
+            if (clock < 100000 || clock > 20000000 || (variant && !(id == 9 && dual) && id != 8))
                 h.unsupported << QString::fromLatin1(chip.name) + " clock/variant";
             for (int n = 0; n < (dual ? 2 : 1); ++n)
-                h.yamaha.push_back({id, n, clock, QString::fromLatin1(chip.name), id == 3 || id == 12 || variant,
-                                   variant ? (n ? 1 : -1) : 0});
+                h.yamaha.push_back({id, n, clock, id == 8 && variant ? QString("YM2610B") : QString::fromLatin1(chip.name),
+                                   id == 3 || id == 7 || id == 8 || id == 12 || variant,
+                                   id == 9 && variant ? (n ? 1 : -1) : 0, 1, 1, id == 8 && variant});
         } else if (chip.offset == 0xb0) h.pokeyClock = word(chip.offset);
         else if (chip.offset == 0x0c || chip.offset == 0x10 || chip.offset == 0x2c) h.sega = true;
         else h.unsupported << QString::fromLatin1(chip.name);
@@ -77,7 +78,7 @@ VgmHeader inspectVgm(const QByteArray &data) {
                 if (!kind) {
                     found->clock = word(int(p+1)); valid(found->clock >= 100000 && found->clock <= 20000000);
                 } else {
-                    valid(!(quint8(data[p+1]) & ~1) && (!(id & 0x80) || found->id == 6));
+                    valid(!(quint8(data[p+1]) & ~1) && (!(id & 0x80) || (found->id >= 6 && found->id <= 8)));
                     const auto volume = qFromLittleEndian<quint16>(data.constData()+p+2);
                     auto &gain = (id & 0x80) ? found->ssgGain : found->gain;
                     gain = (volume & 0x8000) ? gain * (volume & 0x7fff) / 256.0 : volume / 256.0;

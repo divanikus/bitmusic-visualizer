@@ -376,9 +376,9 @@ void PlayerWindow::refreshControls() {
     }
     const auto message = !s.error.isEmpty() ? s.error : !s.scopeError.isEmpty() ? s.scopeError : s.busy ? QString::fromUtf8("Loading…") : QString();
     status_->setText(message.section('\n', 0, 0)); status_->setToolTip(message); status_->setVisible(!message.isEmpty());
-    if (s.error.startsWith("C64 ROM required:") && romWarningGeneration_ != s.generation) {
+    if ((s.error.startsWith("C64 ROM required:") || s.error.startsWith("YM2608 ROM required:")) && romWarningGeneration_ != s.generation) {
         romWarningGeneration_ = s.generation;
-        auto warning = new QMessageBox(QMessageBox::Warning, "C64 ROM required", s.error, QMessageBox::Ok, this);
+        auto warning = new QMessageBox(QMessageBox::Warning, "ROM required", s.error, QMessageBox::Ok, this);
         warning->setObjectName("romWarning"); warning->setTextFormat(Qt::PlainText);
         warning->setAttribute(Qt::WA_DeleteOnClose); warning->open();
     }

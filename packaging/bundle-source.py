@@ -22,7 +22,8 @@ def bundle(destination):
                 'cmake/Sid.cmake', 'cmake/PatchSid.cmake', 'COPYING', 'LICENSE',
                 'native/pokeytrack.cpp', 'native/vgm.cpp', 'native/gme-taps/pokey.cpp',
                 'native/gme-taps/pokey.h', 'cmake/PatchGme.cmake',
-                'native/yamahatrack.cpp', 'cmake/Ymfm.cmake', 'LICENSES/ymfm-BSD-3-Clause.txt'}
+                'native/yamahatrack.cpp', 'native/yamahasamplechecks.cpp', 'native/romfiles.cpp',
+                'packaging/YAMAHA-ROMS.txt', 'cmake/Ymfm.cmake', 'LICENSES/ymfm-BSD-3-Clause.txt'}
     if not required.issubset(paths):
         raise RuntimeError('Application source bundle is incomplete.')
     forbidden = {'.sid', '.nsf', '.nsfe', '.vgm', '.vgz', '.spc', '.gbs', '.ay',

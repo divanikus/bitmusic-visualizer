@@ -493,6 +493,7 @@ void NativePlayer::scopeLoop() {
     std::vector<Voice> voices;
     std::unique_ptr<MusicTrack> shared;
     std::shared_ptr<const SidRoms> scopeRoms;
+    std::shared_ptr<const YamahaRoms> scopeYamahaRoms;
     QString path;
     int song = -1;
     QThreadPool preparationPool;
@@ -517,11 +518,13 @@ void NativePlayer::scopeLoop() {
             try {
                 const auto cancelled = [&] { return closing_ || !scopesEnabled_ || revision != scopeRevision_ || current.generation != generation_; };
                 const qint64 target = qint64(current.positionMs) * SampleRate / 1000;
-                if (path != current.info.path || song != current.info.song || scopeRoms != current.info.sidRoms) {
+                if (path != current.info.path || song != current.info.song || scopeRoms != current.info.sidRoms ||
+                    scopeYamahaRoms != current.info.yamahaRoms) {
                     voices.clear(); voices.resize(current.info.voices.size());
                     path = current.info.path; song = current.info.song;
                     scopeRoms = current.info.sidRoms;
-                    shared = openMusicTrack(path, song, false, true, current.info.sidRoms);
+                    scopeYamahaRoms = current.info.yamahaRoms;
+                    shared = openMusicTrack(path, song, false, true, current.info.sidRoms, current.info.yamahaRoms);
                     if (!shared->hasTaps()) shared.reset();
                     sharedScopes_ = bool(shared);
                 }
@@ -601,7 +604,7 @@ void NativePlayer::scopeLoop() {
                         try {
                             auto &voice = voices[i];
                             if (!voice.track) {
-                                voice.track = openMusicTrack(path, song, false, true, current.info.sidRoms);
+                                voice.track = openMusicTrack(path, song, false, true, current.info.sidRoms, current.info.yamahaRoms);
                                 voice.track->mute(~bit); voice.track->dry();
                             }
                             if (voice.track->frame() > target) voice.track->seek(0, cancelled);

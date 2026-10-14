@@ -39,6 +39,7 @@ SoundConfiguration soundConfiguration(const QByteArray &data, const QStringList 
             names << chip.name;
             c.sources << chip.name.toLower() + ".mix:" + QString::number(chip.instance);
             hardware += QString("%1:%2:%3;").arg(chip.id).arg(chip.instance).arg(chip.pan);
+            if (chip.variant) hardware += "variant;";
         }
         c.name = names.join(" + ");
     } else if (data.startsWith("Vgm ") && inspectVgm(data).pokeyClock) {

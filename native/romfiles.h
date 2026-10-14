@@ -13,3 +13,10 @@ struct SidRoms {
 QString playerRomsDirectory();
 std::shared_ptr<const SidRoms> loadSidRoms();
 [[noreturn]] void missingSidRom(const SidRoms &roms, int index);
+
+struct YamahaRoms {
+    QByteArray rhythm;
+    QString problem, path;
+};
+std::shared_ptr<const YamahaRoms> loadYamahaRoms();
+[[noreturn]] void missingYamahaRom(const YamahaRoms &roms);
