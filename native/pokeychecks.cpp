@@ -137,7 +137,7 @@ void checkPokey(QApplication &app,const QString &directory,QTextStream &log,bool
     until(app,ready,"POKEY live scopes unavailable.");window.refresh();
     auto &scope=window.scopeWindow();auto stereo=scope.findChild<QCheckBox*>("scopeStereo");
     require(stereo&&!stereo->isEnabled(),"POKEY mono stream offers stereo.");
-    window.player().toggleSolo(2);until(app,[&]{return window.player().state().muteMask==~4u;},"POKEY live Solo failed.");
+    window.player().toggleSolo(2);until(app,[&]{const auto s=window.player().state();return s.soloChannel==2 && s.muteMask==~VoiceMask::bit(2);},"POKEY live Solo failed.");
     window.player().seek(750,false);until(app,ready,"POKEY paused seek lost scopes.");
     window.player().seek(0,true);until(app,ready,"POKEY restart lost scopes.");
     window.player().setRepeat(true);window.player().seek(1900,true);

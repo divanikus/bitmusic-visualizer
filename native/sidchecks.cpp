@@ -248,7 +248,7 @@ void checkSid(QApplication &app,const QString &directory,QTextStream &log,bool d
     require(player.state().sharedScopes,"SID scopes use multiple emulations.");
     require(window.findChild<QListWidget *>("songs")->count()==2,"SID UI playlist incomplete.");
     require(!window.scopeWindow().findChild<QCheckBox *>("scopeStereo")->isEnabled(),"SID stereo option not disabled.");
-    player.setMuteMask(4);player.toggleSolo(1);require(player.state().muteMask==~2u,"SID Solo failed.");
+    player.setMuteMask(4);player.toggleSolo(1);require(player.state().soloChannel==1 && player.state().muteMask==~VoiceMask::bit(1),"SID Solo failed.");
     for(int ms:{5000,250,1000}) {
         player.seek(ms,false);until(app,ready,"SID seek stuck Preparing.");
         require(player.state().positionMs==ms && !player.state().playing,"SID paused seek position incorrect.");
