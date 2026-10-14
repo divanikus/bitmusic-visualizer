@@ -4,6 +4,7 @@
 #include <QComboBox>
 #include <QElapsedTimer>
 #include <QFile>
+#include <QFileInfo>
 #include <QTemporaryDir>
 #include <QTextStream>
 #include <QThread>
@@ -62,12 +63,20 @@ int runMt32Checks(QApplication &app,const QStringList &args) {
         };
         require(rejects(fixture(),"MT-32 ROM required:"),"Auto did not request ROMs for MT-32 SysEx.");
         require(rejects(fixture(-1,false),"SoundFont required:"),"Auto requested ROMs for ordinary MIDI.");
+        const auto namedError=[&](const QString &name,const char *reason) {
+            const auto path=temp.filePath(name); QDir().mkpath(QFileInfo(path).absolutePath());
+            write(path,fixture(-1,false));
+            try { openMusicTrack(path); return false; }
+            catch(const std::exception &e) { return QByteArray(e.what()).startsWith(reason); }
+        };
+        for(const auto *name:{"Soundtrack_MT_Attack.mid","song (mt32).MID","MT-32/song.mid"})
+            require(namedError(name,"SoundFont required:"),"Auto used a filename or directory instead of MIDI contents.");
         selectMidiEngine("mt32"); require(rejects(fixture(-1,false),"MT-32 ROM required:"),"Manual MT-32 did not work without SysEx.");
         QDir().mkpath(playerMt32Directory());
         write(QDir(playerMt32Directory()).filePath("MT32_CONTROL.ROM"),QByteArray(65536,0));
         write(QDir(playerMt32Directory()).filePath("MT32_PCM.ROM"),QByteArray(524288,0));
         require(rejects(fixture(),"not recognized"),"Unrecognized ROM contents accepted.");
-        log<<"MT-32 selection, persistence, conditional missing ROM and invalid ROM checks PASS\n"; log.flush();
+        log<<"MT-32 content-only selection, persistence and ROM checks PASS\n"; log.flush();
         const int rom=args.indexOf("--roms");
         if(rom<0 || rom+1>=args.size()) { log<<"Synthesis checks SKIPPED (no user-supplied ROMs).\n"; return 0; }
         for(const auto *name:{"MT32_CONTROL.ROM","MT32_PCM.ROM"})

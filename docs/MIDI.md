@@ -6,6 +6,7 @@ SysEx; see [MT-32 playback](MT32.md) for ROMs, parts and its limitations.
 Open a Standard MIDI file (.mid or .midi, format 0 or 1) with a user-provided
 uncompressed SF2 SoundFont. The SoundFont row appears only for MIDI in the main
 player. Selection is remembered and changing the bank restarts the current song.
+Selecting the current bank or MIDI engine again preserves playback and position.
 The folder button opens the resource directory; Refresh rereads the list.
 See [platform locations](../packaging/SOUNDFONTS.txt). No bank is downloaded or
 included at runtime. With no saved choice, the first available SF2 alphabetically

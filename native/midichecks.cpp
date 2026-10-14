@@ -157,12 +157,31 @@ int runMidiChecks(QApplication &app,const QStringList &args) {
             selectSoundFont("Test.sf2");
         }
         if(!args.contains("--decoder-only")) {
+            write(resources.filePath("Other.sf2"),read(resources.filePath("Test.sf2")));
             PlayerWindow window; window.player().setVolume(0); window.show(); window.loadFile(midi);
             spin(app,[&]{auto s=window.player().state();return s.valid&&!s.busy&&s.playing&&window.player().scopes().mask==VoiceMask::first(16);});
             auto &player=window.player();
             require(player.state().error.isEmpty()&&player.state().scopeError.isEmpty(),"MIDI live error.");
             auto combo=window.findChild<QComboBox*>("soundFont"); require(combo&&combo->isVisible()&&combo->currentData()=="Test.sf2","SoundFont controls missing.");
+            const auto reselect=[&] {
+                const auto before=player.state();
+                QMetaObject::invokeMethod(combo,"activated",Qt::DirectConnection,Q_ARG(int,combo->currentIndex()));
+                const auto engine=window.findChild<QComboBox*>("midiEngine");
+                require(engine!=nullptr,"MIDI engine selector missing.");
+                QMetaObject::invokeMethod(engine,"activated",Qt::DirectConnection,Q_ARG(int,engine->currentIndex()));
+                const auto after=player.state();
+                require(after.generation==before.generation&&!after.busy&&after.playing==before.playing&&
+                    (before.playing||after.positionMs==before.positionMs),"Reselecting the current MIDI option restarted playback.");
+            };
+            reselect();
             player.seek(800,false); spin(app,[&]{auto s=player.state();return !s.busy&&!s.playing&&s.positionMs==800&&player.scopes().positionMs==800;});
+            reselect();
+            const auto beforeBankChange=player.state().generation;
+            const int other=combo->findData("Other.sf2"); require(other>=0,"Second test bank missing.");
+            combo->setCurrentIndex(other); QMetaObject::invokeMethod(combo,"activated",Qt::DirectConnection,Q_ARG(int,other));
+            spin(app,[&]{auto s=player.state();return s.generation>beforeBankChange&&!s.busy&&s.playing&&s.info.midiResources&&s.info.midiResources->soundFontName=="Other.sf2";});
+            require(selectedSoundFont()=="Other.sf2","Changed SoundFont was not saved.");
+            log<<"MIDI choices: current bank/engine preserve play/pause; a different bank reloads PASS\n";
             player.toggleSolo(1); require(player.state().soloChannel==1,"Live MIDI Solo failed.");
             player.seek(0,true); spin(app,[&]{return !player.state().busy&&player.state().positionMs>100;});
             player.setRepeat(true); player.seek(3400,true);

@@ -232,6 +232,7 @@ PlayerWindow::PlayerWindow() {
     midiEngine_->setToolTip("MIDI engine. Auto recognizes MT-32 SysEx; select MT-32 manually for arrangements without it. Changing the engine restarts playback.");
     midiRow->addWidget(midiEngine_);
     connect(midiEngine_,&QComboBox::activated,this,[this](int index) {
+        if(index<0 || midiEngine_->itemData(index).toString()==selectedMidiEngine()) return;
         try { selectMidiEngine(midiEngine_->itemData(index).toString()); if(!midiPath_.isEmpty()) loadFile(midiPath_); }
         catch(const std::exception &e) { QMessageBox::warning(this,"MIDI engine",QString::fromUtf8(e.what())); }
     });
@@ -252,8 +253,9 @@ PlayerWindow::PlayerWindow() {
     });
     connect(bankRefresh,&QToolButton::clicked,this,[this] { refreshSoundFonts(); });
     connect(soundFont_,&QComboBox::activated,this,[this](int index) {
-        if(index<0 || soundFont_->itemData(index).toString().isEmpty()) return;
-        try { selectSoundFont(soundFont_->itemData(index).toString()); if(!midiPath_.isEmpty()) loadFile(midiPath_); }
+        const auto name=soundFont_->itemData(index).toString();
+        if(name.isEmpty() || name==selectedSoundFont()) return;
+        try { selectSoundFont(name); if(!midiPath_.isEmpty()) loadFile(midiPath_); }
         catch(const std::exception &e) { QMessageBox::warning(this,"SoundFont",QString::fromUtf8(e.what())); }
     });
     status_ = new QLabel; status_->setObjectName("status"); status_->setWordWrap(true); status_->hide(); root->addWidget(status_);
