@@ -72,7 +72,9 @@ try {
     $process = Start-Process -FilePath $executable -WorkingDirectory $playerRoot -ArgumentList @('--tap-checks', ('"' + $fixtureRoot + '"')) `
         -PassThru -WindowStyle Hidden -RedirectStandardOutput "$checkRoot/tap-stdout.txt" -RedirectStandardError "$checkRoot/tap-stderr.txt"
     $null = $process.Handle
-    if (!$process.WaitForExit(60000)) { throw 'Portable tap checks timed out.' }
+    # SID and the full Yamaha matrix make this substantially longer than the
+    # original GME-only checks, especially on slower machines.
+    if (!$process.WaitForExit(300000)) { throw 'Portable tap checks timed out.' }
     if ($process.ExitCode -ne 0) { throw "Portable tap checks failed: $fixtureRoot/tap-checks.txt (exit $($process.ExitCode))" }
     $process = Start-Process -FilePath $executable -WorkingDirectory $playerRoot -ArgumentList @('--midi-checks', ('"' + $fixtureRoot + '"')) `
         -PassThru -WindowStyle Hidden -RedirectStandardOutput "$checkRoot/midi-stdout.txt" -RedirectStandardError "$checkRoot/midi-stderr.txt"
