@@ -8,6 +8,8 @@ not published GitHub releases. Unreleased lists changes made after the latest ta
 
 ## Unreleased
 
+## [0.9.2](https://github.com/divanikus/bitmusic-visualizer/releases/tag/v0.9.2) — 2026-10-15
+
 ### Changed
 
 - Shift-click now toggles Solo directly on waveform, spectrum and keyboard cards,
