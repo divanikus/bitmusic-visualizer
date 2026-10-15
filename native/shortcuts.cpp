@@ -71,7 +71,7 @@ void PlayerWindow::showShortcutsHelp() {
       <tr><td><b>%1–9</b></td><td>Mute / unmute channel</td></tr>
       <tr><td><b>%2–9</b></td><td>Hide / show channel cards</td></tr>
       <tr><td><b>%7–9</b></td><td>Solo channel / restore previous channels</td></tr>
-      <tr><td><b>Shift+click</b></td><td>Solo a channel button in Channels; repeat to restore</td></tr>
+      <tr><td><b>Shift+click</b></td><td>Solo a visualization card or a button in Channels; repeat to restore</td></tr>
       <tr><td><b>0 / %4</b></td><td>Full mix: cycle view / hide or show</td></tr>
       <tr><td><b>F2 / F3 / F4</b></td><td>All cards: Waveform / Spectrum / Keyboard</td></tr>
       <tr><td><b>%3</b></td><td>Reset channels and layout</td></tr>

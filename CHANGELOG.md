@@ -8,6 +8,11 @@ not published GitHub releases. Unreleased lists changes made after the latest ta
 
 ## Unreleased
 
+### Changed
+
+- Shift-click now toggles Solo directly on waveform, spectrum and keyboard cards,
+  as well as the existing buttons in Channels. Repeat to restore previous mutes.
+
 ## [0.9.1](https://github.com/divanikus/bitmusic-visualizer/releases/tag/v0.9.1) — 2026-10-15
 
 ### Fixed

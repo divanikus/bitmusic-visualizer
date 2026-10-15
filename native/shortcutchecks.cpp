@@ -47,6 +47,84 @@ void click(QWidget &target, Qt::KeyboardModifiers modifiers = {}) {
     QMouseEvent release(QEvent::MouseButtonRelease, point, global, Qt::LeftButton, Qt::NoButton, modifiers);
     QApplication::sendEvent(&target, &release);
 }
+void checkCardSolo(QApplication &app, PlayerWindow &window, QTextStream &log) {
+    auto &player = window.player(); auto &scope = window.scopeWindow();
+    auto edit = scope.findChild<QPushButton *>("editLayout");
+    const bool wasEditing = edit->isChecked();
+    const auto windowSize = scope.size();
+    if (wasEditing) edit->click();
+    scope.resize(1050, 700); pump(app);
+    const auto before = player.state(); const auto visibility = scope.visibleChannels();
+    auto mouse = [&](QEvent::Type type, QPointF point, Qt::KeyboardModifiers modifiers = Qt::ShiftModifier) {
+        QMouseEvent event(type, point, scope.mapToGlobal(point.toPoint()),
+            type == QEvent::MouseMove ? Qt::NoButton : Qt::LeftButton,
+            type == QEvent::MouseButtonRelease ? Qt::NoButton : Qt::LeftButton, modifiers);
+        QApplication::sendEvent(&scope, &event);
+    };
+    auto clickAt = [&](QPointF point, Qt::KeyboardModifiers modifiers = Qt::ShiftModifier,
+                       QEvent::Type type = QEvent::MouseButtonPress) {
+        mouse(type, point, modifiers); mouse(QEvent::MouseButtonRelease, point, modifiers);
+    };
+    for (auto kind : {ScopeWindow::ViewKind::Waveform, ScopeWindow::ViewKind::Spectrum, ScopeWindow::ViewKind::Keyboard}) {
+        scope.setAllViews(kind);
+        clickAt(scope.panelRect(1).center());
+        require(player.state().soloChannel == 1 && player.state().muteMask == ~VoiceMask(2), "Card body did not solo its voice.");
+        clickAt(scope.panelRect(0).center());
+        require(player.state().soloChannel == 0, "Another card did not switch Solo.");
+        clickAt(scope.panelRect(0).center(), Qt::ShiftModifier, QEvent::MouseButtonDblClick);
+        require(player.state().soloChannel == -1 && player.state().muteMask == before.muteMask && !scope.presentationFullscreen(),
+            "Rapid repeated Shift-click did not restore mutes or toggled fullscreen.");
+    }
+    clickAt(scope.panelRect(1).center(), Qt::NoModifier);
+    clickAt(scope.panelRect(1).center(), Qt::ShiftModifier | Qt::ControlModifier);
+    const auto start = scope.panelRect(1).center();
+    mouse(QEvent::MouseButtonPress, start); mouse(QEvent::MouseMove, start+QPointF(40, 0));
+    mouse(QEvent::MouseMove, start); mouse(QEvent::MouseButtonRelease, start);
+    mouse(QEvent::MouseButtonPress, start); mouse(QEvent::MouseButtonRelease, scope.panelRect(0).center());
+    mouse(QEvent::MouseButtonPress, start); key(scope, Qt::Key_Escape); mouse(QEvent::MouseButtonRelease, start);
+    mouse(QEvent::MouseButtonPress, start); mouse(QEvent::MouseButtonRelease, start, Qt::NoModifier);
+    require(player.state().soloChannel == -1 && player.state().muteMask == before.muteMask,
+        "Ordinary/modified click or cancelled card gesture changed Solo.");
+    require(scope.visibleChannels() == visibility && player.state().generation == before.generation &&
+        player.state().outputMask == before.outputMask, "Card Solo changed layout, transport or L/R outputs.");
+
+    edit->click(); scope.findChild<QSpinBox *>("gridRows")->setValue(4);
+    scope.findChild<QSpinBox *>("gridColumns")->setValue(2);
+    auto list = scope.findChild<QListWidget *>("scopeChannelList");
+    QTimer::singleShot(0, &scope, [&] {
+        auto dialog = qobject_cast<QDialog *>(QApplication::activeModalWidget());
+        if (!dialog) return;
+        auto sources = dialog->findChild<QComboBox *>("newCardSource"); sources->setCurrentIndex(sources->findData(1));
+        dialog->findChild<QComboBox *>("newCardView")->setCurrentIndex(2); dialog->accept();
+    });
+    scope.findChild<QPushButton *>("addScopeCard")->click();
+    const int duplicate = list->currentItem()->data(Qt::UserRole).toInt();
+    require(list->model()->moveRow({}, list->currentRow(), {}, 0), "Cannot reorder duplicate Solo card.");
+    pump(app, 200);
+    clickAt(scope.panelRect(duplicate).center());
+    require(player.state().soloChannel == 1, "Moved duplicate card soloed its grid position instead of its source.");
+    clickAt(scope.panelRect(1).center());
+    require(player.state().soloChannel == -1 && player.state().muteMask == before.muteMask,
+        "Original card did not restore Solo selected through a duplicate.");
+    const auto card = scope.panelRect(duplicate); const auto shown = scope.visibleChannels();
+    clickAt(QPointF(card.right()-15, card.top()+14));
+    clickAt(card.bottomRight()-QPointF(3, 3));
+    require(player.state().soloChannel == -1 && scope.panelRect(duplicate) == card && scope.visibleChannels() == shown,
+        "Shift-click on an editor header/resize grip changed the layout.");
+    scope.toggleSourceVisibility(ScopeTheme::FullMix); pump(app, 200);
+    require(!scope.panelRect(ScopeTheme::FullMix).isEmpty(), "Full mix Solo check is not visible.");
+    clickAt(scope.panelRect(ScopeTheme::FullMix).center());
+    require(player.state().soloChannel == -1 && player.state().muteMask == before.muteMask, "Full mix changed Solo.");
+    scope.toggleFullscreen(); pump(app);
+    clickAt(scope.panelRect(duplicate).center());
+    require(player.state().soloChannel == 1 && scope.presentationFullscreen(), "Fullscreen card Solo failed.");
+    clickAt(scope.panelRect(1).center()); scope.toggleFullscreen(); pump(app);
+    scope.resetLayout(); if (edit->isChecked() != wasEditing) edit->click();
+    scope.resize(windowSize); window.refresh();
+    require(player.state().soloChannel == -1 && player.state().muteMask == before.muteMask &&
+        player.state().generation == before.generation, "Card Solo did not restore original audio state.");
+    log << "Card Solo: all views, normal/edit/fullscreen, moved duplicates, switch/restore, Full mix and gesture cancellation PASS\n";
+}
 void checkSolo(QApplication &app, PlayerWindow &window, const QString &directory, QTextStream &log) {
     auto &player = window.player(); auto &scope = window.scopeWindow();
     window.findChild<QTabWidget *>("tabs")->setCurrentIndex(1);
@@ -74,6 +152,7 @@ void checkSolo(QApplication &app, PlayerWindow &window, const QString &directory
     click(*voice(0), Qt::ShiftModifier); click(*voice(0), Qt::ShiftModifier);
     require(player.state().soloChannel == -1 && player.state().muteMask == 2,
         "Repeated Shift-click did not restore previous mutes.");
+    checkCardSolo(app, window, log);
 
     // Manual controls take over the visible audible set and clear the Solo marker.
     key(window, Qt::Key_1, soloKeys); click(*voice(1)); window.refresh();
@@ -304,7 +383,8 @@ void checkShortcuts(QApplication &app, const QString &directory, QTextStream &lo
         auto guide = dialog->findChild<QTextBrowser *>("shortcutsGuide");
         guideValid &= guide && guide->toPlainText().contains("F8") && guide->toPlainText().contains("Reset channels and layout") &&
             guide->toPlainText().contains("Full mix: cycle view") && guide->toPlainText().contains("Toggle left / right audio output") &&
-            guide->toPlainText().contains("Solo channel / restore previous channels") && guide->toPlainText().contains("Shift+click");
+            guide->toPlainText().contains("Solo channel / restore previous channels") && guide->toPlainText().contains("Shift+click") &&
+            guide->toPlainText().contains("visualization card");
         ++dialogs; dialog->grab().save(QDir(directory).filePath("native-shortcuts-help.png")); dialog->accept();
     };
     for (QWidget *target : {static_cast<QWidget *>(&window), static_cast<QWidget *>(&scope)}) {

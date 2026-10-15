@@ -292,6 +292,7 @@ PlayerWindow::PlayerWindow() {
         showScopes_->setToolTip(visible ? QString::fromUtf8("Hide scopes") : QString::fromUtf8("Show scopes"));
     };
     scopes_.onChannelsChanged = [this](VoiceMask mask) { player_.setScopeMask(mask); };
+    scopes_.onSoloRequested = [this](int source) { player_.toggleSolo(source); refresh(); };
     scopes_.onOutputChanged = [this](bool enabled) { player_.setOutputScopesEnabled(enabled && scopes_.renderingVisible()); };
     scopes_.onRefreshRequested = [this] { refreshScopes(); };
     scopes_.onFrameRateChanged = [this](int fps) { player_.setScopeFrameRate(fps); };
@@ -307,6 +308,7 @@ PlayerWindow::PlayerWindow() {
     timer->start(); refresh();
 }
 PlayerWindow::~PlayerWindow() {
+    scopes_.onSoloRequested = {};
     scopes_.onVisibilityChanged = {}; scopes_.onChannelsChanged = {}; scopes_.onOutputChanged = {};
     scopes_.onRefreshRequested = {}; scopes_.onFrameRateChanged = {}; player_.shutdown();
 }

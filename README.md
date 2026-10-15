@@ -32,7 +32,8 @@ notarized. See [platform requirements](docs/BUILDING.md).
 
 1. Open music with **Ctrl+O** or drag it onto the player.
 2. **Tracks** lists subsongs inside the file. **Channels** controls sound;
-   **Shift-click** a channel to Solo it, and again to restore previous mutes.
+   **Shift-click** a visualization card or channel button to Solo it, and again
+   to restore previous mutes.
 3. The scopes button toggles visualization. Closing that window keeps music playing.
 4. Click its **pencil** to edit cards, colors, presets and display options.
 

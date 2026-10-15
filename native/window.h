@@ -52,6 +52,7 @@ public:
     void beginFile();
     std::function<void(bool)> onVisibilityChanged;
     std::function<void(VoiceMask)> onChannelsChanged;
+    std::function<void(int)> onSoloRequested;
     std::function<void(bool)> onOutputChanged;
     std::function<void()> onRefreshRequested;
     std::function<void(int)> onFrameRateChanged;
@@ -223,6 +224,8 @@ private:
     quint64 colorRevision_ = 0;
     bool newFile_ = true, dragging_ = false;
     int pressedChannel_ = -1, dropSlot_ = -1;
+    int pressedSolo_ = -1;
+    bool soloMoved_ = false;
     int pressedColor_ = -1, hoveredColor_ = -1;
     int resizeChannel_ = -1, resizeEdges_ = 0;
     QSize resizeSpan_, originalSpan_;

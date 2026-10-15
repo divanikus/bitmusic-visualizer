@@ -16,6 +16,12 @@ Opening another file without an assigned preset, or pressing Reset,
 restores the original waveform cards. Keep grid preserves only rows and columns.
 Changing subsongs within a file keeps the layout. Themes remain color presets.
 
+**Shift-click** anywhere on a voice card to Solo its source. Shift-click another
+source to switch Solo, or the same source to restore previous mutes. This works
+with waveform, spectrum and keyboard cards, including duplicates, in normal,
+edit and fullscreen modes. Full mix is not a voice and cannot be soloed.
+Unmodified editor clicks still drag, resize, hide cards or edit colors.
+
 The main player's keyboard icon or **F1** opens the [shortcut guide](../README.md#keyboard-shortcuts).
 Digits refer to audio channel numbers, not grid slots. If several cards share
 a channel, a digit cycles them together based on its original card's current

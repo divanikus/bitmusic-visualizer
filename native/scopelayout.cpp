@@ -91,6 +91,7 @@ void ScopeWindow::animateLayout(const QHash<int, QRectF> &from) {
     motionClock_.start(); motion_->start();
 }
 void ScopeWindow::cancelDrag() {
+    pressedSolo_ = -1; soloMoved_ = false;
     motion_->stop(); animationFrom_.clear(); animationTo_.clear();
     pressedChannel_ = -1; dragging_ = false; dropSlot_ = -1; unsetCursor();
     resizeChannel_ = -1; resizeEdges_ = 0; previewValid_ = false; previewLayout_.clear();
@@ -131,6 +132,14 @@ QRectF ScopeWindow::gestureTarget() const {
     return dropSlot_ >= 0 ? cardRect(dropSlot_) : QRectF();
 }
 void ScopeWindow::mousePressEvent(QMouseEvent *event) {
+    if (event->button() == Qt::LeftButton && event->modifiers() == Qt::ShiftModifier) {
+        const int card = panelAt(event->position());
+        if (card >= 0) {
+            // Shift reserves the whole card for Solo, including edit-mode grips/buttons.
+            cancelDrag(); setFocus(); pressedSolo_ = card; dragStart_ = event->position();
+            event->accept(); return;
+        }
+    }
     if (edit_->isChecked() && event->button() == Qt::LeftButton) {
         const int channel = panelAt(event->position());
         if (channel >= 0) {
@@ -166,6 +175,10 @@ void ScopeWindow::mouseDoubleClickEvent(QMouseEvent *event) {
 }
 void ScopeWindow::mouseMoveEvent(QMouseEvent *event) {
     if (presentationFullscreen() && event->position().y() < 48) revealFullscreenExit();
+    if (pressedSolo_ >= 0) {
+        if ((event->position()-dragStart_).manhattanLength() >= QApplication::startDragDistance()) soloMoved_ = true;
+        event->accept(); return;
+    }
     if (pressedColor_ >= 0) { event->accept(); return; }
     if (resizeChannel_ >= 0 && (event->buttons() & Qt::LeftButton)) {
         previewGesture(event->position());
@@ -198,6 +211,16 @@ void ScopeWindow::mouseMoveEvent(QMouseEvent *event) {
     setToolTip({}); FrameWindow::mouseMoveEvent(event);
 }
 void ScopeWindow::mouseReleaseEvent(QMouseEvent *event) {
+    if (event->button() == Qt::LeftButton && pressedSolo_ >= 0) {
+        const int source = sourceFor(pressedSolo_);
+        const bool activate = !soloMoved_ && event->modifiers() == Qt::ShiftModifier &&
+            (event->position()-dragStart_).manhattanLength() < QApplication::startDragDistance() &&
+            panelAt(event->position()) == pressedSolo_ && state_.valid && !state_.busy &&
+            source >= 0 && source < state_.info.voices.size();
+        cancelDrag(); event->accept();
+        if (activate && onSoloRequested) onSoloRequested(source);
+        return;
+    }
     if (event->button() == Qt::LeftButton && resizeChannel_ >= 0) {
         previewGesture(event->position());
         const auto from = panelPositions();
@@ -226,7 +249,7 @@ void ScopeWindow::keyPressEvent(QKeyEvent *event) {
         if (!event->isAutoRepeat()) toggleFullscreen();
         event->accept(); return;
     }
-    if (event->key() == Qt::Key_Escape && (resizeChannel_ >= 0 || pressedChannel_ >= 0 || pressedColor_ >= 0)) {
+    if (event->key() == Qt::Key_Escape && (resizeChannel_ >= 0 || pressedChannel_ >= 0 || pressedColor_ >= 0 || pressedSolo_ >= 0)) {
         const auto from = panelPositions(); cancelDrag(); animateLayout(from); update(); event->accept(); return;
     }
     FrameWindow::keyPressEvent(event);
