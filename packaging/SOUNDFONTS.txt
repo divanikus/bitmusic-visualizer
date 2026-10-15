@@ -11,6 +11,7 @@ The folder button opens the resource folder; Refresh rereads its file list.
 With no saved choice, the first bank alphabetically is used. A missing selected
 bank is reported when opening MIDI; there is no startup warning.
 
-Only SF2 is supported. SF3, DLS, MT-32 and complete GS/XG device emulation are
-not included in this increment. No SoundFonts or ROMs are supplied/downloaded.
+Only SF2 is supported. SF3, DLS and complete GS/XG device emulation are not
+supported. MT-32 uses a separate engine and a ROM pair in roms/mt32.
+No SoundFonts or ROMs are supplied/downloaded.
 Check each bank's terms before redistributing it.

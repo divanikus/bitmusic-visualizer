@@ -19,4 +19,6 @@ The BASIC flag requires basic.rom; other requirements are detected on use.
 No ROM files are bundled or downloaded. Size checks do not prove authenticity.
 Images are read only; changing them does not affect an already loaded tune.
 
-MIDI / MT-32 and SoundFont playback are not implemented yet.
+MT-32 uses a compatible Control/PCM pair in roms/mt32 under the data directory.
+General MIDI uses an SF2 bank in soundfonts under the same directory.
+Each folder has its own README with setup instructions.
