@@ -35,7 +35,8 @@ if (Test-Path -LiteralPath (Join-Path $playerRoot 'BitMusicVisualizer.ini')) {
 }
 $fixtureRoot = Join-Path $checkRoot 'test fixtures'
 New-Item -ItemType Directory -Path $fixtureRoot -Force | Out-Null
-foreach ($fixture in @('demo.nsf','demo.vgm','demo.vgz','demo.spc','named.nsfe','intro-loop.vgm')) {
+foreach ($fixture in @('demo.nsf','demo.vgm','demo.vgz','demo.spc','named.nsfe','intro-loop.vgm',
+    'demo.mid','fixture-gm.sf2','long-seek.mid','fractional-end.mid')) {
     Copy-Item -LiteralPath (Join-Path "$PSScriptRoot/test-output" $fixture) -Destination $fixtureRoot
 }
 $savedEnvironment = @{}
@@ -77,12 +78,12 @@ try {
     if (!$process.WaitForExit(300000)) { throw 'Portable tap checks timed out.' }
     if ($process.ExitCode -ne 0) { throw "Portable tap checks failed: $fixtureRoot/tap-checks.txt (exit $($process.ExitCode))" }
     $process = Start-Process -FilePath $executable -WorkingDirectory $playerRoot -ArgumentList @('--midi-checks', ('"' + $fixtureRoot + '"')) `
-        -PassThru -WindowStyle Hidden -RedirectStandardOutput "$checkRoot/midi-stdout.txt" -RedirectStandardError "$checkRoot/midi-stderr.txt"
+        -PassThru -WindowStyle Hidden -RedirectStandardOutput "$fixtureRoot/midi-checks.txt" -RedirectStandardError "$checkRoot/midi-stderr.txt"
     $null = $process.Handle
     if (!$process.WaitForExit(60000)) { throw 'Portable MIDI checks timed out.' }
     if ($process.ExitCode -ne 0) { throw "Portable MIDI checks failed (exit $($process.ExitCode))" }
     $process = Start-Process -FilePath $executable -WorkingDirectory $playerRoot -ArgumentList @('--mt32-checks', ('"' + $fixtureRoot + '"')) `
-        -PassThru -WindowStyle Hidden -RedirectStandardOutput "$checkRoot/mt32-stdout.txt" -RedirectStandardError "$checkRoot/mt32-stderr.txt"
+        -PassThru -WindowStyle Hidden -RedirectStandardOutput "$fixtureRoot/mt32-checks.txt" -RedirectStandardError "$checkRoot/mt32-stderr.txt"
     $null = $process.Handle
     if (!$process.WaitForExit(60000)) { throw 'Portable MT-32 resource checks timed out.' }
     if ($process.ExitCode -ne 0) { throw "Portable MT-32 resource checks failed (exit $($process.ExitCode))" }
