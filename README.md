@@ -164,6 +164,21 @@ Themes and presets use `themes/` and `presets/` in the [data directory](#roms-an
 `--software-scopes` selects CPU rendering for one launch. `--diagnostics` writes
 local logs; review paths and device details before sharing. No telemetry or automatic uploads.
 
+## Libraries
+
+| Library | Used for | License |
+| --- | --- | --- |
+| [Qt 6](https://www.qt.io/development/qt-framework) | Interface, audio output and GPU rendering | LGPL-3.0 (selected modules) |
+| [Game Music Emu](https://github.com/libgme/game-music-emu) | Console/chiptune playback and sound-chip emulation | LGPL-2.1-or-later |
+| [libsidplayfp / reSIDfp](https://github.com/libsidplayfp/libsidplayfp) | Commodore 64 and SID emulation | GPL-2.0-or-later |
+| [ymfm](https://github.com/aaronsgiles/ymfm) | Yamaha FM, PSG and sample-chip emulation | BSD-3-Clause |
+| [FluidSynth](https://github.com/FluidSynth/fluidsynth) | General MIDI synthesis with SoundFonts | LGPL-2.1-or-later |
+| [Munt / libmt32emu](https://github.com/munt/munt) | Roland MT-32 and CM-32L emulation | LGPL-2.1-or-later |
+| [zlib](https://github.com/madler/zlib) | Gzip/VGZ decompression | zlib |
+
+For pinned versions, local modifications and supporting build/runtime dependencies,
+see [third-party components and licenses](THIRD-PARTY.md).
+
 ## Documentation
 
 [Visualization](docs/VISUALIZATION.md) · [SID](docs/SID.md) · [VGM chips](docs/VGM.md) · [General MIDI](docs/MIDI.md) · [MT-32](docs/MT32.md) · [Build and test](docs/BUILDING.md)
