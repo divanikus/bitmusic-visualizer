@@ -49,8 +49,8 @@ notarized. See [platform requirements](docs/BUILDING.md).
 | Commodore 64 | SID (PSID / RSID) | Three voices per SID; up to three chips |
 | Atari 400/800 / 5200 | VGM, VGZ | Four voices from one POKEY |
 | Yamaha FM/sample systems | VGM, VGZ | FM, PSG and sample voices; supported dual/mixed Yamaha configurations |
-| General MIDI | MID, MIDI (SMF 0/1) + SF2 | Sixteen MIDI channels |
-| Roland MT-32 / CM-32L | MID, MIDI (SMF 0/1) + ROMs | Eight melodic parts and rhythm |
+| General MIDI | MID, MIDI (SMF 0/1) + SF2 | Sixteen MIDI channels; unused cards start hidden |
+| Roland MT-32 / CM-32L | MID, MIDI (SMF 0/1) + ROMs | Eight melodic parts and rhythm; unused cards start hidden |
 
 Additional Yamaha chips: **YM2203, YM2151, YM2608, YM2610/2610B, YM3526,
 YM3812, Y8950 and YMF262**. VGM support depends on its chips; unsupported

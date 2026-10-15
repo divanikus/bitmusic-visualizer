@@ -242,6 +242,7 @@ MidiTrack::MidiTrack(const QString &path,QByteArray data,int song,bool playlist,
     if(info_.title.isEmpty()) info_.title=QFileInfo(path).completeBaseName();
     info_.durationMs=int((d.resources->sequence.endFrame+TailSeconds*SampleRate)*1000/SampleRate);
     info_.stereoOutput=true; info_.tonalMask=VoiceMask(0xffffu & ~(1u<<9));
+    info_.emptyVoices=VoiceMask::first(16) & ~VoiceMask(d.resources->sequence.noteChannels);
     auto &c=info_.configuration; c.family="midi-gm"; c.name="FluidSynth";
     for(int i=0;i<16;++i) {
         info_.voices<< (i==9?QString("Channel 10 / Drums"):QString("Channel %1").arg(i+1));

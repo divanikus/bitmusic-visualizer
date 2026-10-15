@@ -328,6 +328,8 @@ void ScopeWindow::present(const PlayerState &state, const ScopeFrame &frame, con
         if (!restoreDefaultPreset()) {
             presetFile_.clear(); savedPreset_.clear(); presetModified_ = false;
             resetChannels(!keepGrid_->isChecked()); refreshPresets();
+        } else if (hideEmptyChannels()) {
+            rebuildList(); layoutChanged(); updateViewEditor();
         }
     }
     frame_ = frame;
@@ -356,7 +358,7 @@ void ScopeWindow::resetLayout() {
 }
 void ScopeWindow::resetGrid() {
     QSignalBlocker blockRows(rows_), blockColumns(columns_);
-    const int count = int(state_.info.voices.size()) + (waveOptions_.output ? 1 : 0);
+    const int count = int(std::count_if(order_.begin(), order_.end(), [this](int id) { return !hidden_[id]; }));
     // Large configurations must leave room for the plot below each heading.
     // Overflow stays available in the editor, just like a user-sized grid.
     const int columns = count > 32 ? std::min(8,(count+7)/8) : count > 5 ? 2 : 1;
@@ -371,9 +373,17 @@ void ScopeWindow::resetChannels(bool grid) {
     spectrumStates_ = {}; waveStates_ = {}; pitchStates_ = {};
     for (int i = 0; i < state_.info.voices.size(); ++i) order_.push_back(i);
     order_.push_back(ScopeTheme::FullMix); hidden_[ScopeTheme::FullMix] = !waveOptions_.output;
+    hideEmptyChannels();
     cancelDrag();
     if (grid) resetGrid();
     rebuildList(); layoutChanged(); updateViewEditor();
+}
+bool ScopeWindow::hideEmptyChannels() {
+    bool changed = false;
+    for (int id : order_) if (!hidden_[id] && state_.info.emptyVoices.test(sourceFor(id))) {
+        hidden_[id] = true; changed = true;
+    }
+    return changed;
 }
 QVector<int> ScopeWindow::visibleChannels() const {
     QVector<int> result;

@@ -8,6 +8,11 @@ not published GitHub releases. Unreleased lists changes made after the latest ta
 
 ## Unreleased
 
+### Changed
+
+- MIDI channel/MT-32 part cards with no notes in the entire file start unchecked.
+  They remain available in the editor; late entrances are kept, and audio is unchanged.
+
 ## [0.9.0](https://github.com/divanikus/bitmusic-visualizer/releases/tag/v0.9.0) — 2026-10-15
 
 ### Added

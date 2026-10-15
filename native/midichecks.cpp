@@ -1,5 +1,6 @@
 #include "miditrack.h"
 #include "window.h"
+#include "appsettings.h"
 #include <QApplication>
 #include <QComboBox>
 #include <QElapsedTimer>
@@ -10,6 +11,9 @@
 #include <QPushButton>
 #include <QToolButton>
 #include <QTabWidget>
+#include <QListWidget>
+#include <QSpinBox>
+#include <QCheckBox>
 #include <QKeyEvent>
 #include <QDir>
 #include <QtEndian>
@@ -56,6 +60,14 @@ int runMidiChecks(QApplication &app,const QStringList &args) {
         const auto running=smf(QByteArray::fromHex("009045640048648360454000483c00ff2f00"));
         const auto format0=MidiSequence::parse(running,SampleRate);
         require(format0.events.size()==4&&format0.endFrame==22050,"MIDI format 0 / running status failed.");
+        require(format0.noteChannels==1 && sequence.noteChannels==0xffff,"MIDI channel usage lost format 0/1 or running status.");
+        // Controllers/programs/note-offs are not notes; key zero is a valid note.
+        // Channel 16 starts late, while channel 10 carries percussion.
+        const auto sparse=smf(QByteArray::fromHex("00c30500b4076400853c4000963c000090006400000083609f48640099246400ff2f00"));
+        const VoiceMask sparseUsed=VoiceMask::bit(0)|VoiceMask::bit(9)|VoiceMask::bit(15);
+        require(VoiceMask(MidiSequence::parse(sparse,SampleRate).noteChannels)==sparseUsed,"MIDI empty-channel detection lost a late note or counted setup/Note Off.");
+        const auto empty=smf(QByteArray::fromHex("00c30500b4076400853c4000963c0000ff2f00"));
+        require(!MidiSequence::parse(empty,SampleRate).noteChannels,"Note-free MIDI has active channels.");
         const auto smpte=MidiSequence::parse(smf(QByteArray::fromHex("009045641980450000ff2f00"),0xe728),SampleRate);
         require(smpte.endFrame==1103,"SMPTE MIDI timing failed.");
         require(rejects(smf(QByteArray::fromHex("00010100ff2f00"))),"Invalid running status accepted.");
@@ -72,6 +84,13 @@ int runMidiChecks(QApplication &app,const QStringList &args) {
         require(missing,"Missing SoundFont did not produce an actionable error.");
         write(resources.filePath("Test.sf2"),read(QDir(directory).filePath("fixture-gm.sf2")));
         selectSoundFont("Test.sf2"); require(selectedSoundFont()=="Test.sf2","SoundFont selection did not persist.");
+        const auto sparsePath=resources.filePath("sparse.mid"),emptyPath=resources.filePath("empty.mid");
+        write(sparsePath,sparse); write(emptyPath,empty);
+        auto sparseTrack=openMusicTrack(sparsePath);
+        require(sparseTrack->info().emptyVoices==(VoiceMask::first(16)&~sparseUsed) && sparseTrack->info().voices.size()==16,
+            "MIDI unused-card hints changed channel identities.");
+        require(openMusicTrack("missing.mid",0,false,true,{}, {},sparseTrack->info().midiResources)->info().emptyVoices==sparseTrack->info().emptyVoices,
+            "MIDI snapshot lost empty-channel hints.");
         auto audio=openMusicTrack(midi); auto capture=openMusicTrack(midi,0,true,true,{}, {},audio->info().midiResources);
         require(audio->info().songs==1 && audio->info().voices.size()==16 && audio->info().stereoOutput &&
                 audio->info().durationMs==3500 && capture->hasTaps(),"General MIDI metadata/capture incorrect.");
@@ -147,6 +166,9 @@ int runMidiChecks(QApplication &app,const QStringList &args) {
             if(tune>=0&&tune+1<args.size()) {
                 speed.restart(); auto tuneTrack=openMusicTrack(args[tune+1]);
                 log<<"Local MIDI load: "<<speed.elapsed()<<" ms; duration "<<tuneTrack->info().durationMs<<" ms\n"; log.flush();
+                QStringList used;
+                for(int i=0;i<tuneTrack->info().voices.size();++i) if(!tuneTrack->info().emptyVoices.test(i)) used<<QString::number(i+1);
+                log<<"Local MIDI channels with notes: "<<used.join(", ")<<'\n';
                 for(int percent:{50,95,5}) {
                     speed.restart(); const qint64 target=qint64(tuneTrack->info().durationMs)*SampleRate/1000*percent/100;
                     require(tuneTrack->seek(target),"Local MIDI seek failed.");
@@ -222,6 +244,47 @@ int runMidiChecks(QApplication &app,const QStringList &args) {
             require(window.scopeWindow().visibleChannels()==layout && window.findChild<QToolButton*>("voice0")->text().contains("Lead"),
                     "Instrument change reset the layout or left stale channel labels.");
             log<<"Live MIDI: end restart (button/F7/transport), instrument labels and long audio/scope seek PASS\n";
+            auto &scope=window.scopeWindow();
+            window.loadFile(sparsePath);
+            spin(app,[&]{return !player.state().busy&&player.state().info.path==sparsePath&&player.scopes().mask==sparseUsed;});
+            window.refresh();
+            auto list=scope.findChild<QListWidget*>("scopeChannelList");
+            auto rows=scope.findChild<QSpinBox*>("gridRows"),columns=scope.findChild<QSpinBox*>("gridColumns");
+            const auto checkSparse=[&] {
+                require(list->count()==17,"Unused MIDI cards were removed instead of unchecked.");
+                for(int i=0;i<16;++i) require((list->item(i)->checkState()==Qt::Checked)==sparseUsed.test(i),"Unused MIDI checkbox state incorrect.");
+            };
+            checkSparse();
+            require(scope.visibleChannels()==QVector<int>({0,9,15})&&rows->value()==3&&columns->value()==1&&!player.state().muteMask,
+                "MIDI initial grid or channel numbering/mutes changed incorrectly.");
+            list->item(1)->setCheckState(Qt::Checked); player.seek(600,false);
+            spin(app,[&]{return !player.state().busy&&!player.state().playing&&player.scopes().generation==player.state().generation;});
+            window.refresh(); require(list->item(1)->checkState()==Qt::Checked,"Transport re-hid a manually enabled empty card.");
+            scope.resetLayout(); checkSparse();
+            auto keep=scope.findChild<QCheckBox*>("keepGrid"); keep->setChecked(true); rows->setValue(2); columns->setValue(2);
+            window.loadFile(sparsePath); spin(app,[&]{return !player.state().busy;}); window.refresh(); checkSparse();
+            require(rows->value()==2&&columns->value()==2,"MIDI auto-hide discarded Keep grid.");
+            ScopePreset preset; preset.configuration=player.state().info.configuration; preset.rows=8; preset.columns=2;
+            for(const auto &source:preset.configuration.sources) preset.cards.push_back({source});
+            QString presetError; const auto presetPath=QDir(playerPresetsDirectory()).filePath("MIDI all.ini");
+            QDir().mkpath(playerPresetsDirectory()); require(preset.save(presetPath,presetError),"Cannot write MIDI layout fixture.");
+            QSettings settings(playerSettingsPath(),playerSettingsFormat());
+            const auto defaultKey="PresetDefaults/"+preset.configuration.id;
+            settings.setValue(defaultKey,"MIDI all.ini"); settings.sync();
+            window.loadFile(sparsePath); spin(app,[&]{return !player.state().busy;}); window.refresh();
+            require(list->count()==16&&list->item(1)->checkState()==Qt::Unchecked&&rows->value()==8&&columns->value()==2,
+                "MIDI file default did not hide empty cards or lost its saved grid.");
+            require(read(presetPath)==preset.encode(),"Auto-hide overwrote a saved preset.");
+            auto presets=scope.findChild<QComboBox*>("scopePreset");
+            QMetaObject::invokeMethod(presets,"activated",Qt::DirectConnection,Q_ARG(int,presets->currentIndex()));
+            require(list->item(1)->checkState()==Qt::Checked,"Manual preset selection could not restore empty cards.");
+            settings.remove(defaultKey); settings.sync(); keep->setChecked(false);
+            window.loadFile(emptyPath); spin(app,[&]{return !player.state().busy&&player.state().info.path==emptyPath;}); window.refresh();
+            require(scope.visibleChannels().isEmpty()&&list->count()==17&&rows->value()==1&&columns->value()==1,
+                "Note-free MIDI did not produce a safe empty grid.");
+            scope.findChild<QPushButton*>("showAllScopes")->click();
+            require(list->item(1)->checkState()==Qt::Checked,"Show all did not restore empty MIDI cards.");
+            log<<"MIDI empty cards: whole-file detection, late notes, stable IDs, manual restore, transport, Reset, Keep grid and presets PASS\n";
             window.close(); log<<"MIDI live: controls, paused seek, Solo, repeat, hide/resume, zero audio errors PASS\n";
         }
         return 0;

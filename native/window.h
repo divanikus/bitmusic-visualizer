@@ -155,6 +155,7 @@ private:
     void updateWindowSizeControls();
     void layoutChanged();
     void resetChannels(bool resetGrid);
+    bool hideEmptyChannels();
     void resetGrid();
     void rebuildList();
     void updateList();

@@ -9,6 +9,7 @@ struct MidiSequence {
     QVector<MidiEvent> events;
     QString title;
     qint64 endFrame = 0;
+    quint16 noteChannels = 0; // Positive-velocity Note On anywhere in the file.
     bool mt32 = false;
     static MidiSequence parse(const QByteArray &bytes, int sampleRate);
 };

@@ -85,6 +85,7 @@ int runMt32Checks(QApplication &app,const QStringList &args) {
         auto audio=openMusicTrack(midi);
         const auto resources=audio->info().mt32Resources;
         require(resources && audio->info().voices.size()==9 && audio->info().durationMs==6000 && audio->info().stereoOutput,"MT-32 metadata incorrect.");
+        require(!audio->info().emptyVoices,"Used MT-32 parts were marked empty.");
         auto capture=openMusicTrack(midi,0,true,true,{}, {},{},resources);
         require(render(*audio,SampleRate)==render(*capture,SampleRate,37),"Capture or chunk boundaries changed MT-32 audio.");
         require(!capture->instrumentNames(capture->frame()).value(0).isEmpty(),"MT-32 instrument names missing.");
@@ -95,6 +96,7 @@ int runMt32Checks(QApplication &app,const QStringList &args) {
         for(int part=0;part<9;++part) {
             auto r=std::make_shared<Mt32Resources>(*resources); r->sequence=MidiSequence::parse(fixture(part),SampleRate);
             Mt32Track a(midi,{},0,false,true,r),b(midi,{},0,false,true,r); b.mute(VoiceMask::bit(part));
+            require(a.info().emptyVoices==(VoiceMask::first(9)&~VoiceMask::bit(part)),"MT-32 empty-part detection confused MIDI channels and parts.");
             const auto audible=render(a,SampleRate/10),muted=render(b,SampleRate/10,17);
             require(audible!=QByteArray(audible.size(),0)&&muted==QByteArray(muted.size(),0),"MT-32 part mute leaked or source silent.");
             for(int c=0;c<9;++c) {
@@ -105,6 +107,24 @@ int runMt32Checks(QApplication &app,const QStringList &args) {
             }
         }
         log<<"MT-32: nine independent parts, per-part mute, chunk invariance and capture transparency PASS\n"; log.flush();
+        auto routedResources=std::make_shared<Mt32Resources>(*resources);
+        auto &routedEvents=routedResources->sequence.events; routedEvents.clear();
+        const auto routeEvent=[&](int seconds,const char *hex) { routedEvents.push_back({qint64(seconds)*SampleRate,QByteArray::fromHex(hex)}); };
+        routeEvent(0,"913c64"); // Default Part 1; it must still sound before the later remapping.
+        routeEvent(0,"943c00"); // Zero-velocity Note On is a release.
+        routeEvent(0,"c508"); // A program alone does not use a part.
+        routeEvent(5,"f04110161210000d0f0f45f7"); // Assign Parts 1 and 2 to MIDI channel 16.
+        routeEvent(6,"9f4064");
+        routeEvent(7,"f0411016127f00000100f7"); // Restore ROM defaults.
+        routeEvent(8,"934364"); // Default Part 3 only after reset.
+        routedResources->sequence.endFrame=10*SampleRate;
+        Mt32Track routed(midi,{},0,false,true,routedResources);
+        require(routed.info().emptyVoices==(VoiceMask::first(9)&~VoiceMask::first(3)),"MT-32 usage ignored later SysEx remapping or reset.");
+        require(render(routed,SampleRate/10)!=QByteArray(SampleRate/10*4,0),"Usage scan leaked future routing into playback.");
+        routedEvents={{0,QByteArray::fromHex("913c00")},{0,QByteArray::fromHex("b10764")}};
+        Mt32Track noteFree(midi,{},0,false,false,routedResources);
+        require(noteFree.info().emptyVoices==VoiceMask::first(9),"Note-free MT-32 parts were not marked empty.");
+        log<<"MT-32 empty parts: late notes, shared channel assignments, SysEx remapping/reset and playback isolation PASS\n";
         capture->seek(0); auto fresh=openMusicTrack(midi,0,false,true,{}, {},{},resources);
         require(render(*capture,SampleRate/2)==render(*fresh,SampleRate/2),"Cold MT-32 rewind is nondeterministic.");
         require(!capture->seek(0,[]{return true;}),"MT-32 ignored cancellation.");

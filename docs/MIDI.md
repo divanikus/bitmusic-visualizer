@@ -14,6 +14,15 @@ is selected; a missing saved bank produces an error on MIDI load.
 
 MIDI tracks play together as one song, rather than appearing as separate
 subsongs. Sixteen stable cards represent MIDI channels; channel 10 is percussion.
+On file load, channels with no positive-velocity Note On anywhere in the song
+start unchecked in the card editor. Late entrances remain visible; controllers,
+program changes and note releases alone do not count. Cards and their original
+numbers stay available: check them again or use **Show all** to restore them.
+This changes visualization only, not audio mutes. Reset uses the same defaults.
+The automatic grid fits the enabled cards; **Keep grid** and saved preset grids
+retain their dimensions. Empty cards are also unchecked when a file's default
+preset loads, without rewriting it. Manually selecting a preset restores its
+saved visibility, and playback/seeking never overrides your edits.
 Some files contain a whole soundtrack as one continuous sequence. Leading rests
 and the declared endpoint are kept; tracks are not guessed to be separate songs.
 Several notes and instruments can share a channel. These are musical parts,

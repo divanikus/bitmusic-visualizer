@@ -56,6 +56,7 @@ MidiSequence MidiSequence::parse(const QByteArray &bytes, int rate) {
                 QByteArray msg(1,char(status));
                 const int count = (status & 0xe0) == 0xc0 ? 1 : 2;
                 for (int i=0;i<count;++i) { int b=t.byte(); require(b<128,"Invalid MIDI event data."); msg += char(b); }
+                if ((status & 0xf0) == 0x90 && quint8(msg[2])) result.noteChannels |= quint16(1u << (status & 15));
                 usePort(port<0?0:port); events.push_back({tick,0,msg});
             } else if (status == 0xff) {
                 running = 0;
