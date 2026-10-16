@@ -116,3 +116,10 @@ prevents running modified libraries. Verify audio and scopes after replacement.
 Platform guidance: https://doc.qt.io/qt-6.11/linux-building.html and
 https://doc.qt.io/qt-6.11/macos-building.html . These are rebuild instructions,
 not a claim that the complete Qt source build has been independently tested.
+
+## Tracker engine
+
+Extract the pinned `libxmp-4.7.3.tar.gz` source beside the other cached archives
+in `.runtime/sources/`. The complete application source includes `cmake/Xmp.cmake`,
+`cmake/PatchXmp.cmake` and `native/xmp-taps/`. CMake applies the hash-checked
+MIT capture patch and links libxmp statically; rebuild the application to replace it.

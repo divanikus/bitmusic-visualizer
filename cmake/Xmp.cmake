@@ -1,0 +1,22 @@
+# Headless, static libxmp. Qt owns audio devices; no external unpacker processes.
+function(bitmusic_add_xmp)
+  set(archive "https://codeload.github.com/libxmp/libxmp/tar.gz/refs/tags/libxmp-4.7.3")
+  if(EXISTS "${PROJECT_SOURCE_DIR}/.runtime/sources/libxmp-4.7.3.tar.gz")
+    set(archive "${PROJECT_SOURCE_DIR}/.runtime/sources/libxmp-4.7.3.tar.gz")
+  endif()
+  FetchContent_Declare(xmp URL "${archive}"
+    URL_HASH SHA256=716b013943bac9dbe0616fccf828451d15aa862d5bac42b5286dac4572bfbd8b
+    DOWNLOAD_EXTRACT_TIMESTAMP TRUE SOURCE_SUBDIR bitmusic-no-project)
+  FetchContent_MakeAvailable(xmp)
+  include(${CMAKE_CURRENT_FUNCTION_LIST_DIR}/PatchXmp.cmake)
+  set(BUILD_STATIC ON CACHE BOOL "" FORCE)
+  set(BUILD_SHARED OFF CACHE BOOL "" FORCE)
+  set(BUILD_LITE OFF CACHE BOOL "" FORCE)
+  set(WITH_UNIT_TESTS OFF CACHE BOOL "" FORCE)
+  set(LIBXMP_PIC ON CACHE BOOL "" FORCE)
+  set(LIBXMP_DISABLE_DEPACKERS ON CACHE BOOL "" FORCE)
+  set(LIBXMP_DISABLE_PROWIZARD ON CACHE BOOL "" FORCE)
+  add_subdirectory("${xmp_SOURCE_DIR}" "${xmp_BINARY_DIR}" EXCLUDE_FROM_ALL)
+  target_include_directories(xmp_static PRIVATE "${PROJECT_SOURCE_DIR}/native/xmp-taps")
+endfunction()
+bitmusic_add_xmp()

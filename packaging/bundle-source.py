@@ -33,10 +33,14 @@ def bundle(destination):
                 'cmake/FluidSynth.cmake', 'packaging/SOUNDFONTS.txt', 'LICENSES/FluidSynth-LGPL-2.1.txt',
                 'native/mt32track.cpp', 'native/mt32checks.cpp', 'native/munt-taps/patches.json',
                 'native/munt-taps/README.md', 'cmake/Munt.cmake', 'cmake/PatchMunt.cmake',
-                'packaging/MT32-ROMS.txt', 'LICENSES/Munt-LGPL-2.1.txt'}
+                'packaging/MT32-ROMS.txt', 'LICENSES/Munt-LGPL-2.1.txt',
+                'native/trackertrack.cpp', 'native/trackerchecks.cpp', 'cmake/Xmp.cmake',
+                'cmake/PatchXmp.cmake', 'native/xmp-taps/patches.json',
+                'native/xmp-taps/capture.cpp', 'LICENSES/libxmp-MIT.txt'}
     if not required.issubset(paths):
         raise RuntimeError('Application source bundle is incomplete.')
     forbidden = {'.sid', '.nsf', '.nsfe', '.vgm', '.vgz', '.spc', '.gbs', '.ay',
+                 '.dbm', '.digi', '.emod', '.mtm', '.stm', '.669', '.ult', '.far', '.okt', '.mod', '.m15', '.xm', '.s3m', '.it', '.med', '.mmd0', '.mmd1', '.mmd2', '.mmd3', '.umx',
                  '.mdx', '.pdx', '.mid', '.midi', '.syx', '.sf2', '.sf3', '.rom', '.wav', '.exe', '.dll', '.pdb'}
     sources = destination / 'third-party-sources'
     sources.mkdir(parents=True, exist_ok=True)
@@ -45,7 +49,8 @@ def bundle(destination):
     with tarfile.open(target, 'w:xz') as archive:
         for name in sorted(paths):
             path = ROOT / name
-            if path.is_symlink() or not path.is_file() or path.suffix.lower() in forbidden:
+            if (path.is_symlink() or not path.is_file() or path.suffix.lower() in forbidden
+                    or path.name.lower().startswith(('mod.', 'med.'))):
                 raise RuntimeError('Unsupported application source input: ' + name)
             data = path.read_bytes()
             info = tarfile.TarInfo('bitmusic-visualizer-source/' + name)

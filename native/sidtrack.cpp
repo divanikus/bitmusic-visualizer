@@ -3,6 +3,7 @@
 #include "yamahatrack.h"
 #include "miditrack.h"
 #include "mt32track.h"
+#include "trackertrack.h"
 #include "vgm.h"
 #include "sid-taps/taps.h"
 #include "romfiles.h"
@@ -178,5 +179,8 @@ std::unique_ptr<MusicTrack> openMusicTrack(const QString &path, int song, bool p
         if (!header.yamaha.isEmpty()) return std::make_unique<YamahaTrack>(path, std::move(data), song, playlist, capture, std::move(yamahaRoms));
         if (header.pokeyClock) return std::make_unique<PokeyTrack>(path, std::move(data), song, playlist, capture);
     }
+    const bool console = data.startsWith("NESM") || data.startsWith("NSFE") || data.startsWith("Vgm ") ||
+        data.startsWith("SNES-SPC700") || data.startsWith("GBS") || data.startsWith("ZXAYEMUL");
+    if (!console) return std::make_unique<TrackerTrack>(path, std::move(data), song, playlist, capture);
     return std::make_unique<GmeTrack>(path, song, playlist, capture, std::move(data));
 }

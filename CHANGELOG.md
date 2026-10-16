@@ -8,6 +8,12 @@ not published GitHub releases. Unreleased lists changes made after the latest ta
 
 ## Unreleased
 
+### Added
+
+- Tracker music: Amiga MOD, MED/OctaMED and DigiBooster, plus XM, S3M and IT.
+- Separate channel cards with current sample names, stereo, mute/Solo and Full mix.
+  Modules support seeking, repeat and internal subsongs without ROMs or SoundFonts.
+
 ## [0.9.2](https://github.com/divanikus/bitmusic-visualizer/releases/tag/v0.9.2) — 2026-10-15
 
 ### Changed

@@ -1,5 +1,10 @@
 [
   {
+    "file": "libxmp-4.7.3.tar.gz",
+    "url": "https://codeload.github.com/libxmp/libxmp/tar.gz/refs/tags/libxmp-4.7.3",
+    "sha256": "716b013943bac9dbe0616fccf828451d15aa862d5bac42b5286dac4572bfbd8b"
+  },
+  {
     "file": "qtdeclarative-everywhere-src-6.11.2.tar.xz",
     "url": "https://download.qt.io/official_releases/qt/6.11/6.11.2/submodules/qtdeclarative-everywhere-src-6.11.2.tar.xz",
     "sha256": "215b7b70517e380123eabc6b92243f3c47b6f016a91d126057dbe53551c6b430"

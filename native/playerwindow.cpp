@@ -260,7 +260,7 @@ PlayerWindow::PlayerWindow() {
     });
     status_ = new QLabel; status_->setObjectName("status"); status_->setWordWrap(true); status_->hide(); root->addWidget(status_);
     connect(open, &QPushButton::clicked, this, [this] {
-        const auto path = QFileDialog::getOpenFileName(this, QString::fromUtf8("Open music"), {}, "Music (*.nsf *.nsfe *.vgm *.vgz *.spc *.gbs *.ay *.sid *.mid *.midi);;All files (*)");
+        const auto path = QFileDialog::getOpenFileName(this, QString::fromUtf8("Open music"), {}, "Music (*.nsf *.nsfe *.vgm *.vgz *.spc *.gbs *.ay *.sid *.mid *.midi *.mod mod.* *.m15 *.xm *.s3m *.it *.med med.* *.dbm *.digi *.emod *.mmd0 *.mmd1 *.mmd2 *.mmd3 *.mtm *.stm *.669 *.ult *.far *.okt *.umx);;Tracker modules (*.mod mod.* *.m15 *.xm *.s3m *.it *.med med.* *.dbm *.digi *.emod *.mmd0 *.mmd1 *.mmd2 *.mmd3 *.mtm *.stm *.669 *.ult *.far *.okt *.umx);;All files (*)");
         if (!path.isEmpty()) loadFile(path);
     });
     connect(showScopes_, &QPushButton::clicked, this, [this] { setScopesVisible(!scopes_.renderingVisible()); });
@@ -416,7 +416,7 @@ void PlayerWindow::refreshControls() {
     soundFont_->setVisible(!mt32);
     findChild<QToolButton *>("refreshSoundFonts")->setVisible(!mt32);
     findChild<QPushButton *>("soundFontFolder")->setToolTip(mt32?"Open MT-32 ROM folder":"Open SoundFonts folder");
-    total_->setToolTip((s.info.midiResources || s.info.mt32Resources) ? "MIDI sequence duration plus 2 seconds for release and effects" : s.info.durationMs > 0 ? QString::fromUtf8("Duration from file") : QString::fromUtf8("No duration provided; playback continues indefinitely"));
+    total_->setToolTip((s.info.midiResources || s.info.mt32Resources) ? "MIDI sequence duration plus 2 seconds for release and effects" : s.info.configuration.family=="tracker" ? "Duration calculated from module patterns" : s.info.durationMs > 0 ? QString::fromUtf8("Duration from file") : QString::fromUtf8("No duration provided; playback continues indefinitely"));
     timeline_->setToolTip(s.info.durationMs > 0 ? QString::fromUtf8("Seek") : QString::fromUtf8("Seek: range expands during playback"));
     for (int i = 0; i < songs_->count(); ++i) {
         auto item = songs_->item(i);

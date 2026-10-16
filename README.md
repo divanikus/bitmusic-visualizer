@@ -52,10 +52,14 @@ notarized. See [platform requirements](docs/BUILDING.md).
 | Yamaha FM/sample systems | VGM, VGZ | FM, PSG and sample voices; supported dual/mixed Yamaha configurations |
 | General MIDI | MID, MIDI (SMF 0/1) + SF2 | Sixteen MIDI channels; unused cards start hidden |
 | Roland MT-32 / CM-32L | MID, MIDI (SMF 0/1) + ROMs | Eight melodic parts and rhythm; unused cards start hidden |
+| Amiga trackers | MOD (15/31 samples), MED / OctaMED, DBM | Individual tracker channels, current sample names and stereo |
+| PC trackers | XM, S3M, IT, multichannel MOD | Individual tracker channels; background voices stay with their parent channel |
 
 Additional Yamaha chips: **YM2203, YM2151, YM2608, YM2610/2610B, YM3526,
 YM3812, Y8950 and YMF262**. VGM support depends on its chips; unsupported
-combinations are reported. MDX, SAP, PT3, VTX, YM and tracker modules are not supported yet.
+combinations are reported. MDX, SAP, PT3, VTX and YM are not supported yet.
+Other native libxmp formats can be opened through **All files**; Amiga names such
+as `mod.song` work too. [Tracker details and limits](docs/TRACKERS.md).
 
 Voice cards show signals before shared processing; **Full mix** includes effects,
 volume and mutes. Tracks without duration data play until stopped. MIDI tracks
@@ -175,6 +179,7 @@ local logs; review paths and device details before sharing. No telemetry or auto
 | [ymfm](https://github.com/aaronsgiles/ymfm) | Yamaha FM, PSG and sample-chip emulation | BSD-3-Clause |
 | [FluidSynth](https://github.com/FluidSynth/fluidsynth) | General MIDI synthesis with SoundFonts | LGPL-2.1-or-later |
 | [Munt / libmt32emu](https://github.com/munt/munt) | Roland MT-32 and CM-32L emulation | LGPL-2.1-or-later |
+| [libxmp](https://github.com/libxmp/libxmp) | Amiga and PC tracker playback, channel mixing | MIT |
 | [zlib](https://github.com/madler/zlib) | Gzip/VGZ decompression | zlib |
 
 For pinned versions, local modifications and supporting build/runtime dependencies,

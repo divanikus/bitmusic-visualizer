@@ -1,0 +1,24 @@
+[
+  {
+    "file": "src/mixer.c",
+    "edits": [
+      [
+        "#include \"mixer.h\"",
+        "#include \"mixer.h\"\n#include \"taps.h\""
+      ],
+      [
+        "\tlibxmp_mixer_prepare(ctx);\n",
+        "\tlibxmp_mixer_prepare(ctx);\n\tbm_xmp_begin(s->buf32, s->ticksize, s->amplify);\n"
+      ],
+      [
+        "\t\tvi = &p->virt.voice_array[voc];\n\n\t\tif (vi->flags & ANTICLICK)",
+        "\t\tvi = &p->virt.voice_array[voc];\n\t\tbm_xmp_voice(vi->root, s->buf32);\n\n\t\tif (vi->flags & ANTICLICK)"
+      ],
+      [
+        "\t/* Render final frame */",
+        "\tbm_xmp_end(s->buf32);\n\n\t/* Render final frame */"
+      ]
+    ],
+    "sha256": "72ff837d252050bb8cc93471ff955d17d109801c4d30e70d7a896f7bdd6553ad"
+  }
+]

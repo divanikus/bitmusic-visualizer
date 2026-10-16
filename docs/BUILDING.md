@@ -49,7 +49,7 @@ so restricted system temporary folders do not trigger modal write warnings.
 `--self-test test-output --shortcuts-only` exercises keyboard events in both
 windows, number-row/numpad mapping, duplicate/reordered/hidden cards, independent
 mute and visibility, Full mix on 0/Alt+0, L/R output toggles, input/dialog
-protection, transport and reset. Solo checks cover Shift-click, Ctrl+Shift+1–9,
+protection, transport and reset. Solo checks cover Shift-click, Ctrl+Shift+1вЂ“9,
 switching/restoring mutes, manual overrides and transport/file changes. It also checks
 the main-window help button and F1 guide, saving screenshots with isolated
 preferences and silent playback. It is included in the complete native suite.
@@ -145,7 +145,7 @@ their first release is described as tested.
 
 ## Dependencies and sources
 
-CMake fetches hash-pinned libgme, libsidplayfp, ymfm, FluidSynth, GCEM, Munt and zlib source archives. `.runtime/sources/`
+CMake fetches hash-pinned libgme, libsidplayfp, ymfm, FluidSynth, GCEM, Munt, libxmp and zlib source archives. `.runtime/sources/`
 caches them. Packaging additionally downloads the exact Qt source archives in
 `packaging/sources.json`, verifies hashes and includes them with notices generated
 from the installed SDK's `sbom/` files. Missing source or notices fails packaging.
@@ -207,3 +207,7 @@ packaging. `--mt32-checks <output>` without `--roms` runs resource/selection tes
 and explicitly skips synthesis; `--roms <directory>` enables real ROM validation,
 part isolation and transport checks. See [MT-32](MT32.md) for commands and limits.
 Hosted CI never receives user ROMs. Linux/macOS synthesis needs local validation.
+
+libxmp 4.7.3 is a static C dependency with a hash-checked mixer observation patch.
+It uses native loaders, with archive depackers and ProWizard disabled. No new
+runtime DLL is needed. See [tracker checks and limits](TRACKERS.md).

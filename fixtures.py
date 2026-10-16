@@ -8,6 +8,7 @@ def make_fixtures(directory):
     directory = Path(directory)
     directory.mkdir(parents=True, exist_ok=True)
     make_midi_fixtures(directory)
+    make_tracker_fixtures(directory)
     # A small NES initialization routine enables pulse 1, triangle and noise.
     # The play routine returns: the hardware oscillators continue sounding.
     code = bytearray()
@@ -172,6 +173,42 @@ def make_midi_fixtures(directory):
     # Endpoint not aligned to a whole millisecond/sample conversion (3525 ms).
     (directory / 'fractional-end.mid').write_bytes(b'MThd' + struct.pack('>IHHH', 6, 0, 1, 480)
         + track([(0, b'\x90\x45\x50'), (1440, b'\x80\x45\0'), (1464, b'\xff\x2f\0')]))
+
+
+def make_tracker_fixtures(directory):
+    """Original sample loops and patterns, not third-party music."""
+    import math
+    for label, instruments, channels, sequences in (
+            ('demo', 31, 4, False), ('soundtracker', 15, 4, False),
+            ('multichannel', 31, 8, False), ('sequences', 31, 4, True)):
+        b = bytearray(b'Bit Music MOD test'.ljust(20, b'\0'))
+        waves = [
+            bytes((round(100*math.sin(i*2*math.pi/64)) & 255) for i in range(64)),
+            bytes((100 if i<32 else -100) & 255 for i in range(64)),
+            bytes((i*3-95) & 255 for i in range(64)),
+            bytes((100-abs(i-32)*6) & 255 for i in range(64))]
+        for i in range(instruments):
+            title = (['Sine', 'Square', 'Saw', 'Triangle'][i] if i<4 else '').encode()
+            b += title.ljust(22, b'\0') + struct.pack('>HBBHH', 32 if i<4 else 0, 0,
+                    32 if i<4 else 0, 0, 32 if i<4 else 1)
+        b += bytes([2 if sequences else 1, 0x7f])
+        b += bytes([0, 1] if sequences else [0]).ljust(128, b'\0')
+        if instruments==31:
+            b += b'M.K.' if channels==4 else b'8CHN'
+        for seq in range(2 if sequences else 1):
+            pattern = bytearray(64*channels*4)
+            def event(row, channel, ins, period, effect=0, value=0):
+                offset = (row*channels+channel)*4
+                pattern[offset:offset+4] = bytes([(ins & 0xf0) | period>>8,
+                    period & 255, (ins & 15)<<4 | effect, value])
+            for row in (0, 16, 32, 48):
+                for c in range(channels):
+                    event(row, c, 1+(c+row//32)%4, [428, 339, 285, 214][c%4])
+            if sequences:
+                event(32, 0, 0, 0, 0xb, seq)
+            b += pattern
+        b += b''.join(waves)
+        (directory / (label + '.mod')).write_bytes(b)
 
 
 if __name__ == '__main__':

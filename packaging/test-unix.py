@@ -35,7 +35,7 @@ def main():
         subprocess.run([str(image.resolve()), '--appimage-extract'], cwd=test,
                        stdout=subprocess.DEVNULL, check=True, timeout=120)
         stage = test / 'squashfs-root'
-    forbidden = {'.nsf', '.nsfe', '.vgm', '.vgz', '.spc', '.ay', '.gbs', '.sid', '.wav', '.pdb', '.obj', '.rom', '.sf2', '.sf3', '.mid', '.midi', '.syx'}
+    forbidden = {'.nsf', '.nsfe', '.vgm', '.vgz', '.spc', '.ay', '.gbs', '.sid', '.wav', '.pdb', '.obj', '.rom', '.sf2', '.sf3', '.mid', '.midi', '.syx','.mod','.m15','.xm','.s3m','.it','.med','.mmd0','.mmd1','.mmd2','.mmd3','.umx','.dbm','.digi','.emod'}
     for path in stage.rglob('*'):
         if path.is_symlink() and not path.resolve().is_relative_to(stage.resolve()):
             raise RuntimeError(f'Escaping bundle symlink: {path}')
@@ -60,7 +60,8 @@ def main():
                      'licenses/ymfm-BSD-3-Clause.txt', 'licenses/ymfm-voices-BSD-3-Clause.txt',
                      'third-party-sources/ymfm-81aec25ccbb98f4873a255f7551ac4dadac59b4a.tar.gz',
                      'third-party-sources/bitmusic-visualizer-source.tar.xz', 'YAMAHA-ROMS.txt', 'MT32-ROMS.txt', 'licenses/Munt-LGPL-2.1.txt',
-                     'third-party-sources/munt-libmt32emu-2.8.3.tar.gz'):
+                     'third-party-sources/munt-libmt32emu-2.8.3.tar.gz', 'third-party-sources/libxmp-4.7.3.tar.gz',
+                     'licenses/libxmp-MIT.txt', 'licenses/libxmp-CREDITS.txt'):
         if required not in listed:
             raise RuntimeError('Missing notices: ' + required)
     if platform.system() == 'Linux':
@@ -134,6 +135,7 @@ def main():
     subprocess.run([str(executable), '--tap-checks', str(fixtures), '--decoder-only'], env=env, check=True, timeout=120)
     subprocess.run([str(executable), '--midi-checks', str(fixtures), '--decoder-only'], env=env, check=True, timeout=120)
     subprocess.run([str(executable), '--mt32-checks', str(fixtures), '--decoder-only'], env=env, check=True, timeout=120)
+    subprocess.run([str(executable), '--tracker-checks', str(fixtures), '--decoder-only'], env=env, check=True, timeout=120)
     if platform.system() == 'Linux':
         subprocess.run([str(image.resolve()), '--appimage-extract-and-run', '--tap-checks',
                         str(fixtures.resolve()), '--decoder-only'], env=env, check=True, timeout=180)

@@ -19,6 +19,7 @@ available under MIT. This applies to both static and dynamic SID integration.
 | zlib | 1.3.2 | zlib license; static |
 | FluidSynth | 2.5.4, unchanged core | LGPL-2.1-or-later; static, combined application GPLv3 |
 | Munt / libmt32emu | 2.8.3 + local part capture/mute and deterministic jitter patches | LGPL-2.1-or-later; static, combined application GPLv3 |
+| libxmp | 4.7.3 + local channel capture | MIT; static |
 | GCEM | 012ae73c6d0a2cb09ffe86475f5c6fba3926e200 | Apache-2.0; FluidSynth table-generation headers |
 | ICU (Linux Qt runtime) | 73.2 | Unicode/ICU permissive licenses; shared |
 | AppImage type-2 runtime (Linux) | 20251108 | MIT runtime; static libfuse LGPL-2.1, other permissive runtime components |
@@ -50,6 +51,18 @@ Complete libgme sources retain those notices. No emulator ROMs, game soundtracks
 MIDI ROMs or runtime sound banks are bundled. The unmodified FluidSynth source
 archive includes its upstream test banks and their own notices; these are not
 installed into the player's SoundFonts folder.
+
+## Tracker modules
+
+[libxmp 4.7.3](https://github.com/libxmp/libxmp/tree/libxmp-4.7.3) is built
+statically with native format loaders and the Amiga/Paula mixer. Archive
+depackers, external unpacker helpers and ProWizard are disabled.
+The [capture patch](native/xmp-taps/README.md) observes individual mixer voices
+and groups them by tracker channel. Original adapter/capture code is MIT;
+modified upstream files retain their notices. The pinned complete archive and
+all modifications accompany packages. See [MIT license](LICENSES/libxmp-MIT.txt)
+and [credits and embedded third-party notices](LICENSES/libxmp-CREDITS.txt).
+Modules, sample collections and emulator ROMs are not shipped.
 
 ## Roland MT-32
 
