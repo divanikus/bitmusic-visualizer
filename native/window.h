@@ -98,6 +98,7 @@ private:
         bool spectrumBars = false, spectrumGrid = true;
         bool horizontal = false, commands = false;
         int firstChannel = 0;
+        int keyboardSize = 25;
     };
     QVector<Card> cards_;
     int sourceFor(int card) const { return card >= 0 && card < cards_.size() ? cards_[card].source : card; }
@@ -113,6 +114,7 @@ private:
     QHash<int, MusicImage> musicImages_;
     QWidget *musicControls_;
     QComboBox *rollDirection_;
+    QSpinBox *rollKeyboardSize_;
     QCheckBox *patternCommands_;
     QSpinBox *patternChannel_;
     void updateViewEditor();

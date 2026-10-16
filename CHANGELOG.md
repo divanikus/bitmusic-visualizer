@@ -14,7 +14,8 @@ not published GitHub releases. Unreleased lists changes made after the latest ta
 - Separate channel cards with current sample names, stereo, mute/Solo and Full mix.
   Modules support seeking, repeat and internal subsongs without ROMs or SoundFonts.
 - MIDI Piano roll: falling notes colored by instrument, with vertical or horizontal
-  orientation. Tracker Pattern: scrolling rows, channel columns and optional effects.
+  orientation and adjustable keyboard size. Tracker Pattern: scrolling rows,
+  channel columns and optional effects.
   Both are ordinary resizable cards, including Full mix, and can be saved in presets.
 - Empty tracker channels start hidden; late entrances remain available.
 

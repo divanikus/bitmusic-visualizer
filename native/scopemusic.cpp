@@ -34,7 +34,7 @@ void ScopeWindow::paintPianoRoll(QPainter &p,int card,const QRectF &plot) {
     if(!whites) return;
     const double cross=horizontal?plot.height():plot.width();
     const double length=horizontal?plot.width():plot.height();
-    const double keyDepth=std::min(54.,length*.27), travel=length-keyDepth;
+    const double keyDepth=length*cards_[card].keyboardSize/100., travel=length-keyDepth;
     if(travel<8||cross<8) return;
     const double whiteWidth=cross/whites;
     std::array<QRectF,128> keys;
@@ -163,7 +163,7 @@ QVector<ScopeOverlay> ScopeWindow::musicOverlays() {
         keep.insert(id);
         QByteArray key; QDataStream s(&key,QIODevice::WriteOnly);
         s<<plot.size()<<devicePixelRatioF()<<state_.generation<<state_.busy<<state_.muteMask<<state_.outputMask
-         <<int(viewFor(id))<<cards_[id].horizontal<<cards_[id].commands<<cards_[id].firstChannel<<sourceFor(id);
+         <<int(viewFor(id))<<cards_[id].horizontal<<cards_[id].commands<<cards_[id].firstChannel<<cards_[id].keyboardSize<<sourceFor(id);
         if(viewFor(id)==ViewKind::PianoRoll) s<<state_.positionMs;
         else s<<state_.pattern.order<<state_.pattern.pattern<<state_.pattern.row<<state_.pattern.bpm;
         const auto &colors=theme_.colors(sourceFor(id));

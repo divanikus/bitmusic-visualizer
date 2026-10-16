@@ -10,6 +10,7 @@ struct PresetCard {
     bool visible = true, bars = false, grid = true;
     bool horizontal = false, commands = false;
     int firstChannel = 0;
+    int keyboardSize = 25;
 };
 struct ScopePreset {
     SoundConfiguration configuration;

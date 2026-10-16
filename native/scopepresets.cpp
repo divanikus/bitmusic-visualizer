@@ -116,7 +116,7 @@ ScopePreset ScopeWindow::currentPreset() const {
     for (int id : order_) {
         const auto &card = cards_[id];
         preset.cards.push_back({card.source == ScopeTheme::FullMix ? "mix" : preset.configuration.sources.value(card.source),
-            int(card.kind), spans_[id], !hidden_[id], card.spectrumBars, card.spectrumGrid,card.horizontal,card.commands,card.firstChannel});
+            int(card.kind), spans_[id], !hidden_[id], card.spectrumBars, card.spectrumGrid,card.horizontal,card.commands,card.firstChannel,card.keyboardSize});
     }
     return preset;
 }
@@ -137,7 +137,7 @@ void ScopeWindow::applyPreset(const ScopePreset &preset, const QString &file) {
         if (used.contains(source)) { id = int(cards_.size()); cards_.push_back({source}); hidden_.push_back(true); spans_.push_back({1,1}); }
         used.insert(source);
         cards_[id] = {source, viewSupported(ViewKind(card.view))?ViewKind(card.view):ViewKind::Waveform,
-            card.bars, card.grid,card.horizontal,card.commands,std::clamp(card.firstChannel,0,int(state_.info.voices.size())-1)};
+            card.bars, card.grid,card.horizontal,card.commands,std::clamp(card.firstChannel,0,int(state_.info.voices.size())-1),card.keyboardSize};
         hidden_[id] = !card.visible; spans_[id] = card.span; order_.push_back(id);
     }
     spectrumStates_ = {}; waveStates_ = {}; pitchStates_ = {};

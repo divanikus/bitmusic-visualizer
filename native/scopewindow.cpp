@@ -214,6 +214,11 @@ ScopeWindow::ScopeWindow() {
     auto musicRow=new QVBoxLayout(musicControls_); musicRow->setContentsMargins(0,0,0,0);
     rollDirection_=new QComboBox; rollDirection_->setObjectName("rollDirection"); styleCombo(rollDirection_);
     rollDirection_->addItems({"Notes fall down", "Notes move left"}); musicRow->addWidget(rollDirection_);
+    rollKeyboardSize_=new QSpinBox; rollKeyboardSize_->setObjectName("rollKeyboardSize");
+    rollKeyboardSize_->setPrefix("Keyboard size: "); rollKeyboardSize_->setSuffix(" %");
+    rollKeyboardSize_->setRange(5,80); rollKeyboardSize_->setSingleStep(5);
+    rollKeyboardSize_->setToolTip("Keyboard height as a percentage of the plot. In horizontal view this controls its width. The note range stays unchanged.");
+    musicRow->addWidget(rollKeyboardSize_);
     patternCommands_=new QCheckBox("Volume and effects"); patternCommands_->setObjectName("patternCommands"); musicRow->addWidget(patternCommands_);
     patternChannel_=new QSpinBox; patternChannel_->setObjectName("patternFirstChannel"); patternChannel_->setPrefix("First channel: ");
     patternChannel_->setToolTip("First column when the whole pattern does not fit. Enlarge the card to see more channels."); musicRow->addWidget(patternChannel_);
@@ -222,9 +227,11 @@ ScopeWindow::ScopeWindow() {
         if(!channelList_->currentItem()) return;
         auto &card=cards_[channelList_->currentItem()->data(Qt::UserRole).toInt()];
         card.horizontal=rollDirection_->currentIndex()==1; card.commands=patternCommands_->isChecked();
+        card.keyboardSize=rollKeyboardSize_->value();
         card.firstChannel=patternChannel_->value()-1; musicImages_.clear(); presetEdited(); update();
     };
     connect(rollDirection_,&QComboBox::currentIndexChanged,this,musicChanged);
+    connect(rollKeyboardSize_,&QSpinBox::valueChanged,this,musicChanged);
     connect(patternCommands_,&QCheckBox::toggled,this,musicChanged);
     connect(patternChannel_,&QSpinBox::valueChanged,this,musicChanged);
     auto cardActions = new QHBoxLayout;

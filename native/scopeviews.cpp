@@ -78,10 +78,12 @@ void ScopeWindow::updateViewEditor() {
     keyboardHint_->setVisible(valid && cards_[id].kind == ViewKind::Keyboard);
     keyboardHint_->setText(exact ? (state_.info.mt32Resources ? "MT-32 played keys. Timbre tuning, pitch bend and modulation are not measured." : state_.info.midiResources ? "MIDI notes, sustain and channel pitch bend. Sample tuning and synthesis modulation are not measured." : "Notes from chip oscillators. All active tonal pitches are shown.") : "Estimated from audio: one pitch. Chords, noise and drums may be inaccurate.");
     const bool roll=valid&&cards_[id].kind==ViewKind::PianoRoll, pattern=valid&&cards_[id].kind==ViewKind::Pattern;
-    const QSignalBlocker directionBlock(rollDirection_),commandsBlock(patternCommands_),channelBlock(patternChannel_);
+    const QSignalBlocker directionBlock(rollDirection_),sizeBlock(rollKeyboardSize_),commandsBlock(patternCommands_),channelBlock(patternChannel_);
     musicControls_->setVisible(roll||pattern); rollDirection_->setVisible(roll); patternCommands_->setVisible(pattern);
+    rollKeyboardSize_->setVisible(roll);
     patternChannel_->setVisible(pattern&&source==ScopeTheme::FullMix);
     rollDirection_->setCurrentIndex(valid&&cards_[id].horizontal?1:0);
+    rollKeyboardSize_->setValue(valid?cards_[id].keyboardSize:25);
     patternCommands_->setChecked(valid&&cards_[id].commands);
     patternChannel_->setRange(1,std::max(1,int(state_.info.voices.size())));
     patternChannel_->setValue(valid?cards_[id].firstChannel+1:1);

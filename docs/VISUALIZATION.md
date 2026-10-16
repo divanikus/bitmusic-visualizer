@@ -82,7 +82,8 @@ configuration ID/family/source list, Rows/Columns, Numbers/Names/Stereo and card
 count. Ordered `[Card1]`, `[Card2]`, etc. groups store Source, View (0 waveform,
 1 spectrum, 2 keyboard, 3 piano roll, 4 pattern), Width/Height in cells, Visible,
 Bars and Grid. Optional Horizontal, Commands and FirstChannel fields retain
-note-roll direction and pattern options; older presets keep their defaults.
+note-roll direction and pattern options. KeyboardSize stores the piano keyboard's
+percentage of the plot, defaulting to 25% when absent.
 A view unavailable for the loaded file falls back to Waveform. The file
 contains no music paths. Files are validated before applying and saved atomically.
 Invalid default files use the ordinary initial layout; the star can clear their
@@ -219,6 +220,11 @@ outside that range; its range stays fixed during playback. Note colors come from
 theme palettes by MIDI program/bank identity, with separate percussion-key colors.
 Colors can repeat. MT-32 SysEx part routing is respected, but custom SysEx timbre
 contents are not assigned unique colors.
+
+**Keyboard size** sets its height from 5–80% of the plot, default 25%, without
+changing the note range. It updates immediately and grows with the card instead
+of using a fixed pixel-height limit. In horizontal mode it controls keyboard
+width. This per-card setting is saved in layout presets.
 
 Bars run from note-on to note-off. They show key presses, not acoustic duration:
 pedal sustain, release tails, pitch bend and timbre tuning are not drawn. A card

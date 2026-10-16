@@ -24,6 +24,15 @@ QImage capture(QApplication &app,ScopeWindow &scope) {
     const auto gpu=dynamic_cast<ScopeGpu*>(scope.findChild<QQuickWidget*>("scopeGpu"));
     return gpu&&gpu->isVisible()?gpu->grabFramebuffer():scope.grab().toImage();
 }
+int whiteKeyPixels(const QImage &image) {
+    const auto rgb=image.convertToFormat(QImage::Format_RGB32); int count=0;
+    for(int y=0;y<rgb.height();++y) {
+        const auto row=reinterpret_cast<const QRgb *>(rgb.constScanLine(y));
+        for(int x=0;x<rgb.width();++x)
+            if(std::abs(qRed(row[x])-205)<4&&std::abs(qGreen(row[x])-216)<4&&std::abs(qBlue(row[x])-218)<4) ++count;
+    }
+    return count;
+}
 void write(const QString &path,const QByteArray &bytes) {QFile f(path);require(f.open(QIODevice::WriteOnly)&&f.write(bytes)==bytes.size(),"Cannot write test fixture.");}
 QByteArray message(std::initializer_list<int> values) {QByteArray b;for(int v:values)b+=char(v);return b;}
 }
@@ -69,9 +78,12 @@ int runMusicViewChecks(QApplication &app,const QStringList &args) {
         auto empty=openMusicTrack(emptyFile);
         require(empty->info().emptyVoices==VoiceMask::bit(1),"Empty channel detection hid a late entrance or sample-only trigger.");
         ScopePreset preset;preset.configuration=tracker->info().configuration;preset.rows=2;preset.columns=2;
-        preset.cards.push_back({"mix",4,{2,2},true,false,true,false,true,2});
+        preset.cards.push_back({"mix",4,{2,2},true,false,true,false,true,2,40});
         QString error;const auto presetPath=settings.filePath("roundtrip.ini");require(preset.save(presetPath,error),"Preset save failed.");
         ScopePreset restored;require(restored.load(presetPath,error)&&restored.encode()==preset.encode(),"Music view preset roundtrip failed.");
+        const auto legacyPath=settings.filePath("legacy.ini");
+        write(legacyPath,preset.encode().replace("KeyboardSize=40\n",""));
+        require(restored.load(legacyPath,error)&&restored.cards[0].keyboardSize==25,"Older preset lost the default keyboard size.");
         log<<"Music event checks PASS: MIDI gates/programs/routing/interval index, tracker pattern/read-ahead/rewind, empty/late/sample-only channels and presets.\n";log.flush();
         if(args.contains("--decoder-only"))return 0;
         ScopeWindow scope;scope.resize(1020,650);scope.show();
@@ -101,7 +113,7 @@ int runMusicViewChecks(QApplication &app,const QStringList &args) {
         const int saved=presets->findData("Pattern.ini");require(saved>=0,"Saved pattern preset missing.");
         presets->setCurrentIndex(saved);QMetaObject::invokeMethod(presets,"activated",Qt::DirectConnection,Q_ARG(int,saved));
         require(view->currentData().toInt()==4&&scope.findChild<QCheckBox*>("patternCommands")->isChecked()&&
-            scope.findChild<QSpinBox*>("patternFirstChannel")->value()==2,"Pattern preset did not restore actual editor controls.");
+            scope.findChild<QSpinBox*>("patternFirstChannel")->value()==2&&scope.findChild<QSpinBox*>("rollKeyboardSize")->value()==40,"Music preset did not restore actual editor controls.");
         scope.findChild<QPushButton*>("applyLayout")->click();
         state.generation=2;state.info={};state.info.path="MIDI roll fixture";state.info.title="MIDI note roll";state.info.voices={"Channel 1","Channel 2"};
         // A dense authored sequence makes the moving view reviewable.
@@ -122,7 +134,17 @@ int runMusicViewChecks(QApplication &app,const QStringList &args) {
         scope.findChild<QPushButton*>("applyLayout")->click();first=capture(app,scope);first.save(dir.filePath("music-piano-roll.png"));
         state.positionMs=1200;scope.present(state,{});auto second=capture(app,scope);require(first!=second,"MIDI roll did not follow playhead.");
         state.muteMask=1;scope.present(state,{});require(second!=capture(app,scope),"MIDI roll ignores mute state.");
-        scope.findChild<QPushButton*>("editLayout")->click();scope.findChild<QComboBox*>("rollDirection")->setCurrentIndex(1);
+        scope.findChild<QPushButton*>("editLayout")->click();
+        auto keyboardSize=scope.findChild<QSpinBox*>("rollKeyboardSize");
+        require(keyboardSize->value()==25&&keyboardSize->isVisible(),"Piano roll size control missing or default wrong.");
+        const int originalKeys=whiteKeyPixels(capture(app,scope)); keyboardSize->setValue(50);
+        const auto enlarged=capture(app,scope);
+        require(originalKeys>0&&whiteKeyPixels(enlarged)>originalKeys*1.75,"Keyboard height did not grow live while paused.");
+        enlarged.save(dir.filePath("music-piano-roll-size-editor.png")); keyboardSize->setValue(25);
+        scope.findChild<QComboBox*>("rollDirection")->setCurrentIndex(1);
+        const int horizontalKeys=whiteKeyPixels(capture(app,scope)); keyboardSize->setValue(50);
+        require(horizontalKeys>0&&whiteKeyPixels(capture(app,scope))>horizontalKeys*1.75,"Horizontal keyboard depth did not grow live.");
+        keyboardSize->setValue(25);
         scope.findChild<QPushButton*>("applyLayout")->click();capture(app,scope).save(dir.filePath("music-piano-roll-horizontal.png"));
         scope.resize(400,320);capture(app,scope).save(dir.filePath("music-piano-roll-small.png"));
         scope.resize(1020,650);scope.toggleFullscreen();capture(app,scope);scope.toggleFullscreen();
