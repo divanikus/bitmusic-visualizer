@@ -85,6 +85,13 @@ void PlayerWindow::showShortcutsHelp() {
       <tr><td><b>F1</b></td><td>This guide</td></tr>
       <tr><td><b>F11 / Esc</b></td><td>Toggle full-screen visualizer / leave full screen</td></tr>
       </table>
+      <h3>Playlist (main player)</h3>
+      <p>%8 opens music or a playlist. %9 or + adds files.
+      Drag rows to reorder; Ctrl/Shift selects several. Delete or − removes
+      selected rows. Use ⋯ below Tracks to create, open or save a playlist.</p>
+      <p>Repeat cycles through Off, Track (1), and Playlist. Shuffle visits
+      tracks in random order; Previous follows listening history.
+      Tracks without a duration continue until you press Next.</p>
       <p>Works in either player window. Use the number row or the numpad with
       Num Lock on. Numbers refer to the original channel numbers, even after
       reordering. Multiple cards of one channel change together.</p>
@@ -102,7 +109,9 @@ void PlayerWindow::showShortcutsHelp() {
         shortcutLabel(Qt::AltModifier, Qt::Key_0).toHtmlEscaped(),
         shortcutLabel(Qt::ControlModifier, Qt::Key_Left).toHtmlEscaped(),
         shortcutLabel(Qt::ControlModifier, Qt::Key_Right).toHtmlEscaped(),
-        shortcutLabel(Qt::ControlModifier | Qt::ShiftModifier, Qt::Key_1).toHtmlEscaped()));
+        shortcutLabel(Qt::ControlModifier | Qt::ShiftModifier, Qt::Key_1).toHtmlEscaped(),
+        shortcutLabel(Qt::ControlModifier, Qt::Key_O).toHtmlEscaped(),
+        shortcutLabel(Qt::ControlModifier | Qt::ShiftModifier, Qt::Key_O).toHtmlEscaped()));
     layout->addWidget(text);
     auto buttons = new QDialogButtonBox(QDialogButtonBox::Close); layout->addWidget(buttons);
     connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);

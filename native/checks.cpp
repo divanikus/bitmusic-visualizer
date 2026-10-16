@@ -772,31 +772,33 @@ int runChecks(QApplication &app, const QStringList &arguments) {
             log << "Stereo/mono capability, output PCM isolation, lane dimming, controls and transport preservation PASS\n";
             return 0;
         }
-        checkScopeColors(app, directory);
-        log << "Scope themes: light-system popup contrast, 32-tile HEX/picker, unused tiles, reorder/file retention, INI roundtrip, immediate selection, invalid file rollback, Save/Cancel, startup restore/Default/missing/corrupt/unsaved behavior and layout Reset PASS\n"; log.flush();
-        if (arguments.contains("--colors-only")) return 0;
-        checkWindowSettings(app, directory, log);
         QStringList seekPaths;
         for (int i = option + 2; i < arguments.size(); ++i)
             if (!arguments[i].startsWith('-')) seekPaths << arguments[i];
-        if (arguments.contains("--scope-seek-only")) {
-            checkScopeSeeks(app, seekPaths, log);
-            log << "Scope seek checks PASS\n";
-            return 0;
+        if (!arguments.contains("--transport-only")) {
+            checkScopeColors(app, directory);
+            log << "Scope themes: light-system popup contrast, 32-tile HEX/picker, unused tiles, reorder/file retention, INI roundtrip, immediate selection, invalid file rollback, Save/Cancel, startup restore/Default/missing/corrupt/unsaved behavior and layout Reset PASS\n"; log.flush();
+            if (arguments.contains("--colors-only")) return 0;
+            checkWindowSettings(app, directory, log);
+            if (arguments.contains("--scope-seek-only")) {
+                checkScopeSeeks(app, seekPaths, log);
+                log << "Scope seek checks PASS\n";
+                return 0;
+            }
+            checkGbs(app, directory, log);
+            checkAy(app, directory, log);
+            checkPokey(app, directory, log, false);
+            checkYamaha(app, directory, log, false);
+            checkSid(app, directory, log);
+            checkWaves(app, directory, log);
+            checkFrameRates(app, directory, log);
+            checkLayoutSpans(app, directory, log);
+            checkViews(app, directory, log);
+            checkShortcuts(app, directory, log);
+            checkPresets(app, directory, log);
+            checkStereoOutputs(app, directory);
+            log << "Stereo/mono capability, output PCM isolation, lane dimming, controls and transport preservation PASS\n"; log.flush();
         }
-        checkGbs(app, directory, log);
-        checkAy(app, directory, log);
-        checkPokey(app, directory, log, false);
-        checkYamaha(app, directory, log, false);
-        checkSid(app, directory, log);
-        checkWaves(app, directory, log);
-        checkFrameRates(app, directory, log);
-        checkLayoutSpans(app, directory, log);
-        checkViews(app, directory, log);
-        checkShortcuts(app, directory, log);
-        checkPresets(app, directory, log);
-        checkStereoOutputs(app, directory);
-        log << "Stereo/mono capability, output PCM isolation, lane dimming, controls and transport preservation PASS\n"; log.flush();
         checkRing(); log << "Concurrent PCM ring: 500000 samples, variable callback sizes, exact order PASS\n"; log.flush();
         QStringList paths;
         for (const auto &extension : {"nsf", "vgm", "spc", "vgz"}) paths << QDir(directory).filePath(QString("demo.%1").arg(extension));
@@ -946,13 +948,13 @@ int runChecks(QApplication &app, const QStringList &arguments) {
             require(std::all_of(f.channels[1].begin(), f.channels[1].end(), [](float v) { return std::abs(v) <= 1; }), "Repeat lost channel isolation.");
         }
         log << "Three automatic VGM loops: full grid ready within 500 ms; active/unused channel isolation PASS\n"; log.flush();
-        window.refresh(); repeat->click(); require(!window.player().state().repeat, "Repeat toggle did not disable.");
+        window.refresh(); repeat->click(); repeat->click(); require(!window.player().state().repeat, "Repeat cycle did not return to Off.");
         until(app, [&] { auto s = window.player().state(); return !s.busy && !s.playing && s.positionMs == 2000; }, "Disabling repeat did not stop at loop end.");
         window.loadFile(paths[0]);
         until(app, [&] { return !window.player().state().busy; }, "Unknown duration load failed.");
         window.player().seek(181000, true);
         until(app, [&] { auto s = window.player().state(); return !s.busy && s.playing && s.positionMs > 181100; }, "Unknown-duration track stopped at invented endpoint.");
-        window.refresh(); require(!repeat->isEnabled() && !window.player().state().repeat, "Unknown-duration repeat state is misleading.");
+        window.refresh(); require(repeat->isEnabled() && !window.player().state().repeat, "Unknown-duration repeat state is misleading.");
         require(window.findChild<QSlider *>("timeline")->maximum() > 181000, "Unknown-duration timeline did not expand.");
         log << "Compact UI: metadata playlist, double-click, previous/next, auto-next, final stop, repeat on/off, unknown duration PASS\n"; log.flush();
         auto scopeToggle = window.findChild<QPushButton *>("showScopes");
@@ -1007,6 +1009,7 @@ int runChecks(QApplication &app, const QStringList &arguments) {
         until(app, [&] { return !window.player().state().busy && window.player().state().positionMs > 100; }, "Layout fixture failed.");
         window.refresh();
         auto edit = scopes.findChild<QPushButton *>("editLayout"); edit->click(); pump(app, 50);
+        scopes.findChild<QTabWidget *>("scopeChannels")->setCurrentIndex(1); pump(app, 20);
         auto rows = scopes.findChild<QSpinBox *>("gridRows");
         auto columns = scopes.findChild<QSpinBox *>("gridColumns");
         auto keepGrid = scopes.findChild<QCheckBox *>("keepGrid");

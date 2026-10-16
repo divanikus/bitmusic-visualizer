@@ -10,6 +10,7 @@ spectra and piano keyboards. Listen to individual voices and explore the full mi
 ## Features
 
 - Playback, seeking, repeat and subsongs; channel mute/Solo and L/R output switches.
+- Editable M3U/M3U8 playlists, shuffle and repeat for a track or the whole playlist.
 - Waveform, spectrum and keyboard cards, with optional stereo display and level meters.
 - MIDI piano rolls with falling notes; tracker patterns with a live playback row.
 - Drag, resize and hide cards; save layouts and defaults for each sound configuration.
@@ -32,7 +33,9 @@ use `--appimage-extract-and-run` if FUSE is unavailable. macOS builds are not
 notarized. See [platform requirements](docs/BUILDING.md).
 
 1. Open music with **Ctrl+O** or drag it onto the player.
-2. **Tracks** lists subsongs inside the file. **Channels** controls sound;
+2. **Tracks** is the playlist, including subsongs inside each file. Use **+ / −**
+   to add/remove, drag to reorder and **⋯** to open/save M3U8.
+   **Channels** controls sound;
    **Shift-click** a visualization card or channel button to Solo it, and again
    to restore previous mutes.
 3. The visualization button toggles its window. Closing that window keeps music playing.
@@ -192,7 +195,7 @@ see [third-party components and licenses](THIRD-PARTY.md).
 
 ## Documentation
 
-[Visualization](docs/VISUALIZATION.md) · [SID](docs/SID.md) · [VGM chips](docs/VGM.md) · [TIATracker](docs/TIATRACKER.md) · [General MIDI](docs/MIDI.md) · [MT-32](docs/MT32.md) · [Build and test](docs/BUILDING.md)
+[Playlists](docs/PLAYLISTS.md) · [Visualization](docs/VISUALIZATION.md) · [SID](docs/SID.md) · [VGM chips](docs/VGM.md) · [TIATracker](docs/TIATRACKER.md) · [General MIDI](docs/MIDI.md) · [MT-32](docs/MT32.md) · [Build and test](docs/BUILDING.md)
 
 ## License
 

@@ -93,7 +93,7 @@ void checkGbs(QApplication &app, const QString &directory, QTextStream &log) {
     auto &scopes = window.scopeWindow();
     auto stereo = scopes.findChild<QCheckBox *>("scopeStereo");
     require(stereo->isEnabled(), "GBS stereo control disabled."); stereo->setChecked(true);
-    require(window.findChild<QListWidget *>("songs")->count() == 2 && !window.findChild<QPushButton *>("repeat")->isEnabled(),
+    require(window.findChild<QListWidget *>("songs")->count() == 2 && window.findChild<QPushButton *>("repeat")->isEnabled() && !window.player().state().repeat,
         "GBS playlist or unknown-duration policy failed.");
     for (int position : {12000, 250, 2000}) {
         window.player().seek(position, false); until(app, ready, "GBS paused seek scopes stuck Preparing.");

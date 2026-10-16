@@ -20,6 +20,7 @@ int runGpuSoak(QApplication &app, const QStringList &arguments);
 int runMidiChecks(QApplication &app, const QStringList &arguments);
 int runMt32Checks(QApplication &app, const QStringList &arguments);
 int runTrackerChecks(QApplication &app, const QStringList &arguments);
+int runPlaylistChecks(QApplication &app, const QStringList &arguments);
 int runTttChecks(QApplication &app, const QStringList &arguments);
 int runMusicViewChecks(QApplication &app, const QStringList &arguments);
 
@@ -37,12 +38,13 @@ int main(int argc, char **argv) {
     // renderer when exercising the explicitly selected test backend.
     const bool testing = arguments.contains("--tap-checks") || arguments.contains("--gpu-checks") ||
         arguments.contains("--gpu-soak") || arguments.contains("--self-test") || arguments.contains("--midi-checks") || arguments.contains("--mt32-checks") || arguments.contains("--tracker-checks") || arguments.contains("--music-view-checks");
-    if (!testing && !arguments.contains("--ttt-checks")) configureScopeRenderer();
+    if (!testing && !arguments.contains("--ttt-checks") && !arguments.contains("--playlist-checks")) configureScopeRenderer();
     DiagnosticLog diagnostics(arguments.contains("--diagnostics"));
     if (arguments.contains("--tap-checks")) return runTapChecks(app, arguments);
     if (arguments.contains("--midi-checks")) return runMidiChecks(app, arguments);
     if (arguments.contains("--mt32-checks")) return runMt32Checks(app, arguments);
     if (arguments.contains("--tracker-checks")) return runTrackerChecks(app, arguments);
+    if (arguments.contains("--playlist-checks")) return runPlaylistChecks(app, arguments);
     if (arguments.contains("--ttt-checks")) return runTttChecks(app, arguments);
     if (arguments.contains("--music-view-checks")) return runMusicViewChecks(app, arguments);
     if (arguments.contains("--gpu-checks")) return runGpuChecks(app, arguments);
@@ -83,6 +85,7 @@ int main(int argc, char **argv) {
         timer->start();
     }
     auto files = arguments.mid(1); files.removeAll("--diagnostics"); files.removeAll("--software-scopes");
-    if (!files.isEmpty()) window.loadFile(files.front());
+    if (files.size()==1) window.loadFile(files.front());
+    else if(!files.isEmpty()) window.addFiles(files,true);
     return app.exec();
 }

@@ -54,6 +54,8 @@ jobs:
           if ($process.ExitCode -ne 0) { throw 'Tracker decoder checks failed.' }
           $process = Start-Process 'test-output/relocated package/BitMusicVisualizer/bitmusic_visualizer.exe' -ArgumentList '--ttt-checks test-output --decoder-only' -PassThru -Wait -WindowStyle Hidden
           if ($process.ExitCode -ne 0) { throw 'TIA decoder checks failed.' }
+          $process = Start-Process 'test-output/relocated package/BitMusicVisualizer/bitmusic_visualizer.exe' -ArgumentList '--playlist-checks test-output --decoder-only' -PassThru -Wait -WindowStyle Hidden
+          if ($process.ExitCode -ne 0) { throw 'Playlist checks failed.' }
           $process = Start-Process 'test-output/relocated package/BitMusicVisualizer/bitmusic_visualizer.exe' -ArgumentList '--music-view-checks test-output --decoder-only' -PassThru -Wait -WindowStyle Hidden
           if ($process.ExitCode -ne 0) { throw 'Music event checks failed.' }
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4

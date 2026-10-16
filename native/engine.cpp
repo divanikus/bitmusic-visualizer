@@ -310,6 +310,7 @@ void NativePlayer::submit(Command command) {
     if (pausedOutput_.sequence) pausedOutput_.generation = command.generation;
     state_.generation = command.generation;
     state_.busy = true;
+    state_.finished = false;
     state_.error.clear();
     state_.scopeError.clear();
     pending_ = std::move(command);
@@ -320,6 +321,7 @@ void NativePlayer::load(const QString &path, int song) {
     submit({0, path, song, 0, true, true});
 }
 void NativePlayer::seek(int ms, bool playing) { submit({0, {}, 0, std::clamp(ms, 0, 3600000), false, playing}); }
+void NativePlayer::unload() { submit({0, {}, 0, 0, false, false, true}); }
 void NativePlayer::setMuteMask(VoiceMask mask) {
     std::lock_guard lock(stateMutex_);
     // A manual mute action takes over the currently audible set.
@@ -413,6 +415,12 @@ void NativePlayer::run() {
             if (command) {
                 active = command->generation;
                 stopOutput();
+                if (command->unload) {
+                    track.reset(); playedFrame_ = 0; endFrame_ = -1;
+                    std::lock_guard lock(stateMutex_);
+                    if (active == generation_) { state_ = {}; state_.generation = active; }
+                    return;
+                }
                 if (command->load) track = openMusicTrack(command->path, command->song);
                 if (!track) throw std::runtime_error("Open a music file first.");
                 int target = command->ms;
@@ -469,12 +477,14 @@ void NativePlayer::run() {
                     std::lock_guard lock(stateMutex_);
                     if (active == generation_) {
                         state_.playing = false;
+                        state_.finished = true;
                         // Natural transitions happen off the GUI thread. A user's newer command wins.
                         const bool repeat = repeat_.load();
-                        if (!pending_ && (repeat || track->info().song + 1 < track->info().songs)) {
+                        if (!pending_ && (repeat || (autoSubsong_ && track->info().song + 1 < track->info().songs))) {
                             const auto next = ++generation_;
                             state_.generation = next;
                             state_.busy = true;
+                            state_.finished = false;
                             if (repeat) pending_ = Command{next, {}, 0, track->info().loopStartMs, false, true};
                             else pending_ = Command{next, track->info().path, track->info().song + 1, 0, true, true};
                         }

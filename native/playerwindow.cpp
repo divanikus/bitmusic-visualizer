@@ -35,7 +35,7 @@
 #include <algorithm>
 
 namespace {
-enum class Symbol { Previous, Stop, Play, Pause, Next, Repeat, Open, Scopes, Volume };
+enum class Symbol { Previous, Stop, Play, Pause, Next, Repeat, Shuffle, Open, Scopes, Volume };
 class ChannelButton : public QToolButton {
 public:
     std::function<void()> onSolo;
@@ -105,7 +105,12 @@ protected:
         case Symbol::Repeat:
             p.setBrush(Qt::NoBrush); p.drawLine(4, 5, 17, 5); p.drawLine(17, 5, 14, 2); p.drawLine(17, 5, 14, 8);
             p.drawLine(16, 15, 3, 15); p.drawLine(3, 15, 6, 12); p.drawLine(3, 15, 6, 18);
-            p.drawLine(3, 5, 3, 9); p.drawLine(17, 11, 17, 15); break;
+            p.drawLine(3, 5, 3, 9); p.drawLine(17, 11, 17, 15);
+            if (property("repeatOne").toBool()) { auto f=p.font(); f.setPixelSize(8); p.setFont(f); p.drawText(QRect(7,5,6,10),Qt::AlignCenter,"1"); } break;
+        case Symbol::Shuffle:
+            p.setBrush(Qt::NoBrush); p.drawPolyline(QPolygonF{{2,4},{5,4},{14,16},{18,16}});
+            p.drawPolyline(QPolygonF{{2,16},{5,16},{14,4},{18,4}});
+            p.drawPolyline(QPolygonF{{15,1},{18,4},{15,7}});p.drawPolyline(QPolygonF{{15,13},{18,16},{15,19}});break;
         case Symbol::Open: {
             p.setBrush(Qt::NoBrush); QPainterPath folder;
             folder.moveTo(2, 15); folder.lineTo(2, 4); folder.lineTo(8, 4); folder.lineTo(10, 6); folder.lineTo(17, 6); folder.lineTo(17, 9);
@@ -126,20 +131,30 @@ private:
 class TrackDelegate : public QStyledItemDelegate {
 public:
     using QStyledItemDelegate::QStyledItemDelegate;
-    QSize sizeHint(const QStyleOptionViewItem &, const QModelIndex &) const override { return {180, 30}; }
+    QSize sizeHint(const QStyleOptionViewItem &, const QModelIndex &index) const override {
+        return {180, !index.data(Qt::UserRole+3).toString().isEmpty()?53:index.data(Qt::UserRole+6).toBool()?39:30};
+    }
     void paint(QPainter *p, const QStyleOptionViewItem &option, const QModelIndex &index) const override {
         p->save(); p->setRenderHint(QPainter::Antialiasing);
         const bool current = index.data(Qt::UserRole + 1).toBool();
         if (option.state & QStyle::State_Selected) p->fillRect(option.rect, QColor("#263f3f"));
         else if (option.state & QStyle::State_MouseOver) p->fillRect(option.rect, QColor("#222f35"));
-        const auto r = option.rect.adjusted(10, 0, -10, 0);
+        const auto header=index.data(Qt::UserRole+3).toString();
+        if(!header.isEmpty()) {
+            const auto hr=option.rect.adjusted(10,0,-10,0);p->setPen(QColor("#92a6b0"));p->setFont(option.font);
+            p->drawText(QRect(hr.left(),hr.top(),hr.width(),22),Qt::AlignVCenter,option.fontMetrics.elidedText(header,Qt::ElideMiddle,hr.width()));
+            p->setPen(QColor("#314047"));p->drawLine(hr.left(),hr.top()+22,hr.right(),hr.top()+22);
+        }
+        const bool separator=index.data(Qt::UserRole+6).toBool();
+        if(separator) {p->setPen(QColor("#314047"));p->drawLine(option.rect.left()+10,option.rect.top()+4,option.rect.right()-10,option.rect.top()+4);}
+        const auto r = option.rect.adjusted(10, header.isEmpty()?(separator?9:0):23, -10, 0);
         p->setFont(option.font); p->setPen(current ? QColor("#a2e5d5") : QColor("#8f9eaa"));
         if (index.data(Qt::UserRole + 2).toBool()) {
             p->setPen(Qt::NoPen); p->setBrush(QColor("#a2e5d5"));
             p->drawPolygon(QPolygonF{{qreal(r.left() + 4), qreal(r.center().y() - 4)},
                 {qreal(r.left() + 11), qreal(r.center().y())}, {qreal(r.left() + 4), qreal(r.center().y() + 4)}});
         } else p->drawText(QRect(r.left(), r.top(), 25, r.height()), Qt::AlignVCenter, QString::number(index.row() + 1));
-        p->setPen(current ? QColor("#c3f1e7") : QColor("#dce5e8"));
+        p->setPen(index.data(Qt::UserRole+5).toBool()?QColor("#efb49a"):current ? QColor("#c3f1e7") : QColor("#dce5e8"));
         const QRect title(r.left() + 28, r.top(), std::max(0, r.width() - 86), r.height());
         p->drawText(title, Qt::AlignVCenter, option.fontMetrics.elidedText(index.data().toString(), Qt::ElideRight, title.width()));
         p->setPen(QColor("#92a6b0"));
@@ -150,7 +165,8 @@ public:
 }
 
 PlayerWindow::PlayerWindow() {
-    setWindowTitle("Bit Music"); setAcceptDrops(true); resize(430, 430); setMinimumSize(380, 330);
+    setWindowTitle("Bit Music"); setAcceptDrops(true); resize(430, 430); setMinimumSize(400, 330);
+    player_.setAutoSubsong(false);
     setStyleSheet(R"(
       QWidget { background: #171e24; color: #dce5e8; font-family: 'Segoe UI'; font-size: 9pt; }
       QLabel#title { font-size: 12pt; font-weight: 600; color: #e6eeef; }
@@ -184,7 +200,7 @@ PlayerWindow::PlayerWindow() {
     subtitle_ = new QLabel("Open music with Ctrl+O or drop a file"); subtitle_->setObjectName("muted"); subtitle_->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
     subtitle_->setTextFormat(Qt::PlainText);
     text->addWidget(title_); text->addWidget(subtitle_); header->addLayout(text, 1);
-    auto open = new IconButton(Symbol::Open, "open", QString::fromUtf8("Open file (Ctrl+O)"));
+    auto open = new IconButton(Symbol::Open, "open", QString::fromUtf8("Open music or playlist (Ctrl+O)"));
     showScopes_ = new IconButton(Symbol::Scopes, "showScopes", QString::fromUtf8("Visualizations")); showScopes_->setCheckable(true);
     header->addWidget(open); header->addWidget(showScopes_); root->addLayout(header);
     timeline_ = new Timeline; timeline_->setObjectName("timeline"); timeline_->setRange(0, unknownRangeMs_); root->addWidget(timeline_);
@@ -211,13 +227,13 @@ PlayerWindow::PlayerWindow() {
     play_ = new IconButton(Symbol::Play, "primary", QString::fromUtf8("Play / pause (Space)")); play_->setFixedSize(42, 42);
     next_ = new IconButton(Symbol::Next, "next", QString::fromUtf8("Next track"));
     repeat_ = new IconButton(Symbol::Repeat, "repeat", QString::fromUtf8("Repeat current track")); repeat_->setCheckable(true);
-    for (auto button : {previous_, stop_, play_, next_, repeat_}) transport->addWidget(button);
+    shuffle_ = new IconButton(Symbol::Shuffle, "shuffle", "Shuffle playlist"); shuffle_->setCheckable(true);
+    for (auto button : {previous_, stop_, play_, next_, repeat_, shuffle_}) transport->addWidget(button);
     transport->addStretch();
     auto mute = new IconButton(Symbol::Volume, "muteVolume", QString::fromUtf8("Mute / unmute")); transport->addWidget(mute);
     auto volume = new QSlider(Qt::Horizontal); volume->setObjectName("volume"); volume->setRange(0, 100); volume->setValue(65); volume->setFixedWidth(72); volume->setToolTip(QString::fromUtf8("Volume")); transport->addWidget(volume); root->addLayout(transport);
     tabs_ = new QTabWidget; tabs_->setObjectName("tabs");
-    songs_ = new QListWidget; songs_->setObjectName("songs"); songs_->setItemDelegate(new TrackDelegate(songs_)); songs_->setMouseTracking(true); songs_->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff); songs_->setSelectionMode(QAbstractItemView::SingleSelection);
-    tabs_->addTab(songs_, QString::fromUtf8("Tracks"));
+    setupPlaylistUi(); songs_->setItemDelegate(new TrackDelegate(songs_));
     auto channelPage = new QWidget; auto channelLayout = new QVBoxLayout(channelPage); channelLayout->setContentsMargins(8, 8, 8, 8); channelLayout->setSpacing(6);
     auto scroll = new QScrollArea; scroll->setWidgetResizable(true); auto channelContents = new QWidget; channels_ = new QGridLayout(channelContents); channels_->setContentsMargins(0, 0, 0, 0); channels_->setSpacing(6); channels_->setAlignment(Qt::AlignTop); scroll->setWidget(channelContents); channelLayout->addWidget(scroll, 1);
     auto all = new QPushButton(QString::fromUtf8("Enable all")); auto none = new QPushButton(QString::fromUtf8("Disable all"));
@@ -233,7 +249,7 @@ PlayerWindow::PlayerWindow() {
     midiRow->addWidget(midiEngine_);
     connect(midiEngine_,&QComboBox::activated,this,[this](int index) {
         if(index<0 || midiEngine_->itemData(index).toString()==selectedMidiEngine()) return;
-        try { selectMidiEngine(midiEngine_->itemData(index).toString()); if(!midiPath_.isEmpty()) loadFile(midiPath_); }
+        try { selectMidiEngine(midiEngine_->itemData(index).toString()); if(!midiPath_.isEmpty()) startSource(midiPath_, 0); }
         catch(const std::exception &e) { QMessageBox::warning(this,"MIDI engine",QString::fromUtf8(e.what())); }
     });
     soundFont_=new QComboBox; soundFont_->setObjectName("soundFont");
@@ -255,42 +271,22 @@ PlayerWindow::PlayerWindow() {
     connect(soundFont_,&QComboBox::activated,this,[this](int index) {
         const auto name=soundFont_->itemData(index).toString();
         if(name.isEmpty() || name==selectedSoundFont()) return;
-        try { selectSoundFont(name); if(!midiPath_.isEmpty()) loadFile(midiPath_); }
+        try { selectSoundFont(name); if(!midiPath_.isEmpty()) startSource(midiPath_, 0); }
         catch(const std::exception &e) { QMessageBox::warning(this,"SoundFont",QString::fromUtf8(e.what())); }
     });
     status_ = new QLabel; status_->setObjectName("status"); status_->setWordWrap(true); status_->hide(); root->addWidget(status_);
-    connect(open, &QPushButton::clicked, this, [this] {
-        const QString trackers = "*.mod mod.* *.m15 *.xm *.s3m *.it *.med med.* *.dbm *.digi *.emod "
-                                 "*.mmd0 *.mmd1 *.mmd2 *.mmd3 *.mtm *.stm *.669 *.ult *.far *.okt *.umx";
-        // Qt hides the final pattern group. Windows still appends patterns unless
-        // the label includes a wildcard example; keep only a few readable examples.
-        const auto filters = QStringList{
-            QString("All music (*.nsf, *.vgm, ...) (*.nsf *.nsfe *.vgm *.vgz *.spc *.gbs *.ay *.sid *.mid *.midi *.ttt %1)").arg(trackers),
-            "NES (*.nsf, *.nsfe) (*.nsf *.nsfe)",
-            "VGM (*.vgm, *.vgz) (*.vgm *.vgz)",
-            "SNES (*.spc) (*.spc)",
-            "Game Boy (*.gbs) (*.gbs)",
-            "ZX Spectrum (*.ay) (*.ay)",
-            "Commodore 64 (*.sid) (*.sid)",
-            "MIDI (*.mid, *.midi) (*.mid *.midi)",
-            QString("Trackers (*.mod, *.xm, ...) (%1)").arg(trackers),
-            "Atari 2600 (*.ttt)",
-            "All files (*)"
-        }.join(";;");
-        const auto path = QFileDialog::getOpenFileName(this, "Open music", {}, filters, nullptr,
-                                                      QFileDialog::HideNameFilterDetails);
-        if (!path.isEmpty()) loadFile(path);
-    });
+    connect(open, &QPushButton::clicked, this, [this] { chooseMusic(true); });
     connect(showScopes_, &QPushButton::clicked, this, [this] { setScopesVisible(!scopes_.renderingVisible()); });
     connect(play_, &QPushButton::clicked, this, [this] {
         const auto s = player_.state();
-        if (!s.playing && songs_->currentRow() >= 0 && songs_->currentRow() != s.info.song) playSong(songs_->currentRow());
+        if (songs_->currentRow() >= 0 && (!s.valid || (!s.playing && songs_->currentRow() != playlist_.currentRow()))) playSong(songs_->currentRow());
         else player_.seek(s.info.durationMs > 0 && s.positionMs >= s.info.durationMs ? 0 : s.positionMs, !s.playing);
     });
     connect(stop_, &QPushButton::clicked, this, [this] { player_.seek(0, false); });
-    connect(previous_, &QPushButton::clicked, this, [this] { auto s = player_.state(); playSong(std::max(0, s.info.song - 1)); });
-    connect(next_, &QPushButton::clicked, this, [this] { auto s = player_.state(); if (s.info.song + 1 < s.info.songs) playSong(s.info.song + 1); });
-    connect(repeat_, &QPushButton::toggled, this, [this](bool on) { player_.setRepeat(on); });
+    connect(previous_, &QPushButton::clicked, this, [this] { stepPlaylist(false); });
+    connect(next_, &QPushButton::clicked, this, [this] { stepPlaylist(true); });
+    connect(repeat_, &QPushButton::clicked, this, [this] { setPlaylistRepeat(PlaylistRepeat((int(playlistRepeat_)+1)%3)); refresh(); });
+    connect(shuffle_, &QPushButton::clicked, this, [this](bool on) { setPlaylistShuffle(on); refresh(); });
     connect(volume, &QSlider::valueChanged, this, [this](int value) { player_.setVolume(value / 100.f); });
     connect(mute, &QPushButton::clicked, this, [volume, savedVolume = 65]() mutable {
         if (volume->value()) { savedVolume = volume->value(); volume->setValue(0); } else volume->setValue(savedVolume);
@@ -317,6 +313,8 @@ PlayerWindow::PlayerWindow() {
     player_.setScopeFrameRate(scopes_.frameRate());
     QSettings settings(playerSettingsPath(), playerSettingsFormat()); settings.setFallbacksEnabled(false);
     restoreGeometry(settings.value("Windows/Player").toByteArray());
+    playlistRepeat_=PlaylistRepeat(std::clamp(settings.value("Playback/Repeat",0).toInt(),0,2));
+    playlist_.setShuffle(settings.value("Playback/Shuffle",false).toBool());
     auto timer = new QTimer(this); timer->setInterval(33);
     connect(timer, &QTimer::timeout, this, [this] {
         refreshControls();
@@ -337,11 +335,20 @@ void PlayerWindow::setScopesVisible(bool visible) {
     } else scopes_.hide();
 }
 void PlayerWindow::loadFile(const QString &path, int song) {
+    if(isPlaylistFile(path)) {addFiles({path},true);return;}
+    playlistLoader_.cancel();playlist_.clear();replacingPlaylist_=false;playlistPath_.clear();playlistMessage_.clear();rebuildPlaylist();
+    pendingSingle_=true;pendingSinglePath_=path;
+    if(player_.state().valid && player_.state().info.path==path) scopes_.beginFile();
+    startSource(path,song);pendingSingleGeneration_=player_.state().generation;
+}
+void PlayerWindow::startSource(const QString &path,int song) {
     QFile input(path); const bool midi=input.open(QIODevice::ReadOnly) && input.read(4)=="MThd";
     midiPath_=midi?path:QString(); midiControls_->setVisible(midi);
     if(midi) refreshSoundFonts();
+    const auto before=player_.state();
     player_.load(path, song);
-    scopes_.beginFile();
+    if(pendingSingle_ && path==pendingSinglePath_) pendingSingleGeneration_=player_.state().generation;
+    if(!before.valid || before.info.path!=path) scopes_.beginFile();
     // Open with the first file, then respect the user's visibility choice across tracks/files.
     if (!openedOnce_) { openedOnce_ = true; setScopesVisible(true); }
 }
@@ -353,10 +360,18 @@ void PlayerWindow::refreshSoundFonts() {
     if(at<0) { soundFont_->insertItem(0,selected.isEmpty()?"No SoundFonts found":"Missing: "+selected,QString()); at=0; }
     soundFont_->setCurrentIndex(at);
 }
-void PlayerWindow::playSong(int song) { player_.load(player_.state().info.path, song); }
+void PlayerWindow::playSong(int song) {
+    if(song<0 || song>=playlist_.entries.size())return;
+    if(replacingPlaylist_) {playlistLoader_.cancel();replacingPlaylist_=false;}
+    pendingSingle_=false;playlist_.activate(song);
+    const auto entry=playlist_.entries[song]; startSource(entry.path,entry.song);
+    songs_->setCurrentRow(song); songs_->scrollToItem(songs_->item(song));
+}
 void PlayerWindow::closeEvent(QCloseEvent *event) {
     // Snapshot before hiding, including a scope window hidden earlier by the user.
     QSettings settings(playerSettingsPath(), playerSettingsFormat()); settings.setFallbacksEnabled(false);
+    settings.setValue("Playback/Repeat",int(playlistRepeat_));
+    settings.setValue("Playback/Shuffle",playlist_.shuffle);
     settings.setValue("Windows/Player", saveGeometry());
     settings.setValue("Windows/Scopes", scopes_.windowedGeometry());
     settings.sync();
@@ -368,7 +383,10 @@ void PlayerWindow::closeEvent(QCloseEvent *event) {
     event->accept();
 }
 void PlayerWindow::dragEnterEvent(QDragEnterEvent *event) { if (event->mimeData()->hasUrls() && event->mimeData()->urls().first().isLocalFile()) event->acceptProposedAction(); }
-void PlayerWindow::dropEvent(QDropEvent *event) { if (event->mimeData()->hasUrls()) loadFile(event->mimeData()->urls().first().toLocalFile()); }
+void PlayerWindow::dropEvent(QDropEvent *event) {
+    QStringList paths;for(const auto &url:event->mimeData()->urls())if(url.isLocalFile())paths<<url.toLocalFile();
+    if(!paths.isEmpty()){addFiles(paths);event->acceptProposedAction();}
+}
 void PlayerWindow::rebuildChannels(const PlayerState &state) {
     while (auto item = channels_->takeAt(0)) { delete item->widget(); delete item; }
     for (int i = 0; i < state.info.voices.size(); ++i) {
@@ -386,20 +404,14 @@ void PlayerWindow::refresh() {
     refreshControls(); refreshScopes();
 }
 void PlayerWindow::refreshControls() {
+    pollPlaylist();
     const auto s = player_.state();
     const bool changed = s.valid && (shownPath_ != s.info.path || shownSong_ != s.info.song);
     if (changed) {
         const bool fileChanged = shownPath_ != s.info.path;
         shownPath_ = s.info.path; shownSong_ = s.info.song; unknownRangeMs_ = 180000;
-        if (fileChanged || songs_->count() != s.info.playlist.size()) {
-            songs_->clear();
-            for (const auto &song : s.info.playlist) {
-                auto item = new QListWidgetItem(song.title, songs_); item->setData(Qt::UserRole, song.durationMs > 0 ? timeText(song.durationMs) : QString::fromUtf8("—"));
-                item->setToolTip(song.title + (song.durationMs > 0 ? " · " + timeText(song.durationMs) : QString::fromUtf8(" · Duration not provided")));
-            }
-            tabs_->setTabText(0, QString::fromUtf8("Tracks (%1)").arg(s.info.songs)); rebuildChannels(s);
-        }
-        songs_->setCurrentRow(s.info.song); songs_->scrollToItem(songs_->item(s.info.song));
+        if (fileChanged || channels_->count()!=s.info.voices.size()) rebuildChannels(s);
+        player_.setRepeat(playlistRepeat_==PlaylistRepeat::Track && s.info.durationMs>0);
     }
     if (s.valid) {
         title_->setText(title_->fontMetrics().elidedText(s.info.title, Qt::ElideRight, title_->width()));
@@ -409,11 +421,17 @@ void PlayerWindow::refreshControls() {
         subtitle_->setText(subtitle_->fontMetrics().elidedText(subtitle, Qt::ElideRight, subtitle_->width()));
         subtitle_->setAccessibleName(subtitle);
     }
+    if (!s.valid && !s.busy && playlist_.entries.isEmpty()) {title_->setText("Open music");title_->setToolTip({});subtitle_->clear();}
     const bool ready = s.valid && !s.busy;
-    play_->setEnabled(ready); stop_->setEnabled(ready); previous_->setEnabled(ready); next_->setEnabled(ready && s.info.song + 1 < s.info.songs); timeline_->setEnabled(ready); songs_->setEnabled(ready);
+    play_->setEnabled(!s.busy && (ready || !playlist_.entries.isEmpty())); stop_->setEnabled(ready); previous_->setEnabled(!playlist_.entries.isEmpty());
+    next_->setEnabled(playlist_.hasNext(playlistRepeat_==PlaylistRepeat::All)); timeline_->setEnabled(ready); songs_->setEnabled(true);
     static_cast<IconButton *>(play_)->setSymbol(s.playing && !s.busy ? Symbol::Pause : Symbol::Play);
-    repeat_->setEnabled(ready && s.info.durationMs > 0);
-    { QSignalBlocker block(repeat_); repeat_->setChecked(s.repeat); }
+    repeat_->setEnabled(true);
+    { QSignalBlocker block(repeat_); repeat_->setChecked(playlistRepeat_!=PlaylistRepeat::Off); }
+    const bool repeatOne=playlistRepeat_==PlaylistRepeat::Track;
+    if(repeat_->property("repeatOne").toBool()!=repeatOne) {repeat_->setProperty("repeatOne",repeatOne);repeat_->update();}
+    { QSignalBlocker block(shuffle_); shuffle_->setChecked(playlist_.shuffle); }
+    shuffle_->setToolTip(playlist_.shuffle?"Shuffle playlist: on":"Shuffle playlist: off");
     int side = 0;
     for (auto button : {leftOutput_, rightOutput_}) {
         const bool audible = (s.outputMask & (1u << side)) != 0;
@@ -423,8 +441,9 @@ void PlayerWindow::refreshControls() {
                 shortcutLabel(Qt::ControlModifier, side ? Qt::Key_Right : Qt::Key_Left)));
         ++side;
     }
-    repeat_->setToolTip(s.info.durationMs > 0 ? QString::fromUtf8("Repeat current track: ") + (s.repeat ? QString::fromUtf8("on") : QString::fromUtf8("off"))
-        : QString::fromUtf8("No track endpoint provided; playback continues indefinitely"));
+    repeat_->setToolTip(QString("Repeat: %1 (click to change)").arg(playlistRepeat_==PlaylistRepeat::Off?"Off":playlistRepeat_==PlaylistRepeat::Track?"Track":"Playlist")+
+        (s.valid && s.info.durationMs<0?"\nNo duration provided: use Next to advance.":""));
+    repeat_->setAccessibleName(repeat_->toolTip());
     if (!timeline_->isSliderDown()) {
         if (s.positionMs > unknownRangeMs_ - 30000) unknownRangeMs_ = std::min(3600000, ((s.positionMs / 60000) + 2) * 60000);
         QSignalBlocker block(timeline_); timeline_->setRange(0, s.info.durationMs > 0 ? std::min(3600000, s.info.durationMs) : unknownRangeMs_); timeline_->setValue(s.positionMs); clock_->setText(timeText(s.positionMs));
@@ -438,8 +457,9 @@ void PlayerWindow::refreshControls() {
     timeline_->setToolTip(s.info.durationMs > 0 ? QString::fromUtf8("Seek") : QString::fromUtf8("Seek: range expands during playback"));
     for (int i = 0; i < songs_->count(); ++i) {
         auto item = songs_->item(i);
-        if (item->data(Qt::UserRole + 1).toBool() != (s.valid && i == s.info.song)) item->setData(Qt::UserRole + 1, s.valid && i == s.info.song);
-        const bool playing = s.valid && !s.busy && s.playing && i == s.info.song;
+        const bool current=s.valid && item->data(Qt::UserRole+4).toULongLong()==playlist_.current;
+        if (item->data(Qt::UserRole + 1).toBool()!=current) item->setData(Qt::UserRole+1,current);
+        const bool playing = current && !s.busy && s.playing;
         if (item->data(Qt::UserRole + 2).toBool() != playing) item->setData(Qt::UserRole + 2, playing);
     }
     for (int i = 0; i < channels_->count(); ++i) {
@@ -455,7 +475,7 @@ void PlayerWindow::refreshControls() {
         button->setSolo(s.soloChannel == i);
         button->setAccessibleName(button->text() + (s.soloChannel == i ? "; Solo" : QString()));
     }
-    const auto message = !s.error.isEmpty() ? s.error : !s.scopeError.isEmpty() ? s.scopeError : s.busy ? QString::fromUtf8("Loading…") : QString();
+    const auto message = !s.error.isEmpty() ? s.error : !s.scopeError.isEmpty() ? s.scopeError : s.busy ? QString::fromUtf8("Loading…") : playlistMessage_;
     status_->setText(message.section('\n', 0, 0)); status_->setToolTip(message); status_->setVisible(!message.isEmpty());
     if ((s.error.startsWith("C64 ROM required:") || s.error.startsWith("YM2608 ROM required:") || s.error.startsWith("SoundFont required:") || s.error.startsWith("MT-32 ROM required:")) && romWarningGeneration_ != s.generation) {
         romWarningGeneration_ = s.generation;

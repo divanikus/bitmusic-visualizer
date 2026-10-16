@@ -26,6 +26,15 @@ SDK paths, and verify playback, seeks, loops, scopes, themes, geometry, taps and
 GPU output. They need an interactive desktop/audio device. Hosted Windows CI
 runs decoder/tap checks; it is not a substitute for the full workstation suite.
 
+`--playlist-checks test-output` checks queue identities/reordering, M3U8 subsongs,
+Unicode/relative paths, shuffle history, background metadata cancellation and
+live transport across files, repeats, edits, unknown durations and saved modes.
+Add `--decoder-only` for headless model/import checks. The live check saves a
+player screenshot and runs with isolated settings and silent audio.
+`--self-test test-output --transport-only` runs the existing transport, scope
+continuity, compact-player, layout and shutdown checks without unrelated backend
+and presentation suites. The normal self-test still includes all of them.
+
 For a focused frame-rate check after generating fixtures, run
 `build/native/bitmusic_visualizer --self-test test-output --fps-only`.
 It uses temporary settings and silent playback, exercises 30/60/120 FPS with

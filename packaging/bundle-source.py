@@ -38,10 +38,12 @@ def bundle(destination):
                 'cmake/PatchXmp.cmake', 'native/xmp-taps/patches.json',
                 'native/xmp-taps/capture.cpp', 'LICENSES/libxmp-MIT.txt',
                 'cmake/Tia.cmake', 'native/tia-replay/replay.cpp', 'native/ttttrack.cpp',
-                'LICENSES/TIATracker-GPL-2.0.txt', 'LICENSES/TIATracker-NOTICES.txt'}
+                'LICENSES/TIATracker-GPL-2.0.txt', 'LICENSES/TIATracker-NOTICES.txt',
+                'native/playlist.cpp', 'native/playlist.h', 'native/playerplaylist.cpp',
+                'native/playlistchecks.cpp', 'docs/PLAYLISTS.md'}
     if not required.issubset(paths):
         raise RuntimeError('Application source bundle is incomplete.')
-    forbidden = {'.sid', '.nsf', '.nsfe', '.vgm', '.vgz', '.spc', '.gbs', '.ay',
+    forbidden = {'.m3u', '.m3u8', '.sid', '.nsf', '.nsfe', '.vgm', '.vgz', '.spc', '.gbs', '.ay',
                  '.dbm', '.digi', '.emod', '.mtm', '.stm', '.669', '.ult', '.far', '.okt', '.mod', '.m15', '.xm', '.s3m', '.it', '.med', '.mmd0', '.mmd1', '.mmd2', '.mmd3', '.umx',
                  '.ttt', '.a26', '.sap', '.mdx', '.pdx', '.mid', '.midi', '.syx', '.sf2', '.sf3', '.rom', '.wav', '.exe', '.dll', '.pdb'}
     sources = destination / 'third-party-sources'

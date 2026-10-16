@@ -10,6 +10,8 @@ not published GitHub releases. Unreleased lists changes made after the latest ta
 
 ### Added
 
+- M3U/M3U8 playlists with adding, removing and drag reordering, including
+  individual subsongs. Shuffle and repeat can cover the whole playlist.
 - Atari 2600 music in TIATracker (`.ttt`) projects: two TIA channel cards,
   instrument names, mute/Solo, seeking and repeat, without extra ROMs.
 - Tracker music: Amiga MOD, MED/OctaMED and DigiBooster, plus XM, S3M and IT.

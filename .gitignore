@@ -25,6 +25,8 @@ soundfonts/
 *.sf2
 *.sf3
 *.nsf
+*.m3u
+*.m3u8
 *.nsfe
 *.vgm
 *.vgz

@@ -132,3 +132,5 @@ if(UNIX AND BITMUSIC_SHARED_GME)
     install(SCRIPT ${deploy_script} COMPONENT Runtime)
   endif()
 endif()
+
+target_sources(bitmusic_visualizer PRIVATE native/playlist.cpp native/playerplaylist.cpp native/playlistchecks.cpp)

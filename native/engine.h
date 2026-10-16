@@ -120,6 +120,7 @@ struct PlayerState {
     TrackInfo info;
     quint64 generation = 0;
     bool valid = false, busy = false, playing = false;
+    bool finished = false; // Natural endpoint only; pause/Stop/seek never emit it.
     bool repeat = false;
     int positionMs = 0;
     VoiceMask muteMask = 0;
@@ -152,6 +153,8 @@ public:
     NativePlayer();
     ~NativePlayer() override;
     void load(const QString &path, int song = 0);
+    void unload();
+    void setAutoSubsong(bool enabled) { autoSubsong_.store(enabled); }
     void seek(int milliseconds, bool playing);
     void setMuteMask(VoiceMask mask);
     void toggleSolo(int channel);
@@ -168,7 +171,7 @@ public:
     OutputFrame outputScopes() const;
     void shutdown();
 private:
-    struct Command { quint64 generation; QString path; int song, ms; bool load, playing; };
+    struct Command { quint64 generation; QString path; int song, ms; bool load, playing; bool unload = false; };
     void submit(Command command);
     void run() override;
     void scopeLoop();
@@ -186,6 +189,7 @@ private:
     std::atomic<quint64> generation_{0};
     std::atomic<bool> enabled_{false}, closing_{false};
     std::atomic<bool> repeat_{false};
+    std::atomic<bool> autoSubsong_{true};
     std::atomic<bool> scopesEnabled_{false}, scopesSuspended_{true};
     std::atomic<quint64> scopeRevision_{0};
     std::atomic<int> scopeFrameRate_{ScopePacing::DefaultFps};

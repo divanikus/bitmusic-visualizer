@@ -27,7 +27,7 @@ foreach ($line in Get-Content -LiteralPath "$playerRoot/SHA256SUMS.txt") {
     if (!$filePath.StartsWith($playerRoot + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase)) { throw 'Manifest path escapes package.' }
     if ((Get-FileHash -LiteralPath $filePath -Algorithm SHA256).Hash -ne $expectedHash) { throw "Package checksum mismatch: $filePath" }
 }
-if (Get-ChildItem -LiteralPath $playerRoot -Recurse -File | Where-Object { $_.Extension -in '.nsf','.nsfe','.vgm','.vgz','.spc','.sid','.gbs','.ay','.mdx','.obj','.pdb','.rom','.sf2','.sf3','.mid','.midi','.syx','.mod','.m15','.xm','.s3m','.it','.med','.mmd0','.mmd1','.mmd2','.mmd3','.umx','.dbm','.digi','.emod' }) {
+if (Get-ChildItem -LiteralPath $playerRoot -Recurse -File | Where-Object { $_.Extension -in '.m3u','.m3u8','.nsf','.nsfe','.vgm','.vgz','.spc','.sid','.gbs','.ay','.mdx','.obj','.pdb','.rom','.sf2','.sf3','.mid','.midi','.syx','.mod','.m15','.xm','.s3m','.it','.med','.mmd0','.mmd1','.mmd2','.mmd3','.umx','.dbm','.digi','.emod' }) {
     throw 'The runtime package includes music or development output.'
 }
 if (Test-Path -LiteralPath (Join-Path $playerRoot 'BitMusicVisualizer.ini')) {
@@ -98,6 +98,11 @@ try {
     $null = $process.Handle
     if (!$process.WaitForExit(60000)) { throw 'Portable TIA checks timed out.' }
     if ($process.ExitCode -ne 0) { throw "Portable TIA checks failed (exit $($process.ExitCode))" }
+    $process = Start-Process -FilePath $executable -WorkingDirectory $playerRoot -ArgumentList @('--playlist-checks', ('"' + $fixtureRoot + '"')) `
+        -PassThru -WindowStyle Hidden -RedirectStandardOutput "$fixtureRoot/playlist-checks.txt" -RedirectStandardError "$checkRoot/playlist-stderr.txt"
+    $null = $process.Handle
+    if (!$process.WaitForExit(60000)) { throw 'Portable playlist checks timed out.' }
+    if ($process.ExitCode -ne 0) { throw "Portable playlist checks failed (exit $($process.ExitCode))" }
     $process = Start-Process -FilePath $executable -WorkingDirectory $playerRoot -ArgumentList @('--music-view-checks', ('"' + $fixtureRoot + '"')) `
         -PassThru -WindowStyle Hidden -RedirectStandardOutput "$fixtureRoot/music-view-checks.txt" -RedirectStandardError "$checkRoot/music-view-stderr.txt"
     $null = $process.Handle
