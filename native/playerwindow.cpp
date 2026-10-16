@@ -260,7 +260,24 @@ PlayerWindow::PlayerWindow() {
     });
     status_ = new QLabel; status_->setObjectName("status"); status_->setWordWrap(true); status_->hide(); root->addWidget(status_);
     connect(open, &QPushButton::clicked, this, [this] {
-        const auto path = QFileDialog::getOpenFileName(this, QString::fromUtf8("Open music"), {}, "Music (*.nsf *.nsfe *.vgm *.vgz *.spc *.gbs *.ay *.sid *.mid *.midi *.mod mod.* *.m15 *.xm *.s3m *.it *.med med.* *.dbm *.digi *.emod *.mmd0 *.mmd1 *.mmd2 *.mmd3 *.mtm *.stm *.669 *.ult *.far *.okt *.umx);;Tracker modules (*.mod mod.* *.m15 *.xm *.s3m *.it *.med med.* *.dbm *.digi *.emod *.mmd0 *.mmd1 *.mmd2 *.mmd3 *.mtm *.stm *.669 *.ult *.far *.okt *.umx);;All files (*)");
+        const QString trackers = "*.mod mod.* *.m15 *.xm *.s3m *.it *.med med.* *.dbm *.digi *.emod "
+                                 "*.mmd0 *.mmd1 *.mmd2 *.mmd3 *.mtm *.stm *.669 *.ult *.far *.okt *.umx";
+        // Qt hides the final pattern group. Windows still appends patterns unless
+        // the label includes a wildcard example; keep only a few readable examples.
+        const auto filters = QStringList{
+            QString("All music (*.nsf, *.vgm, ...) (*.nsf *.nsfe *.vgm *.vgz *.spc *.gbs *.ay *.sid *.mid *.midi %1)").arg(trackers),
+            "NES (*.nsf, *.nsfe) (*.nsf *.nsfe)",
+            "VGM (*.vgm, *.vgz) (*.vgm *.vgz)",
+            "SNES (*.spc) (*.spc)",
+            "Game Boy (*.gbs) (*.gbs)",
+            "ZX Spectrum (*.ay) (*.ay)",
+            "Commodore 64 (*.sid) (*.sid)",
+            "MIDI (*.mid, *.midi) (*.mid *.midi)",
+            QString("Trackers (*.mod, *.xm, ...) (%1)").arg(trackers),
+            "All files (*)"
+        }.join(";;");
+        const auto path = QFileDialog::getOpenFileName(this, "Open music", {}, filters, nullptr,
+                                                      QFileDialog::HideNameFilterDetails);
         if (!path.isEmpty()) loadFile(path);
     });
     connect(showScopes_, &QPushButton::clicked, this, [this] { setScopesVisible(!scopes_.renderingVisible()); });

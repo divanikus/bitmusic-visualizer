@@ -24,6 +24,7 @@ not published GitHub releases. Unreleased lists changes made after the latest ta
 - The visualization editor now groups settings into Cards, Layout and Display.
   The card list uses the available height; FPS and Renderer are directly in Display.
   Preset saving/default controls have text labels. Done finishes editing without saving.
+- The file picker has compact format groups instead of long extension lists.
 - Channel titles stay in place with the current instrument after a separator,
   making MIDI and tracker channels easier to follow.
 
