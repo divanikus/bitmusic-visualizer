@@ -4,13 +4,14 @@ The pencil opens three tabs in the existing side panel:
 
 - **Cards:** visibility, adding/removing cards and the selected card's view/options.
 - **Layout:** grid dimensions, Numbers/Names, Keep grid and saved presets.
-- **Display:** color themes, FPS, global Waves/Effects and Advanced → Renderer.
+- **Display:** color themes, FPS, global Waves/Effects and Renderer.
 
 Stereo, Levels, background color and exact window size remain in the top strip.
 Changes apply live. **Done** closes the editor without saving a preset or theme;
 use their explicit Save buttons. **Reset layout** preserves colors and saved presets.
-The card list scrolls separately from its settings. **About this view** expands
-the explanation and limitations for Keyboard, Piano roll or Pattern.
+The card list uses the available height alongside its selected-card settings;
+each scrolls only when needed. **About this view** expands the explanation and
+limitations for Keyboard, Piano roll or Pattern.
 
 Click the pencil, select a card in **Cards**, then choose its **View**. The change
 is immediate. **Add card…** asks for a source and view, keeping existing cards.

@@ -70,8 +70,9 @@ or mute changes. It saves editor screenshots and isolates settings and presets.
 It also runs in the complete native suite.
 
 `--self-test test-output --layout-only` checks card spans and editor tab navigation,
-selection/capture retention, bounded sidebar/toolbar geometry and reachable card
-controls at normal and minimum sizes. It saves screenshots of Cards/Layout/Display.
+selection/capture retention, adaptive card-list/help sizing, bounded sidebar/toolbar
+geometry and reachable card controls at normal and minimum sizes. It saves screenshots
+of Cards/Layout/Display.
 `--settings-only` additionally checks expanded pixel-size controls at minimum size.
 
 `--self-test test-output --sid-only` checks SID voices, models/clocks, mutes/Solo,

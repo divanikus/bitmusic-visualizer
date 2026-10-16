@@ -37,6 +37,22 @@ public:
     std::function<void()> refresh;
     void showPopup() override { if (refresh) refresh(); QComboBox::showPopup(); }
 };
+class CardInspector : public QScrollArea {
+public:
+    QSize sizeHint() const override {
+        if (!widget()) return QScrollArea::sizeHint();
+        auto hint = widget()->sizeHint();
+        if (widget()->hasHeightForWidth()) hint.setHeight(widget()->heightForWidth(viewport()->width()));
+        return hint;
+    }
+protected:
+    bool eventFilter(QObject *object, QEvent *event) override {
+        // View-specific controls and expanded help change the space needed below
+        // the list. QScrollArea normally caches its initial content size hint.
+        if (object == widget() && event->type() == QEvent::LayoutRequest) updateGeometry();
+        return QScrollArea::eventFilter(object, event);
+    }
+};
 void drawPipette(QPainter &p, const QRectF &button, const QColor &ink, bool active) {
     p.save();
     auto fill = ink; fill.setAlpha(active ? 45 : 16);
@@ -205,15 +221,17 @@ ScopeWindow::ScopeWindow() {
     channelList_->setToolTip("Check cards to show them. Drag headers to reorder; drag card edges to resize. This does not mute audio.");
     channelList_->setDragDropMode(QAbstractItemView::InternalMove); channelList_->setDefaultDropAction(Qt::MoveAction);
     channelList_->setSelectionMode(QAbstractItemView::SingleSelection); channelList_->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-    cardsLayout->addWidget(channelList_);
+    cardsLayout->addWidget(channelList_, 1);
     auto cardActions = new QHBoxLayout; cardActions->setSpacing(4);
     addCard_ = new QPushButton("Add card..."); addCard_->setObjectName("addScopeCard"); cardActions->addWidget(addCard_);
     removeCard_ = new QPushButton("Remove"); removeCard_->setObjectName("removeScopeCard"); cardActions->addWidget(removeCard_);
     auto showAll = new QPushButton("Show all"); showAll->setObjectName("showAllScopes"); cardActions->addWidget(showAll);
     cardsLayout->addLayout(cardActions);
-    auto inspectorScroll = new QScrollArea; inspectorScroll->setObjectName("cardInspector");
+    auto inspectorScroll = new CardInspector; inspectorScroll->setObjectName("cardInspector");
     inspectorScroll->setWidgetResizable(true); inspectorScroll->setFrameShape(QFrame::NoFrame);
-    inspectorScroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff); cardsLayout->addWidget(inspectorScroll, 1);
+    inspectorScroll->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Preferred);
+    inspectorScroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff); cardsLayout->addWidget(inspectorScroll);
+    cardsLayout->addStretch();
     auto inspector = new QWidget; inspectorScroll->setWidget(inspector);
     auto channels = new QVBoxLayout(inspector); channels->setContentsMargins(0, 4, 4, 0); channels->setSpacing(6);
     channels->setSizeConstraint(QLayout::SetMinimumSize);
@@ -326,9 +344,7 @@ ScopeWindow::ScopeWindow() {
     auto rateRow = new QFormLayout; rateRow->addRow("Frame rate", fps); display->addLayout(rateRow);
     connect(fps, &QComboBox::currentIndexChanged, this, [this, fps] { setFrameRate(fps->currentData().toInt()); rememberWaves(); });
     display->addLayout(visualActions);
-    auto advanced = new QPushButton("Advanced"); advanced->setObjectName("displayAdvanced"); advanced->setCheckable(true); display->addWidget(advanced);
-    display->addWidget(renderer); renderer->hide();
-    connect(advanced, &QPushButton::toggled, renderer, &QWidget::setVisible);
+    display->addWidget(renderer);
     display->addStretch();
     editor_->hide(); channelPanel_->hide();
     motion_ = new QTimer(this); motion_->setInterval(16);
@@ -619,9 +635,9 @@ void ScopeWindow::updateEditorGeometry() {
     const int top = editor_->geometry().bottom() + 13;
     const int panelWidth = std::clamp(width()/3, 240, 280);
     channelPanel_->setGeometry(width() - panelWidth - 14, top, panelWidth, std::max(80, height() - top - 14));
-    const int listLimit = std::clamp((channelPanel_->height()-30)/3, 54, 160);
-    const int listContent = std::max(1, channelList_->count())*(channelList_->fontMetrics().height()+14)+2;
-    channelList_->setFixedHeight(std::min(listLimit, listContent));
+    const int rowHeight = std::max(1, channelList_->sizeHintForRow(0));
+    const int listContent = std::max(1, channelList_->count())*rowHeight + 2*channelList_->frameWidth();
+    channelList_->setMaximumHeight(listContent);
 }
 void ScopeWindow::resizeEvent(QResizeEvent *event) {
     FrameWindow::resizeEvent(event); cancelDrag(); updateEditorGeometry();
