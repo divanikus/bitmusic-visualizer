@@ -11,6 +11,7 @@ spectra and piano keyboards. Listen to individual voices and explore the full mi
 
 - Playback, seeking, repeat and subsongs; channel mute/Solo and L/R output switches.
 - Waveform, spectrum and keyboard cards, with optional stereo display and level meters.
+- MIDI piano rolls with falling notes; tracker patterns with a live playback row.
 - Drag, resize and hide cards; save layouts and defaults for each sound configuration.
 - Color themes, GPU glow/trails, 30/60/120 FPS targets and a CPU fallback renderer.
 - Fullscreen visualization; remembered window geometry and display preferences.
@@ -122,7 +123,7 @@ SF3 and DLS are not supported. [MIDI setup and limits](docs/MIDI.md).
 | Task | Control |
 | --- | --- |
 | Arrange cards | Pencil → drag cards; drag their edges/corners to resize |
-| Change or add a view | **Cards → View** or **Add card…** |
+| Change or add a view | **Cards → View** or **Add card…**; MIDI also offers **Piano roll**, trackers offer **Pattern** |
 | Show the output mix | Enable **Full mix** in Cards; hidden by default |
 | Show stereo or level meters | **Stereo** / **Levels** in the editor toolbar |
 | Adjust waves and effects | **Waves…** for scale, trigger, line width and FPS; **Effects…** for glow/trails |
@@ -141,7 +142,7 @@ Press **F1** or click the keyboard icon in the main player for the in-app guide.
 
 | Key | Action |
 | --- | --- |
-| 1–9 | Cycle a channel's cards: Waveform → Spectrum → Keyboard |
+| 1–9 | Cycle a channel's available views, including Piano roll / Pattern |
 | Ctrl+1–9 | Mute / unmute a channel |
 | Ctrl+Shift+1–9 | Solo / restore previous mutes |
 | Alt+1–9 | Hide / show a channel's cards |

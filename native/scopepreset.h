@@ -8,6 +8,8 @@ struct PresetCard {
     int view = 0;
     QSize span{1, 1};
     bool visible = true, bars = false, grid = true;
+    bool horizontal = false, commands = false;
+    int firstChannel = 0;
 };
 struct ScopePreset {
     SoundConfiguration configuration;

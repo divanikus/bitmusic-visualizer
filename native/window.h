@@ -40,7 +40,7 @@ private:
 class ScopeWindow : public FrameWindow {
 public:
     ScopeWindow();
-    enum class ViewKind { Waveform, Spectrum, Keyboard };
+    enum class ViewKind { Waveform, Spectrum, Keyboard, PianoRoll, Pattern };
     void cycleSourceView(int source);
     void toggleSourceVisibility(int source);
     void setAllViews(ViewKind kind);
@@ -96,12 +96,25 @@ private:
         int source = 0;
         ViewKind kind = ViewKind::Waveform;
         bool spectrumBars = false, spectrumGrid = true;
+        bool horizontal = false, commands = false;
+        int firstChannel = 0;
     };
     QVector<Card> cards_;
     int sourceFor(int card) const { return card >= 0 && card < cards_.size() ? cards_[card].source : card; }
     ViewKind viewFor(int card) const { return card >= 0 && card < cards_.size() ? cards_[card].kind : ViewKind::Waveform; }
     QString sourceName(int source) const;
     QString viewName(ViewKind kind) const;
+    bool viewSupported(ViewKind kind) const;
+    void paintMusic(QPainter &p, int card, const QRectF &plot);
+    void paintPianoRoll(QPainter &p, int card, const QRectF &plot);
+    void paintPattern(QPainter &p, int card, const QRectF &plot);
+    QVector<ScopeOverlay> musicOverlays();
+    struct MusicImage { QByteArray key; QImage image; };
+    QHash<int, MusicImage> musicImages_;
+    QWidget *musicControls_;
+    QComboBox *rollDirection_;
+    QCheckBox *patternCommands_;
+    QSpinBox *patternChannel_;
     void updateViewEditor();
     void updateKeyboardNotes();
     QVector<float> keyboardPitches(int card) const;

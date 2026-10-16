@@ -120,6 +120,9 @@ int runMt32Checks(QApplication &app,const QStringList &args) {
         routedResources->sequence.endFrame=10*SampleRate;
         Mt32Track routed(midi,{},0,false,true,routedResources);
         require(routed.info().emptyVoices==(VoiceMask::first(9)&~VoiceMask::first(3)),"MT-32 usage ignored later SysEx remapping or reset.");
+        const auto roll=routed.info().noteRoll;
+        require(roll&&roll->notes.size()==4&&roll->notes[0].source==0&&roll->notes[1].source==0&&
+            roll->notes[2].source==1&&roll->notes[3].source==2,"MT-32 roll does not follow SysEx part assignments.");
         require(render(routed,SampleRate/10)!=QByteArray(SampleRate/10*4,0),"Usage scan leaked future routing into playback.");
         routedEvents={{0,QByteArray::fromHex("913c00")},{0,QByteArray::fromHex("b10764")}};
         Mt32Track noteFree(midi,{},0,false,false,routedResources);

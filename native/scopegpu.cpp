@@ -23,11 +23,13 @@ struct Trace {
     QVector<ScopeLane> lanes;
 };
 struct SceneRoot : QSGNode {
+    struct OverlayNode : QSGSimpleTextureNode { quint64 key=0; ~OverlayNode() override {delete texture();} };
+    QSGNode *overlays = new QSGNode;
     QSGSimpleTextureNode *chrome = new QSGSimpleTextureNode;
     quint64 imageKey = 0;
     std::deque<std::pair<quint64, QSGOpacityNode *>> traces;
     QSGNode *meters = new QSGNode;
-    SceneRoot() { appendChildNode(chrome); appendChildNode(meters); }
+    SceneRoot() { appendChildNode(chrome); appendChildNode(meters); appendChildNode(overlays); }
     ~SceneRoot() override { delete chrome->texture(); }
 };
 
@@ -132,6 +134,7 @@ public:
     }
     QImage image;
     QVector<ScopeMeter> meters;
+    QVector<ScopeOverlay> overlays;
     QByteArray layout;
     std::deque<Trace> traces;
     ScopeEffects effects;
@@ -153,7 +156,7 @@ public:
         // Covers 999 ms at 120 FPS, with headroom for occasional extra UI paints.
         while (traces.size() > 1 && (now - traces.front().born >= life || traces.size() > 128 || !effects.trail)) traces.pop_front();
     }
-    void clear() { traces.clear(); meters.clear(); position = -1; timer.stop(); update(); }
+    void clear() { traces.clear(); meters.clear(); overlays.clear(); position = -1; timer.stop(); update(); }
 protected:
     QSGNode *updatePaintNode(QSGNode *old, UpdatePaintNodeData *) override {
         // Expose/resize can arrive before a first image, or after allocation failure.
@@ -183,6 +186,25 @@ protected:
             root->imageKey = quint64(image.cacheKey());
         }
         root->chrome->setRect(boundingRect());
+        while(root->overlays->childCount()>overlays.size()) {
+            auto node=root->overlays->lastChild(); root->overlays->removeChildNode(node); delete node;
+        }
+        auto child=root->overlays->firstChild();
+        for(const auto &overlay:overlays) {
+            auto node=static_cast<SceneRoot::OverlayNode *>(child);
+            if(!node) {node=new SceneRoot::OverlayNode; root->overlays->appendChildNode(node);}
+            if(node->key!=quint64(overlay.image.cacheKey())) {
+                auto texture=window()->createTextureFromImage(overlay.image);
+                if(!texture) {
+                    delete root;
+                    QMetaObject::invokeMethod(this,[this]{if(failed) failed("Could not create music view texture");},Qt::QueuedConnection);
+                    return nullptr;
+                }
+                auto previous=node->texture(); node->setTexture(texture); delete previous;
+                node->key=quint64(overlay.image.cacheKey());
+            }
+            node->setRect(overlay.rect); child=node->nextSibling();
+        }
         while (!root->traces.empty() && (traces.empty() || root->traces.front().first < traces.front().serial)) {
             auto node = root->traces.front().second; root->removeChildNode(node); delete node; root->traces.pop_front();
         }
@@ -260,7 +282,8 @@ bool ScopeGpu::checkHealth() {
 }
 void ScopeGpu::submit(const QImage &chrome, const QVector<ScopeLane> &lanes,
                       const QByteArray &layoutKey, quint64 generation, int positionMs,
-                      bool playing, const ScopeEffects &effects, quint64 outputSequence, const QVector<ScopeMeter> &meters) {
+                      bool playing, const ScopeEffects &effects, quint64 outputSequence, const QVector<ScopeMeter> &meters,
+                      const QVector<ScopeOverlay> &overlays) {
     if (!checkHealth()) return;
     if (chrome.isNull()) { reportFailure("Could not allocate the scope image"); return; }
     if (!pending_) { pending_ = true; requestedAt_ = healthClock_.elapsed(); }
@@ -273,6 +296,7 @@ void ScopeGpu::submit(const QImage &chrome, const QVector<ScopeLane> &lanes,
     scene_->effects = effects; scene_->layout = layoutKey; scene_->generation = generation;
     scene_->image = chrome; scene_->running = playing;
     scene_->meters = meters;
+    scene_->overlays = overlays;
     if (scene_->position != positionMs || scene_->outputSequence != outputSequence || scene_->traces.empty()) {
         if (!scene_->traces.empty()) {
             // Normalize historical brightness by capture interval, not frame rate.

@@ -12,6 +12,7 @@
 #include <QPainter>
 #include <QPushButton>
 #include <QSignalBlocker>
+#include <QSpinBox>
 #include <QVBoxLayout>
 #include <cmath>
 #include <algorithm>
@@ -23,12 +24,17 @@ QString ScopeWindow::viewName(ViewKind kind) const {
     switch (kind) {
     case ViewKind::Spectrum: return "Spectrum";
     case ViewKind::Keyboard: return "Keyboard";
+    case ViewKind::PianoRoll: return "Piano roll";
+    case ViewKind::Pattern: return "Pattern";
     default: return "Waveform";
     }
 }
+bool ScopeWindow::viewSupported(ViewKind kind) const {
+    return kind==ViewKind::PianoRoll?bool(state_.info.noteRoll):kind==ViewKind::Pattern?bool(state_.info.patterns):true;
+}
 bool ScopeWindow::outputEnabled() const {
     if (newFile_) return false;
-    for (int id : visibleChannels()) if (sourceFor(id) == ScopeTheme::FullMix) return true;
+    for (int id : visibleChannels()) if (sourceFor(id) == ScopeTheme::FullMix && (viewFor(id)<ViewKind::PianoRoll || waveOptions_.meters)) return true;
     return false;
 }
 void ScopeWindow::cycleSourceView(int source) {
@@ -36,7 +42,8 @@ void ScopeWindow::cycleSourceView(int source) {
     int first = order_.contains(source) ? source : -1;
     if (first < 0) for (int id : order_) if (sourceFor(id) == source) { first = id; break; }
     if (first < 0) return;
-    const auto next = ViewKind((int(cards_[first].kind)+1)%3);
+    auto next = ViewKind((int(cards_[first].kind)+1)%5);
+    while(!viewSupported(next)) next=ViewKind((int(next)+1)%5);
     for (int id : order_) if (sourceFor(id) == source) cards_[id].kind = next;
     layoutChanged(); updateViewEditor();
 }
@@ -48,6 +55,7 @@ void ScopeWindow::toggleSourceVisibility(int source) {
     layoutChanged(); updateViewEditor();
 }
 void ScopeWindow::setAllViews(ViewKind kind) {
+    if(!viewSupported(kind)) return;
     for (int id : order_) cards_[id].kind = kind;
     layoutChanged(); updateViewEditor();
 }
@@ -56,7 +64,10 @@ void ScopeWindow::updateViewEditor() {
     const int id = item ? item->data(Qt::UserRole).toInt() : -1;
     const bool valid = id >= 0 && id < cards_.size();
     QSignalBlocker block(cardView_);
-    cardView_->setEnabled(valid); cardView_->setCurrentIndex(valid ? int(cards_[id].kind) : 0);
+    cardView_->clear();
+    for(auto kind:{ViewKind::Waveform,ViewKind::Spectrum,ViewKind::Keyboard,ViewKind::PianoRoll,ViewKind::Pattern})
+        if(viewSupported(kind)) cardView_->addItem(viewName(kind),int(kind));
+    cardView_->setEnabled(valid); cardView_->setCurrentIndex(valid ? cardView_->findData(int(cards_[id].kind)) : 0);
     cardView_->setToolTip("Keyboard shows pitches from chip or MIDI data where available; other sources estimate one pitch from audio.");
     const QSignalBlocker styleBlock(spectrumStyle_), gridBlock(spectrumGrid_);
     spectrumControls_->setVisible(valid && cards_[id].kind == ViewKind::Spectrum);
@@ -66,6 +77,19 @@ void ScopeWindow::updateViewEditor() {
     const bool exact = source >= 0 && source < VoiceMask::Capacity && (state_.info.tonalMask & (VoiceMask::bit(source)));
     keyboardHint_->setVisible(valid && cards_[id].kind == ViewKind::Keyboard);
     keyboardHint_->setText(exact ? (state_.info.mt32Resources ? "MT-32 played keys. Timbre tuning, pitch bend and modulation are not measured." : state_.info.midiResources ? "MIDI notes, sustain and channel pitch bend. Sample tuning and synthesis modulation are not measured." : "Notes from chip oscillators. All active tonal pitches are shown.") : "Estimated from audio: one pitch. Chords, noise and drums may be inaccurate.");
+    const bool roll=valid&&cards_[id].kind==ViewKind::PianoRoll, pattern=valid&&cards_[id].kind==ViewKind::Pattern;
+    const QSignalBlocker directionBlock(rollDirection_),commandsBlock(patternCommands_),channelBlock(patternChannel_);
+    musicControls_->setVisible(roll||pattern); rollDirection_->setVisible(roll); patternCommands_->setVisible(pattern);
+    patternChannel_->setVisible(pattern&&source==ScopeTheme::FullMix);
+    rollDirection_->setCurrentIndex(valid&&cards_[id].horizontal?1:0);
+    patternCommands_->setChecked(valid&&cards_[id].commands);
+    patternChannel_->setRange(1,std::max(1,int(state_.info.voices.size())));
+    patternChannel_->setValue(valid?cards_[id].firstChannel+1:1);
+    if(roll||pattern) {
+        keyboardHint_->show(); keyboardHint_->setText(roll?
+            "MIDI key presses, colored by instrument. Pedal, pitch bend and sound tails are not drawn. Enlarge the card for more space.":
+            "Live pattern rows: note and instrument. Volume/effects use libxmp's normalized commands. Enlarge Full mix to see more channels.");
+    }
     addCard_->setEnabled(state_.valid && order_.size() < 512);
     removeCard_->setEnabled(valid);
     removeCard_->setToolTip("Remove this card without muting its source. Add card... or Reset can bring it back.");
@@ -82,10 +106,11 @@ void ScopeWindow::addCard() {
     source->addItem("Full mix", ScopeTheme::FullMix);
     source->setCurrentIndex(source->findData(sourceFor(selectedId))); form->addRow("Source", source);
     auto kind = new QComboBox; kind->setObjectName("newCardView"); styleCombo(kind);
-    for (auto type : {ViewKind::Waveform, ViewKind::Spectrum, ViewKind::Keyboard}) kind->addItem(viewName(type), int(type));
+    for (auto type : {ViewKind::Waveform, ViewKind::Spectrum, ViewKind::Keyboard, ViewKind::PianoRoll, ViewKind::Pattern})
+        if(viewSupported(type)) kind->addItem(viewName(type), int(type));
     kind->setCurrentIndex((sourceFor(selectedId) < VoiceMask::Capacity && (state_.info.tonalMask & (VoiceMask::bit(sourceFor(selectedId))))) ? 2 : 1);
     form->addRow("View", kind);
-    auto note = new QLabel("Add another view of a channel or the final mix.\nCards share their source's colors.\nKeyboard uses chip/MIDI notes, or estimates one pitch from audio.");
+    auto note = new QLabel("Add another view of a channel or the final mix.\nPiano roll and Pattern show musical events where available.\nDrag card edges to make room for these views.");
     note->setWordWrap(true); layout->addWidget(note);
     auto buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel); layout->addWidget(buttons);
     buttons->button(QDialogButtonBox::Ok)->setText("Add");

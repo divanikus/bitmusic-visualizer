@@ -69,6 +69,8 @@ target_sources(bitmusic_visualizer PRIVATE native/mt32track.cpp native/mt32check
 file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/roms/mt32")
 configure_file(packaging/MT32-ROMS.txt "${CMAKE_CURRENT_BINARY_DIR}/roms/mt32/README.txt" COPYONLY)
 target_sources(bitmusic_visualizer PRIVATE native/midisequence.cpp native/miditrack.cpp native/midichecks.cpp)
+target_sources(bitmusic_visualizer PRIVATE native/musicevents.cpp native/midiroll.cpp native/scopemusic.cpp)
+target_sources(bitmusic_visualizer PRIVATE native/musicviewchecks.cpp)
 file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/soundfonts")
 configure_file(packaging/SOUNDFONTS.txt "${CMAKE_CURRENT_BINARY_DIR}/soundfonts/README.txt" COPYONLY)
 target_sources(bitmusic_visualizer PRIVATE native/soundconfig.cpp native/scopepreset.cpp native/scopepresets.cpp native/presetchecks.cpp)

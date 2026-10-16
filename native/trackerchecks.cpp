@@ -125,7 +125,7 @@ int runTrackerChecks(QApplication &app, const QStringList &args) {
                 << audio->info().configuration.name << " / 4.6s dual decode in " << timer.elapsed() << "ms\n"; log.flush();
         }
         if (!args.contains("--decoder-only")) {
-            PlayerWindow window; window.show(); window.scopeWindow().show();
+            PlayerWindow window; window.player().setVolume(0); window.show(); window.scopeWindow().show();
             window.loadFile(path);
             auto &player=window.player();
             player.setScopesEnabled(true); player.setScopeMask(VoiceMask::first(4));

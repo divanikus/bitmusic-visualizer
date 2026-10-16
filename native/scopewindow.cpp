@@ -176,7 +176,7 @@ ScopeWindow::ScopeWindow() {
     meters->setToolTip("Peak levels on a fixed -60 to 0 dBFS scale, independent of wave height. Stereo sources show L/R; mono shows M. Muted lanes are dimmed.");
     labels->addWidget(numbers_); labels->addWidget(names_); labels->addWidget(stereo_); labels->addWidget(meters); labels->addWidget(keepGrid_);
     connect(meters, &QCheckBox::toggled, this, [this](bool enabled) {
-        waveOptions_.meters = enabled; rememberWaves(); update();
+        waveOptions_.meters = enabled; rememberWaves(); layoutChanged(); update();
     });
     settings_->addWidget(gridControls_, 0, 0); settings_->addWidget(labelControls_, 0, 1); settings_->addWidget(editorActions_, 0, 2);
     summary_ = new QLabel; summary_->setObjectName("editorHint");
@@ -210,6 +210,23 @@ ScopeWindow::ScopeWindow() {
     spectrumRow->addWidget(spectrumGrid_); channels->addWidget(spectrumControls_); spectrumControls_->hide();
     keyboardHint_ = new QLabel; keyboardHint_->setObjectName("keyboardHint"); keyboardHint_->setWordWrap(true);
     channels->addWidget(keyboardHint_); keyboardHint_->hide();
+    musicControls_=new QWidget;
+    auto musicRow=new QVBoxLayout(musicControls_); musicRow->setContentsMargins(0,0,0,0);
+    rollDirection_=new QComboBox; rollDirection_->setObjectName("rollDirection"); styleCombo(rollDirection_);
+    rollDirection_->addItems({"Notes fall down", "Notes move left"}); musicRow->addWidget(rollDirection_);
+    patternCommands_=new QCheckBox("Volume and effects"); patternCommands_->setObjectName("patternCommands"); musicRow->addWidget(patternCommands_);
+    patternChannel_=new QSpinBox; patternChannel_->setObjectName("patternFirstChannel"); patternChannel_->setPrefix("First channel: ");
+    patternChannel_->setToolTip("First column when the whole pattern does not fit. Enlarge the card to see more channels."); musicRow->addWidget(patternChannel_);
+    channels->addWidget(musicControls_); musicControls_->hide();
+    auto musicChanged=[this] {
+        if(!channelList_->currentItem()) return;
+        auto &card=cards_[channelList_->currentItem()->data(Qt::UserRole).toInt()];
+        card.horizontal=rollDirection_->currentIndex()==1; card.commands=patternCommands_->isChecked();
+        card.firstChannel=patternChannel_->value()-1; musicImages_.clear(); presetEdited(); update();
+    };
+    connect(rollDirection_,&QComboBox::currentIndexChanged,this,musicChanged);
+    connect(patternCommands_,&QCheckBox::toggled,this,musicChanged);
+    connect(patternChannel_,&QSpinBox::valueChanged,this,musicChanged);
     auto cardActions = new QHBoxLayout;
     addCard_ = new QPushButton("Add card..."); addCard_->setObjectName("addScopeCard"); cardActions->addWidget(addCard_);
     removeCard_ = new QPushButton("Remove"); removeCard_->setObjectName("removeScopeCard"); cardActions->addWidget(removeCard_);
@@ -312,6 +329,7 @@ ScopeWindow::ScopeWindow() {
 void ScopeWindow::beginFile() {
     if (gpu_) gpu_->suspend();
     newFile_ = true; frame_ = {}; output_ = {}; waveStates_ = {}; spectrumStates_ = {}; pitchStates_ = {}; cancelDrag();
+    musicImages_.clear();
     updatePresetStatus();
     if (onChannelsChanged) onChannelsChanged(0);
     outputCapturing_ = false;
@@ -395,15 +413,15 @@ VoiceMask ScopeWindow::visibleMask() const {
     VoiceMask mask = 0;
     for (int card : visibleChannels()) {
         const int source = sourceFor(card);
-        if (source < ScopeTheme::FullMix)
+        if (source < ScopeTheme::FullMix && (viewFor(card)<ViewKind::PianoRoll || waveOptions_.meters))
             mask |= VoiceMask::bit(source);
     }
     return mask;
 }
 QString ScopeWindow::channelName(int channel) const {
     const int source = sourceFor(channel);
-    const auto name = frame_.generation == state_.generation ? frame_.instruments.value(source) : QString();
-    return name.isEmpty() ? sourceName(source) : name;
+    const auto name = state_.instruments.value(source);
+    return name.isEmpty() ? sourceName(source) : sourceName(source) + " · " + name;
 }
 bool ScopeWindow::channelReady(int channel) const {
     channel = sourceFor(channel);
@@ -584,7 +602,7 @@ QVector<ScopeLane> ScopeWindow::waveLanes() {
     QVector<ScopeLane> lanes;
     if (state_.busy) return lanes;
     for (int card : displayedChannels()) {
-        if (!channelReady(card) || viewFor(card) == ViewKind::Keyboard) continue;
+        if (!channelReady(card) || viewFor(card) >= ViewKind::Keyboard) continue;
         const int source = sourceFor(card);
         const auto kind = viewFor(card);
         const auto plot = plotRect(card);
@@ -767,7 +785,7 @@ void ScopeWindow::paintEvent(QPaintEvent *event) {
             chromeImage_.setDevicePixelRatio(devicePixelRatioF()); chromeImage_.fill(QColor("#171e24"));
             QPainter chrome(&chromeImage_); chrome.setRenderHint(QPainter::Antialiasing); paintContents(chrome, false);
         }
-        gpu_->submit(chromeImage_, waveLanes(), chromeKey(false), state_.generation, frame_.positionMs, state_.playing && !state_.busy, effects_, output_.sequence, meterFills());
+        gpu_->submit(chromeImage_, waveLanes(), chromeKey(false), state_.generation, frame_.positionMs, state_.playing && !state_.busy, effects_, output_.sequence, meterFills(), musicOverlays());
         return;
     }
     QPainter p(this); p.setRenderHint(QPainter::Antialiasing);
@@ -832,6 +850,10 @@ void ScopeWindow::paintContents(QPainter &p, bool waves) {
         for (const auto &meter : meters) if (meter.card == channel) p.fillRect(meter.rect, meter.color);
         const auto plot = plotRect(channel);
         if (plot.width() < 2 || plot.height() < 2) { p.restore(); return; }
+        if(viewFor(channel)>=ViewKind::PianoRoll) {
+            if(waves) paintMusic(p,channel,plot);
+            p.restore(); return;
+        }
         if (viewFor(channel) == ViewKind::Keyboard) {
             paintKeyboard(p, channel, plot, muted); p.restore(); return;
         }

@@ -137,7 +137,7 @@ struct Mt32Track::Impl : MT32Emu::ReportHandler {
         if(quint8(m[0])==0xf0) return synth->playSysex(reinterpret_cast<const MT32Emu::Bit8u *>(m.constData()),MT32Emu::Bit32u(m.size()),now);
         return synth->playMsg(shortMessage(m),now);
     }
-    VoiceMask emptyParts() {
+    VoiceMask emptyParts(std::shared_ptr<const NoteRoll> &roll) {
         VoiceMask used;
         std::array<VoiceMask,16> routes{};
         const auto readRoutes=[&] {
@@ -149,13 +149,14 @@ struct Mt32Track::Impl : MT32Emu::ReportHandler {
         readRoutes(); bool changed=false;
         // Let Munt validate SysEx and resolve routing, including resets and
         // remapping later in the song. No notes or audio are synthesized here.
-        for(const auto &e:resources->sequence.events) {
+        roll=midiNoteRoll(resources->sequence,[&](const MidiEvent &e) {
             const auto &m=e.message; const int status=quint8(m[0]);
             if(status==0xf0) {
                 synth->playSysexNow(reinterpret_cast<const MT32Emu::Bit8u *>(m.constData()),MT32Emu::Bit32u(m.size()));
                 readRoutes(); changed=true;
             } else if((status&0xf0)==0x90 && m.size()==3 && quint8(m[2])) used |= routes[status&15];
-        }
+            return routes[status&15];
+        });
         if(changed) reset(); // Analysis must not leave later patches/routing in the playback synth.
         return VoiceMask::first(9) & ~used;
     }
@@ -233,7 +234,7 @@ Mt32Track::Mt32Track(const QString &path,QByteArray data,int song,bool playlist,
     c.id=QString::fromLatin1(QCryptographicHash::hash("midi-mt32|9-part-v1",QCryptographicHash::Sha256).toHex());
     if(playlist) info_.playlist.push_back({info_.title,info_.durationMs,0});
     d.reset();
-    info_.emptyVoices=d.emptyParts();
+    info_.emptyVoices=d.emptyParts(info_.noteRoll);
 }
 Mt32Track::~Mt32Track()=default;
 bool Mt32Track::hasTaps() const { return impl_->capture; }

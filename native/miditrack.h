@@ -3,6 +3,7 @@
 #include "midisequence.h"
 
 struct MidiResources {
+    std::shared_ptr<const NoteRoll> noteRoll;
     MidiSequence sequence;
     QByteArray soundFont;
     QByteArray soundFontKey; // Content identity for FluidSynth's global sample cache.

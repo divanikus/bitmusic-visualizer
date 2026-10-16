@@ -26,6 +26,8 @@ struct TrackerTrack::Impl {
     xmp_frame_info tick{};
     struct Names { qint64 frame; QStringList channels; };
     std::deque<Names> names;
+    struct Position { qint64 frame; PatternPosition value; };
+    std::deque<Position> positions;
     explicit Impl(bool cap) : capture(cap) { require(ctx != nullptr, "Cannot create tracker decoder."); }
     ~Impl() {
         if (started) xmp_end_player(ctx);
@@ -42,13 +44,17 @@ struct TrackerTrack::Impl {
         // libxmp returns -1 for a valid restart at order zero.
         require(xmp_set_position(ctx, entry) >= -1, "Cannot select tracker sequence.");
         for (int i=0; i<module.mod->chn; ++i) xmp_channel_mute(ctx, i, muteMask.test(i));
-        first = end = 0; tick = {}; names.clear();
+        first = end = 0; tick = {}; names.clear(); positions.clear();
         for (auto &channel : history) for (auto &side : channel) side.fill(0, ScopeFrames);
     }
     void next(qint64 frame) {
         XmpCaptureScope scope(capture ? taps.get() : nullptr);
         require(xmp_play_frame(ctx) == 0, "Tracker decoding failed.");
         xmp_get_frame_info(ctx, &tick);
+        if(positions.empty() || positions.back().value.order!=tick.pos ||
+            positions.back().value.row!=tick.row || positions.back().value.speed!=tick.speed || positions.back().value.bpm!=tick.bpm)
+            positions.push_back({frame,{tick.pos,tick.pattern,tick.row,tick.speed,tick.bpm}});
+        while(positions.size()>1 && positions[1].frame<frame-8*SampleRate) positions.pop_front();
         require(tick.buffer && tick.buffer_size > 0 && tick.buffer_size % 4 == 0, "Invalid tracker audio block.");
         first = 0; end = tick.buffer_size/4;
         if (capture) require(taps->samples == end*2, "Tracker capture clock mismatch.");
@@ -110,6 +116,29 @@ TrackerTrack::TrackerTrack(const QString &path, QByteArray data, int song, bool 
     // Layout depends on the mixer and channel count, not the exporting tracker's version.
     const QString identity = QString("tracker|%1|%2").arg(amiga ? "paula" : "sample-mixer").arg(m->chn);
     c.id = QString::fromLatin1(QCryptographicHash::hash(identity.toUtf8(), QCryptographicHash::Sha256).toHex());
+    auto patterns=std::make_shared<TrackerPatterns>(); patterns->channels=m->chn;
+    VoiceMask used;
+    qint64 cellCount=0;
+    for(int p=0;p<m->pat;++p) cellCount+=qint64(m->xxp[p]->rows)*m->chn;
+    // Large modules still play; optional visualization cannot exhaust memory.
+    const bool store=cellCount<=2*1024*1024;
+    for(int p=0;p<m->pat;++p) {
+        const auto *pattern=m->xxp[p]; TrackerPattern out; out.rows=pattern->rows;
+        if(store) out.cells.resize(out.rows*m->chn);
+        for(int c=0;c<m->chn;++c) {
+            const auto *track=m->xxt[pattern->index[c]];
+            for(int row=0;row<std::min(pattern->rows,track->rows);++row) {
+                const auto &e=track->event[row];
+                // Sample-only triggers can sound in some formats. Hide only
+                // channels proven empty, including later/unvisited patterns.
+                if((e.note>0 && e.note<0x81)||e.ins) used|=VoiceMask::bit(c);
+                if(store) out.cells[row*m->chn+c]={e.note,e.ins,e.vol,e.fxt,e.fxp,e.f2t,e.f2p};
+            }
+        }
+        if(store) patterns->patterns.push_back(std::move(out));
+    }
+    if(store) info_.patterns=std::move(patterns);
+    info_.emptyVoices=VoiceMask::first(m->chn)&~used;
 }
 TrackerTrack::~TrackerTrack() = default;
 void TrackerTrack::render(short *out, int frames) {
@@ -156,4 +185,12 @@ QStringList TrackerTrack::instrumentNames(qint64 frame) const {
     const auto at = std::upper_bound(names.begin(), names.end(), frame,
         [](qint64 f, const Impl::Names &n) { return f<n.frame; });
     return at==names.begin() ? QStringList{} : std::prev(at)->channels;
+}
+PatternPosition TrackerTrack::patternPosition(qint64 frame) const {
+    const auto &positions=impl_->positions;
+    const auto at=std::upper_bound(positions.begin(),positions.end(),frame,
+        [](qint64 f,const Impl::Position &p){return f<p.frame;});
+    if(at!=positions.begin()) return std::prev(at)->value;
+    const auto *m=impl_->module.mod;
+    return {impl_->entry,m->xxo[impl_->entry],0,m->spd,m->bpm};
 }

@@ -1,6 +1,7 @@
 #pragma once
 #include "soundconfig.h"
 #include "voicemask.h"
+#include "musicevents.h"
 #include <QByteArray>
 #include <QStringList>
 #include <QThread>
@@ -49,6 +50,8 @@ struct SongInfo {
     int durationMs = -1, loopStartMs = 0;
 };
 struct TrackInfo {
+    std::shared_ptr<const NoteRoll> noteRoll;
+    std::shared_ptr<const TrackerPatterns> patterns;
     std::shared_ptr<const SidRoms> sidRoms; // Same ROM bytes in audio and scopes, including cold seeks.
     std::shared_ptr<const YamahaRoms> yamahaRoms;
     std::shared_ptr<const MidiResources> midiResources;
@@ -78,6 +81,7 @@ public:
     virtual QVector<float> notePitches(int channel) const = 0;
     // Optional changing labels, queried at the audible playhead (not decoder read-ahead).
     virtual QStringList instrumentNames(qint64) const { return {}; }
+    virtual PatternPosition patternPosition(qint64) const { return {}; }
     virtual qint64 frame() const = 0;
 };
 std::unique_ptr<MusicTrack> openMusicTrack(const QString &path, int song = 0, bool readPlaylist = true, bool capture = false,
@@ -112,6 +116,7 @@ private:
 };
 
 struct PlayerState {
+    PatternPosition pattern;
     TrackInfo info;
     quint64 generation = 0;
     bool valid = false, busy = false, playing = false;

@@ -19,6 +19,7 @@ QByteArray ScopePreset::encode() const {
         const auto &card = cards[i]; data += "\n[Card" + QByteArray::number(i+1) + "]\n";
         put("Source", card.source); num("View", card.view); num("Width", card.span.width()); num("Height", card.span.height());
         num("Visible", card.visible); num("Bars", card.bars); num("Grid", card.grid);
+        num("Horizontal",card.horizontal); num("Commands",card.commands); num("FirstChannel",card.firstChannel);
     }
     return data;
 }
@@ -52,9 +53,12 @@ bool ScopePreset::load(const QString &path, QString &error) {
         const auto group = QString("Card%1/").arg(i+1);
         PresetCard card; card.source = ini.value(group+"Source").toString();
         valid &= card.source == "mix" || sources.contains(card.source);
-        card.view = integer(group+"View", 0, 2);
+        card.view = integer(group+"View", 0, 4);
         card.span = QSize(integer(group+"Width", 1, candidate.columns), integer(group+"Height", 1, candidate.rows));
         card.visible = integer(group+"Visible", 0, 1); card.bars = integer(group+"Bars", 0, 1); card.grid = integer(group+"Grid", 0, 1);
+        if(ini.contains(group+"Horizontal")) card.horizontal=integer(group+"Horizontal",0,1);
+        if(ini.contains(group+"Commands")) card.commands=integer(group+"Commands",0,1);
+        if(ini.contains(group+"FirstChannel")) card.firstChannel=integer(group+"FirstChannel",0,VoiceMask::Capacity-1);
         candidate.cards.push_back(card);
     }
     if (!valid || ini.status() != QSettings::NoError) { error = "Invalid or unsupported layout preset."; return false; }

@@ -36,6 +36,15 @@ counts are not monitor-presented FPS. Add `--software-scopes` to check CPU drawi
 multi-note keyboards, duplicate cards, audio continuity and transport changes.
 Add `--software-scopes` for CPU rendering. These checks also run in the complete native suite.
 
+`--music-view-checks test-output` checks MIDI gate spans, program changes and
+part routing, indexed note lookup, tracker rows at the audible cursor, empty/late/
+instrument-only channels, presets, and Piano roll/Pattern painting through resize,
+seek, fullscreen and hide/show. Add `--software-scopes` for CPU drawing or
+`--decoder-only` for event-data checks without a display/audio device. It uses
+original generated fixtures and isolated settings. MT-32 SysEx routing is also
+checked by `--mt32-checks` when user ROMs are supplied. Portable Windows tests
+run the view checks; hosted platform checks run their decoder-only portion.
+
 `--self-test test-output --waves-only` checks waveform controls and output capture,
 plus rendered line thickness, L/R/mono level meters, settings, and fullscreen
 entry/exit with restored window/editor state. Run with and without

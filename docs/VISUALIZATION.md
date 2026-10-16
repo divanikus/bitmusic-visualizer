@@ -18,7 +18,7 @@ Changing subsongs within a file keeps the layout. Themes remain color presets.
 
 **Shift-click** anywhere on a voice card to Solo its source. Shift-click another
 source to switch Solo, or the same source to restore previous mutes. This works
-with waveform, spectrum and keyboard cards, including duplicates, in normal,
+with all card views, including duplicates, in normal,
 edit and fullscreen modes. Full mix is not a voice and cannot be soloed.
 Unmodified editor clicks still drag, resize, hide cards or edit colors.
 
@@ -80,7 +80,10 @@ Presets are portable UTF-8 INI files in `presets/` alongside `themes/`, using th
 same platform storage policy. Version 1 stores a `[Preset]` group with a hardware
 configuration ID/family/source list, Rows/Columns, Numbers/Names/Stereo and card
 count. Ordered `[Card1]`, `[Card2]`, etc. groups store Source, View (0 waveform,
-1 spectrum, 2 keyboard), Width/Height in cells, Visible, Bars and Grid. The file
+1 spectrum, 2 keyboard, 3 piano roll, 4 pattern), Width/Height in cells, Visible,
+Bars and Grid. Optional Horizontal, Commands and FirstChannel fields retain
+note-roll direction and pattern options; older presets keep their defaults.
+A view unavailable for the loaded file falls back to Waveform. The file
 contains no music paths. Files are validated before applying and saved atomically.
 Invalid default files use the ordinary initial layout; the star can clear their
 assignment. Defaults are bound to exact configurations in application settings.
@@ -200,6 +203,45 @@ display frames. Voice/output mutes dim the display while retaining source state;
 Full mix reflects the actual delivered audio, including volume and all mutes.
 Pause freezes it; seeks and file changes replace old state. This view does not
 expose a chip-register inspector or add support for new file formats.
+
+## Piano roll and Pattern
+
+These views appear in **Cards → View** and **Add card…** when the file provides
+the required data. They use the same grid, resize handles, duplicate cards and
+presets. Start with a tall **Full mix / Piano roll** for MIDI, or a wide
+**Full mix / Pattern** for a tracker. Other cards can keep their waveforms or
+spectra. Digit shortcuts include the new views when available.
+
+**Piano roll** shows General MIDI channel or MT-32 part key presses over the next
+four seconds, moving toward a keyboard. **Notes move left** changes its direction
+without rotating labels. The keyboard covers at least A0–C8, extending for notes
+outside that range; its range stays fixed during playback. Note colors come from
+theme palettes by MIDI program/bank identity, with separate percussion-key colors.
+Colors can repeat. MT-32 SysEx part routing is respected, but custom SysEx timbre
+contents are not assigned unique colors.
+
+Bars run from note-on to note-off. They show key presses, not acoustic duration:
+pedal sustain, release tails, pitch bend and timbre tuning are not drawn. A card
+draws at most 4096 intersecting bars to bound work on very dense files.
+
+**Pattern** shows the tracker's current pattern, following its actual order/row
+at the audible playhead, including jumps and tempo changes. The highlighted row
+stays in the center; space beyond the current pattern is blank. Columns contain
+note and instrument numbers. **Volume and effects** adds volume and two effect
+columns. Numbers are hexadecimal; notes/effects use libxmp's normalized format,
+so their octave labels or command codes can differ from the original tracker.
+This is a read-only display, not a pattern editor or a reconstruction from audio.
+
+On **Full mix**, Pattern fits as many channel columns as the card allows.
+Enlarge it or change **First channel** to inspect later columns. A voice card
+shows only that channel. Pattern is omitted for modules over two million cells;
+playback is still available. See [tracker details](TRACKERS.md).
+
+In these two views, **Full mix** combines musical events from all sources.
+Muted sources remain visible but dimmed, unlike the audible PCM used by its
+waveform and spectrum. Stereo does not split event displays into L/R lanes.
+Pause freezes the cursor; seeks replace it. Optional Levels still measure PCM.
+Glow and trail apply to signal plots, not note bars or pattern text.
 
 ## Waveform controls
 

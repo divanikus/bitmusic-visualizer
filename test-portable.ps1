@@ -93,6 +93,11 @@ try {
     $null = $process.Handle
     if (!$process.WaitForExit(60000)) { throw 'Portable tracker checks timed out.' }
     if ($process.ExitCode -ne 0) { throw "Portable tracker checks failed (exit $($process.ExitCode))" }
+    $process = Start-Process -FilePath $executable -WorkingDirectory $playerRoot -ArgumentList @('--music-view-checks', ('"' + $fixtureRoot + '"')) `
+        -PassThru -WindowStyle Hidden -RedirectStandardOutput "$fixtureRoot/music-view-checks.txt" -RedirectStandardError "$checkRoot/music-view-stderr.txt"
+    $null = $process.Handle
+    if (!$process.WaitForExit(60000)) { throw 'Portable music view checks timed out.' }
+    if ($process.ExitCode -ne 0) { throw "Portable music view checks failed (exit $($process.ExitCode))" }
     $process = Start-Process -FilePath $executable -WorkingDirectory $playerRoot -ArgumentList @('--gpu-checks', ('"' + $fixtureRoot + '"')) `
         -PassThru -WindowStyle Hidden -RedirectStandardOutput "$checkRoot/gpu-stdout.txt" -RedirectStandardError "$checkRoot/gpu-stderr.txt"
     $null = $process.Handle

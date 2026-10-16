@@ -67,7 +67,7 @@ void PlayerWindow::showShortcutsHelp() {
     text->setHtml(QString(R"(
       <h3>Channels</h3>
       <table cellspacing="8">
-      <tr><td><b>1–9</b></td><td>Cycle Waveform → Spectrum → Keyboard</td></tr>
+      <tr><td><b>1–9</b></td><td>Cycle available views: Waveform, Spectrum, Keyboard, Piano roll or Pattern</td></tr>
       <tr><td><b>%1–9</b></td><td>Mute / unmute channel</td></tr>
       <tr><td><b>%2–9</b></td><td>Hide / show channel cards</td></tr>
       <tr><td><b>%7–9</b></td><td>Solo channel / restore previous channels</td></tr>

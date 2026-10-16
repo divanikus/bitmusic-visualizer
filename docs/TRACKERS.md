@@ -20,7 +20,12 @@ bounded decompressor. ProWizard packed-module conversion is disabled.
 ## Cards and transport
 
 - Each card represents a tracker channel, not one instrument or a hardware chip.
-  Its current sample/instrument name follows playback; unnamed samples get a number.
+  Its title keeps the channel name, followed by the current sample/instrument:
+  `Channel 1 · Bass`. Unnamed samples get a number.
+- Channels without notes or instrument events anywhere in the module start
+  unchecked in Cards. This scans all patterns, including late entrances;
+  instrument-only triggers are kept conservatively. Audio is unchanged, and
+  cards can be restored manually or by a saved preset.
 - Waveform, spectrum, stereo display, meters, Full mix, mute/Solo and existing
   keyboard shortcuts work as usual. IT background voices belong to their
   originating channel, rather than creating extra cards.
@@ -33,12 +38,19 @@ bounded decompressor. ProWizard packed-module conversion is disabled.
   longer; they are cancellable. No approximate order-only seek is used.
 - Keyboards use the existing experimental signal estimator. A sample may be a
   drum, speech or a chord, so a pattern note is not necessarily its audible pitch.
+- **Pattern** displays actual note/instrument rows and optional volume/effects,
+  centered on the audible playback row. Use Full mix for multiple columns,
+  resize it and select First channel when needed. Commands use libxmp's
+  normalized representation, not necessarily the original tracker's notation.
+  This optional view is omitted above 2,097,152 cells. See the
+  [visualization guide](VISUALIZATION.md#piano-roll-and-pattern).
 - Presets retain stable channel numbers. Layouts can be adapted between tracker
   configurations using the existing preset selector.
 
-Cards capture per-voice PCM before final clipping; Full mix is the audible sum.
+Signal cards capture per-voice PCM before final clipping; Full mix is the audible sum.
 Per-voice panning, filters and ramps remain in the cards. A detached anticlick
 remainder without an owning voice belongs only to Full mix.
+Pattern instead shows events, retaining muted columns in a dimmed state.
 
 ## Development checks
 

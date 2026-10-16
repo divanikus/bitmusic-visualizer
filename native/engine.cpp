@@ -456,6 +456,7 @@ void NativePlayer::run() {
                 if (active == generation_) {
                     state_.info = track->info();
                     state_.instruments = track->instrumentNames(playedFrame_.load());
+                    state_.pattern = track->patternPosition(playedFrame_.load());
                     state_.valid = true; state_.busy = false; state_.playing = playing;
                 }
             }
@@ -481,8 +482,9 @@ void NativePlayer::run() {
             }
             if (track && active == generation_) {
                 const auto names = track->instrumentNames(playedFrame_.load());
+                const auto pattern = track->patternPosition(playedFrame_.load());
                 std::lock_guard lock(stateMutex_);
-                if (active == generation_) state_.instruments = names;
+                if (active == generation_) { state_.instruments = names; state_.pattern = pattern; }
             }
         } catch (const std::exception &error) {
             stopOutput();
