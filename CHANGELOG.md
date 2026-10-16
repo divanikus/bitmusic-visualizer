@@ -10,6 +10,8 @@ not published GitHub releases. Unreleased lists changes made after the latest ta
 
 ### Added
 
+- Atari 2600 music in TIATracker (`.ttt`) projects: two TIA channel cards,
+  instrument names, mute/Solo, seeking and repeat, without extra ROMs.
 - Tracker music: Amiga MOD, MED/OctaMED and DigiBooster, plus XM, S3M and IT.
 - Separate channel cards with current sample names, stereo, mute/Solo and Full mix.
   Modules support seeking, repeat and internal subsongs without ROMs or SoundFonts.

@@ -32,6 +32,9 @@ soundfonts/
 *.gbs
 *.ay
 *.sid
+*.ttt
+*.a26
+*.sap
 *.mod
 mod.*
 med.*

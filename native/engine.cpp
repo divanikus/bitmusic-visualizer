@@ -1,6 +1,7 @@
 #include "engine.h"
 #include "vgm.h"
 #include "trackertrack.h"
+#include "tia-replay/replay.h"
 #include "outputhistory.h"
 #include "gme-taps/taps.h"
 #include "gme-taps/notes.h"
@@ -92,8 +93,8 @@ QByteArray readMusicFile(const QString &path) {
         data = std::move(decoded);
     }
     if (!(data.startsWith("NESM\x1a") || data.startsWith("NSFE") ||
-          data.startsWith("Vgm ") || data.startsWith("SNES-SPC700") || data.startsWith("GBS") || data.startsWith("ZXAYEMUL") || data.startsWith("MThd") || isTrackerModule(data)))
-        throw std::runtime_error("Supported formats: NSF, NSFE, VGM, VGZ, SPC, GBS, AY (ZXAYEMUL), SID (PSID/RSID), MIDI (SMF 0/1), tracker modules (MOD, XM, S3M, IT, MED and other libxmp formats).");
+          data.startsWith("Vgm ") || data.startsWith("SNES-SPC700") || data.startsWith("GBS") || data.startsWith("ZXAYEMUL") || data.startsWith("MThd") || Ttt::recognizes(data) || isTrackerModule(data)))
+        throw std::runtime_error("Supported formats: NSF, NSFE, VGM, VGZ, SPC, GBS, AY (ZXAYEMUL), SID (PSID/RSID), MIDI (SMF 0/1), TTT (TIATracker), tracker modules (MOD, XM, S3M, IT, MED and other libxmp formats).");
     return data;
 }
 

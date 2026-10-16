@@ -136,6 +136,7 @@ def main():
     subprocess.run([str(executable), '--midi-checks', str(fixtures), '--decoder-only'], env=env, check=True, timeout=120)
     subprocess.run([str(executable), '--mt32-checks', str(fixtures), '--decoder-only'], env=env, check=True, timeout=120)
     subprocess.run([str(executable), '--tracker-checks', str(fixtures), '--decoder-only'], env=env, check=True, timeout=120)
+    subprocess.run([str(executable), '--ttt-checks', str(fixtures), '--decoder-only'], env=env, check=True, timeout=120)
     subprocess.run([str(executable), '--music-view-checks', str(fixtures), '--decoder-only'], env=env, check=True, timeout=120)
     if platform.system() == 'Linux':
         subprocess.run([str(image.resolve()), '--appimage-extract-and-run', '--tap-checks',

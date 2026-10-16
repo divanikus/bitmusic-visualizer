@@ -160,7 +160,7 @@ their first release is described as tested.
 
 ## Dependencies and sources
 
-CMake fetches hash-pinned libgme, libsidplayfp, ymfm, FluidSynth, GCEM, Munt, libxmp and zlib source archives. `.runtime/sources/`
+CMake fetches hash-pinned libgme, libsidplayfp, ymfm, FluidSynth, GCEM, Munt, libxmp, TIATracker and zlib source archives. `.runtime/sources/`
 caches them. Packaging additionally downloads the exact Qt source archives in
 `packaging/sources.json`, verifies hashes and includes them with notices generated
 from the installed SDK's `sbom/` files. Missing source or notices fails packaging.
@@ -226,3 +226,8 @@ Hosted CI never receives user ROMs. Linux/macOS synthesis needs local validation
 libxmp 4.7.3 is a static C dependency with a hash-checked mixer observation patch.
 It uses native loaders, with archive depackers and ProWizard disabled. No new
 runtime DLL is needed. See [tracker checks and limits](TRACKERS.md).
+
+TIATracker 1.3 supplies a static TIA sound core, with a GPL-2.0-or-later replay
+adapter. No SDL or extra runtime library is needed. Use `--ttt-checks <fixtures>`
+for the focused checks; add `--decoder-only` on headless systems.
+See [TIATracker support and limits](TIATRACKER.md).

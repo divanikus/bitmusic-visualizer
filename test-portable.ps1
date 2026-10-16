@@ -93,6 +93,11 @@ try {
     $null = $process.Handle
     if (!$process.WaitForExit(60000)) { throw 'Portable tracker checks timed out.' }
     if ($process.ExitCode -ne 0) { throw "Portable tracker checks failed (exit $($process.ExitCode))" }
+    $process = Start-Process -FilePath $executable -WorkingDirectory $playerRoot -ArgumentList @('--ttt-checks', ('"' + $fixtureRoot + '"')) `
+        -PassThru -WindowStyle Hidden -RedirectStandardOutput "$fixtureRoot/tia-checks.txt" -RedirectStandardError "$checkRoot/tia-stderr.txt"
+    $null = $process.Handle
+    if (!$process.WaitForExit(60000)) { throw 'Portable TIA checks timed out.' }
+    if ($process.ExitCode -ne 0) { throw "Portable TIA checks failed (exit $($process.ExitCode))" }
     $process = Start-Process -FilePath $executable -WorkingDirectory $playerRoot -ArgumentList @('--music-view-checks', ('"' + $fixtureRoot + '"')) `
         -PassThru -WindowStyle Hidden -RedirectStandardOutput "$fixtureRoot/music-view-checks.txt" -RedirectStandardError "$checkRoot/music-view-stderr.txt"
     $null = $process.Handle

@@ -9,6 +9,7 @@ def make_fixtures(directory):
     directory.mkdir(parents=True, exist_ok=True)
     make_midi_fixtures(directory)
     make_tracker_fixtures(directory)
+    make_ttt_fixtures(directory)
     # A small NES initialization routine enables pulse 1, triangle and noise.
     # The play routine returns: the hardware oscillators continue sounding.
     code = bytearray()
@@ -209,6 +210,53 @@ def make_tracker_fixtures(directory):
             b += pattern
         b += b''.join(waves)
         (directory / (label + '.mod')).write_bytes(b)
+
+
+def make_ttt_fixtures(directory):
+    """Original two-channel TIA exercises; no collection music or ROMs."""
+    import copy
+    import json
+    instruments = [dict(version=1, name='Pulse', waveform=16, envelopeLength=4,
+                        sustainStart=1, releaseStart=3, frequencies=[0, 0, 1, 0],
+                        volumes=[12, 10, 8, 0]) for _ in range(7)]
+    instruments[1]['name'] = 'Buzzy'
+    instruments[1]['waveform'] = 1
+    percussion = [dict(version=1, name='Noise', envelopeLength=2, overlay=False,
+                       frequencies=[8, 16], volumes=[12, 6], waveforms=[8, 8]) for _ in range(15)]
+    percussion[1]['overlay'] = True
+    note = lambda kind=0, number=0, value=0: dict(type=kind, number=number, value=value)
+    a = [note() for _ in range(16)]
+    b = [note() for _ in range(16)]
+    a[0] = note(1, 0, 10)
+    a[2] = note(4, 0, 1)
+    a[4] = note(2)
+    a[6] = note(1, 0, 42)
+    a[8] = note(3, 1)
+    a[9] = note(1, 1, 18)
+    a[12] = note(1, 0, 14)
+    b[0] = note(1, 1, 24)
+    b[1] = note(1, 1, 26)
+    b[4] = note(3, 0)
+    b[8] = note(1, 0, 22)
+    b[12] = note(1, 1, 8)
+    root = dict(version=1, tvmode='pal', metaName='Bit Music TIA test',
+                metaAuthor='Bit Music Visualizer contributors', metaComment='',
+                evenspeed=3, oddspeed=4, globalspeed=True, rowsperbeat=4,
+                startpattern0=0, startpattern1=0, instruments=instruments,
+                percussion=percussion,
+                patterns=[dict(name='A', notes=a, evenspeed=2, oddspeed=5),
+                          dict(name='B', notes=b, evenspeed=2, oddspeed=5)],
+                channels=[dict(sequence=[dict(patternindex=c, gototarget=0)]) for c in range(2)])
+    for name in ('demo', 'ntsc', 'finite', 'local-speed'):
+        data = copy.deepcopy(root)
+        if name == 'ntsc':
+            data['tvmode'] = 'ntsc'
+        if name == 'finite':
+            for c in data['channels']:
+                c['sequence'][0]['gototarget'] = -1
+        if name == 'local-speed':
+            data['globalspeed'] = False
+        (directory / (name + '.ttt')).write_text(json.dumps(data), encoding='utf-8')
 
 
 if __name__ == '__main__':

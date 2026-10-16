@@ -265,7 +265,7 @@ PlayerWindow::PlayerWindow() {
         // Qt hides the final pattern group. Windows still appends patterns unless
         // the label includes a wildcard example; keep only a few readable examples.
         const auto filters = QStringList{
-            QString("All music (*.nsf, *.vgm, ...) (*.nsf *.nsfe *.vgm *.vgz *.spc *.gbs *.ay *.sid *.mid *.midi %1)").arg(trackers),
+            QString("All music (*.nsf, *.vgm, ...) (*.nsf *.nsfe *.vgm *.vgz *.spc *.gbs *.ay *.sid *.mid *.midi *.ttt %1)").arg(trackers),
             "NES (*.nsf, *.nsfe) (*.nsf *.nsfe)",
             "VGM (*.vgm, *.vgz) (*.vgm *.vgz)",
             "SNES (*.spc) (*.spc)",
@@ -274,6 +274,7 @@ PlayerWindow::PlayerWindow() {
             "Commodore 64 (*.sid) (*.sid)",
             "MIDI (*.mid, *.midi) (*.mid *.midi)",
             QString("Trackers (*.mod, *.xm, ...) (%1)").arg(trackers),
+            "Atari 2600 (*.ttt)",
             "All files (*)"
         }.join(";;");
         const auto path = QFileDialog::getOpenFileName(this, "Open music", {}, filters, nullptr,

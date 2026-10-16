@@ -1,7 +1,7 @@
 # Licenses and third-party components
 
 The application's own code, scripts, original artwork and test fixture generator
-are MIT, except for the LGPL libgme/Munt, GPL SID and BSD ymfm-derived integrations below. The top-level
+are MIT, except for the LGPL libgme/Munt, GPL SID/TIATracker and BSD ymfm-derived integrations below. The top-level
 LICENSE does not relicense dependencies or modified upstream code.
 
 The combined executable containing libsidplayfp is distributed under **GPLv3**
@@ -20,6 +20,7 @@ available under MIT. This applies to both static and dynamic SID integration.
 | FluidSynth | 2.5.4, unchanged core | LGPL-2.1-or-later; static, combined application GPLv3 |
 | Munt / libmt32emu | 2.8.3 + local part capture/mute and deterministic jitter patches | LGPL-2.1-or-later; static, combined application GPLv3 |
 | libxmp | 4.7.3 + local channel capture | MIT; static |
+| TIATracker / bundled Stella TIA core | 1.3 + adapted sequencer | GPL-2.0-or-later; static, combined application GPLv3 |
 | GCEM | 012ae73c6d0a2cb09ffe86475f5c6fba3926e200 | Apache-2.0; FluidSynth table-generation headers |
 | ICU (Linux Qt runtime) | 73.2 | Unicode/ICU permissive licenses; shared |
 | AppImage type-2 runtime (Linux) | 20251108 | MIT runtime; static libfuse LGPL-2.1, other permissive runtime components |
@@ -51,6 +52,15 @@ Complete libgme sources retain those notices. No emulator ROMs, game soundtracks
 MIDI ROMs or runtime sound banks are bundled. The unmodified FluidSynth source
 archive includes its upstream test banks and their own notices; these are not
 installed into the player's SoundFonts folder.
+
+## TIATracker
+
+The [replay adapter](native/tia-replay/README.md) derives from TIATracker 1.3;
+its Stella TIA sound core is compiled unchanged. The GPL-2.0-or-later terms are
+retained in the derived code. See [license](LICENSES/TIATracker-GPL-2.0.txt) and
+[copyright record](LICENSES/TIATracker-NOTICES.txt). Packages include the complete
+pinned upstream archive and all adapter/build sources. No SDL or tracker editor
+is linked. Original `native/ttttrack.*` integration is MIT.
 
 ## Tracker modules
 
@@ -145,7 +155,7 @@ Every binary archive includes:
 - the application MIT LICENSE;
 - GPLv3 COPYING for the combined program;
 - library license texts and notices in `licenses/`;
-- complete corresponding Qt/libgme/libsidplayfp/ymfm/FluidSynth/GCEM/Munt/zlib source archives, exact URLs and hashes,
+- complete corresponding Qt/libgme/libsidplayfp/ymfm/FluidSynth/GCEM/Munt/libxmp/TIATracker/zlib source archives, exact URLs and hashes,
   and all local libgme patches in `third-party-sources/`;
 - `third-party-sources/bitmusic-visualizer-source.tar.xz`, containing the complete
   application source, all SID patches, build and packaging scripts used for the

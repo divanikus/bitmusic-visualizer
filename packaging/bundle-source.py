@@ -36,12 +36,14 @@ def bundle(destination):
                 'packaging/MT32-ROMS.txt', 'LICENSES/Munt-LGPL-2.1.txt',
                 'native/trackertrack.cpp', 'native/trackerchecks.cpp', 'cmake/Xmp.cmake',
                 'cmake/PatchXmp.cmake', 'native/xmp-taps/patches.json',
-                'native/xmp-taps/capture.cpp', 'LICENSES/libxmp-MIT.txt'}
+                'native/xmp-taps/capture.cpp', 'LICENSES/libxmp-MIT.txt',
+                'cmake/Tia.cmake', 'native/tia-replay/replay.cpp', 'native/ttttrack.cpp',
+                'LICENSES/TIATracker-GPL-2.0.txt', 'LICENSES/TIATracker-NOTICES.txt'}
     if not required.issubset(paths):
         raise RuntimeError('Application source bundle is incomplete.')
     forbidden = {'.sid', '.nsf', '.nsfe', '.vgm', '.vgz', '.spc', '.gbs', '.ay',
                  '.dbm', '.digi', '.emod', '.mtm', '.stm', '.669', '.ult', '.far', '.okt', '.mod', '.m15', '.xm', '.s3m', '.it', '.med', '.mmd0', '.mmd1', '.mmd2', '.mmd3', '.umx',
-                 '.mdx', '.pdx', '.mid', '.midi', '.syx', '.sf2', '.sf3', '.rom', '.wav', '.exe', '.dll', '.pdb'}
+                 '.ttt', '.a26', '.sap', '.mdx', '.pdx', '.mid', '.midi', '.syx', '.sf2', '.sf3', '.rom', '.wav', '.exe', '.dll', '.pdb'}
     sources = destination / 'third-party-sources'
     sources.mkdir(parents=True, exist_ok=True)
     target = sources / 'bitmusic-visualizer-source.tar.xz'

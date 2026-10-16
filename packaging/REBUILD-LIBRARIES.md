@@ -31,7 +31,12 @@ translation units. Keep this directory, including its headers,
 from the application-source bundle when rebuilding. Rebuild the application
 to replace them. No libvgm dependency is needed.
 
+TIATracker's TIA core is also static. Put the included `tiatracker-1.3.tar.xz`
+in `.runtime/sources/`; `cmake/Tia.cmake` verifies it. Keep `native/tia-replay/`
+from the application-source bundle and rebuild with Qt Core; SDL is not needed.
+
 ## Game Music Emu
+
 
 Keep `bitmusic-gme/` beside the supplied `libgme-0.6.5.tar.gz`. With CMake, Ninja and MinGW available, run from this directory (no Qt or network access is needed):
 

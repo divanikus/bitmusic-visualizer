@@ -50,6 +50,7 @@ notarized. See [platform requirements](docs/BUILDING.md).
 | ZX Spectrum | AY (ZXAYEMUL) | AY A/B/C and beeper |
 | Commodore 64 | SID (PSID / RSID) | Three voices per SID; up to three chips |
 | Atari 400/800 / 5200 | VGM, VGZ | Four voices from one POKEY |
+| Atari 2600 | TTT (TIATracker) | Two mono TIA voices; no ROM needed |
 | Yamaha FM/sample systems | VGM, VGZ | FM, PSG and sample voices; supported dual/mixed Yamaha configurations |
 | General MIDI | MID, MIDI (SMF 0/1) + SF2 | Sixteen MIDI channels; unused cards start hidden |
 | Roland MT-32 / CM-32L | MID, MIDI (SMF 0/1) + ROMs | Eight melodic parts and rhythm; unused cards start hidden |
@@ -183,6 +184,7 @@ local logs; review paths and device details before sharing. No telemetry or auto
 | [FluidSynth](https://github.com/FluidSynth/fluidsynth) | General MIDI synthesis with SoundFonts | LGPL-2.1-or-later |
 | [Munt / libmt32emu](https://github.com/munt/munt) | Roland MT-32 and CM-32L emulation | LGPL-2.1-or-later |
 | [libxmp](https://github.com/libxmp/libxmp) | Amiga and PC tracker playback, channel mixing | MIT |
+| [TIATracker / bundled Stella core](https://bitbucket.org/kylearan/tiatracker) | Atari 2600 TTT sequencing and TIA audio | GPL-2.0-or-later |
 | [zlib](https://github.com/madler/zlib) | Gzip/VGZ decompression | zlib |
 
 For pinned versions, local modifications and supporting build/runtime dependencies,
@@ -190,7 +192,7 @@ see [third-party components and licenses](THIRD-PARTY.md).
 
 ## Documentation
 
-[Visualization](docs/VISUALIZATION.md) · [SID](docs/SID.md) · [VGM chips](docs/VGM.md) · [General MIDI](docs/MIDI.md) · [MT-32](docs/MT32.md) · [Build and test](docs/BUILDING.md)
+[Visualization](docs/VISUALIZATION.md) · [SID](docs/SID.md) · [VGM chips](docs/VGM.md) · [TIATracker](docs/TIATRACKER.md) · [General MIDI](docs/MIDI.md) · [MT-32](docs/MT32.md) · [Build and test](docs/BUILDING.md)
 
 ## License
 

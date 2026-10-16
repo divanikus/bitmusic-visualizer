@@ -22,5 +22,7 @@ This repository owns the native Bit Music Visualizer application.
 - native/sid-taps and patched libsidplayfp are GPL-2.0-or-later; SID-enabled
   combined binaries are GPLv3. Retain COPYING and the full corresponding source
   bundle, including application sources and build scripts, when packaging.
+- native/tia-replay and the TIATracker/Stella dependency are GPL-2.0-or-later.
+  Include their notices and pinned source archive in packages; no SDL is linked.
 - Commit task-owned changes at a meaningful handoff. Do not push or publish unless
   the user has authorized it. Do not create a release from untested artifacts.

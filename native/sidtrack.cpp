@@ -4,6 +4,8 @@
 #include "miditrack.h"
 #include "mt32track.h"
 #include "trackertrack.h"
+#include "ttttrack.h"
+#include "tia-replay/replay.h"
 #include "vgm.h"
 #include "sid-taps/taps.h"
 #include "romfiles.h"
@@ -173,6 +175,7 @@ std::unique_ptr<MusicTrack> openMusicTrack(const QString &path, int song, bool p
         if (magic == "PSID" || magic == "RSID") return std::make_unique<SidTrack>(path, song, playlist, capture, std::move(roms));
     }
     auto data = readMusicFile(path);
+    if (Ttt::recognizes(data)) return std::make_unique<TttTrack>(path,std::move(data),song,playlist,capture);
     if (data.startsWith("MThd")) return openMidiTrack(path,std::move(data),song,playlist,capture);
     if (data.startsWith("Vgm ")) {
         const auto header = inspectVgm(data); requireSupportedVgm(header);
