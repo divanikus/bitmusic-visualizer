@@ -335,7 +335,7 @@ ScopeWindow::ScopeWindow() {
     connect(themes_, &QComboBox::activated, this, [this] { applyTheme(); });
     auto save = new QPushButton("Save theme..."); save->setObjectName("saveTheme"); display->addWidget(save);
     connect(save, &QPushButton::clicked, this, [this] { saveTheme(); });
-    auto displayHint = new QLabel("All cards\nDisplay preferences below are remembered automatically.");
+    auto displayHint = new QLabel("All cards\nDisplay settings are saved automatically.");
     displayHint->setObjectName("editorHint"); displayHint->setWordWrap(true); display->addWidget(displayHint);
     auto fps = new QComboBox; fps->setObjectName("waveFrameRate"); fps->setAccessibleName("Frame rate");
     for (int rate : {30, 60, 120}) fps->addItem(QString("%1 FPS").arg(rate), rate);
@@ -612,7 +612,7 @@ void ScopeWindow::updateWindowSizeControls() {
     const auto actual = QString("%1 \u00d7 %2 px").arg(pixels.width()).arg(pixels.height());
     windowSize_->setToolTip(QString("%1 window size controls (%2)").arg(windowSize_->isChecked() ? "Hide" : "Show", actual));
     const auto hint = QString("Whole window in screen pixels, including the title bar. Changes apply immediately.\n"
-        "Actual size: %1 at %2% display scaling. Size is remembered on exit.").arg(actual).arg(qRound(devicePixelRatioF()*100));
+        "Actual size: %1 at %2% display scaling. Window size is saved on exit.").arg(actual).arg(qRound(devicePixelRatioF()*100));
     for (auto input : {pixelWidth_, pixelHeight_}) input->setToolTip(input->accessibleName() + ": " + hint);
     sizeRounding_->setToolTip(hint);
     sizeRounding_->setText(pixels == QSize(pixelWidth_->value(), pixelHeight_->value()) ? QString() : "\u2248");
@@ -817,7 +817,7 @@ void ScopeWindow::editEffects() {
     auto glow = new QCheckBox("Line glow"); glow->setObjectName("effectGlow"); glow->setChecked(effects_.glow); form->addRow(glow);
     auto glowStrength = new QSpinBox; glowStrength->setObjectName("effectGlowStrength"); glowStrength->setRange(0, 100); glowStrength->setSuffix(" %");
     glowStrength->setValue(qRound(effects_.glowStrength*100)); form->addRow("Glow brightness", glowStrength);
-    auto note = new QLabel("Effects apply to all cards.\nChanges are remembered automatically."); note->setObjectName("editorHint"); layout->addWidget(note);
+    auto note = new QLabel("Effects apply to all cards.\nSettings are saved automatically."); note->setObjectName("editorHint"); layout->addWidget(note);
     auto buttons = new QDialogButtonBox(QDialogButtonBox::Close | QDialogButtonBox::RestoreDefaults); layout->addWidget(buttons);
     bool edited = false;
     auto changed = [&, this] {

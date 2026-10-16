@@ -81,7 +81,7 @@ void ScopeWindow::editWaves() {
             "Does not align the wave. It moves as the audio time window advances."};
         scaleHelp->setText(scales[scale->currentIndex()]); triggerHelp->setText(triggers[trigger->currentIndex()]);
     };
-    auto note = new QLabel("Display only: these settings do not change the sound.\nChanges are remembered automatically.");
+    auto note = new QLabel("Display only: these settings do not change the sound.\nSettings are saved automatically.");
     note->setObjectName("editorHint"); layout->addWidget(note);
     auto buttons = new QDialogButtonBox(QDialogButtonBox::Close | QDialogButtonBox::RestoreDefaults); layout->addWidget(buttons);
     bool edited = false;
