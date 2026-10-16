@@ -63,6 +63,8 @@ void ScopeWindow::updateViewEditor() {
     const auto item = channelList_->currentItem();
     const int id = item ? item->data(Qt::UserRole).toInt() : -1;
     const bool valid = id >= 0 && id < cards_.size();
+    const auto selectedName = valid ? channelName(id) : QString("Select a card");
+    selectedCard_->setText(selectedName); selectedCard_->setToolTip(selectedName);
     QSignalBlocker block(cardView_);
     cardView_->clear();
     for(auto kind:{ViewKind::Waveform,ViewKind::Spectrum,ViewKind::Keyboard,ViewKind::PianoRoll,ViewKind::Pattern})
@@ -75,7 +77,6 @@ void ScopeWindow::updateViewEditor() {
     spectrumGrid_->setChecked(!valid || cards_[id].spectrumGrid);
     const int source = valid ? sourceFor(id) : -1;
     const bool exact = source >= 0 && source < VoiceMask::Capacity && (state_.info.tonalMask & (VoiceMask::bit(source)));
-    keyboardHint_->setVisible(valid && cards_[id].kind == ViewKind::Keyboard);
     keyboardHint_->setText(exact ? (state_.info.mt32Resources ? "MT-32 played keys. Timbre tuning, pitch bend and modulation are not measured." : state_.info.midiResources ? "MIDI notes, sustain and channel pitch bend. Sample tuning and synthesis modulation are not measured." : "Notes from chip oscillators. All active tonal pitches are shown.") : "Estimated from audio: one pitch. Chords, noise and drums may be inaccurate.");
     const bool roll=valid&&cards_[id].kind==ViewKind::PianoRoll, pattern=valid&&cards_[id].kind==ViewKind::Pattern;
     const QSignalBlocker directionBlock(rollDirection_),sizeBlock(rollKeyboardSize_),commandsBlock(patternCommands_),channelBlock(patternChannel_);
@@ -88,10 +89,12 @@ void ScopeWindow::updateViewEditor() {
     patternChannel_->setRange(1,std::max(1,int(state_.info.voices.size())));
     patternChannel_->setValue(valid?cards_[id].firstChannel+1:1);
     if(roll||pattern) {
-        keyboardHint_->show(); keyboardHint_->setText(roll?
+        keyboardHint_->setText(roll?
             "MIDI key presses, colored by instrument. Pedal, pitch bend and sound tails are not drawn. Enlarge the card for more space.":
             "Live pattern rows: note and instrument. Volume/effects use libxmp's normalized commands. Enlarge Full mix to see more channels.");
     }
+    const bool hasHelp = valid && (cards_[id].kind == ViewKind::Keyboard || roll || pattern);
+    viewHelp_->setVisible(hasHelp); keyboardHint_->setVisible(hasHelp && viewHelp_->isChecked());
     addCard_->setEnabled(state_.valid && order_.size() < 512);
     removeCard_->setEnabled(valid);
     removeCard_->setToolTip("Remove this card without muting its source. Add card... or Reset can bring it back.");

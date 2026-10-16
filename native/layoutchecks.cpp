@@ -10,6 +10,9 @@
 #include <QSpinBox>
 #include <QTextStream>
 #include <QTimer>
+#include <QTabWidget>
+#include <QComboBox>
+#include <QScrollArea>
 #include <cmath>
 #include <stdexcept>
 
@@ -65,6 +68,34 @@ void checkLayoutSpans(QApplication &app, const QString &directory, QTextStream &
     rows->setValue(3); columns->setValue(3);
     auto list = scope.findChild<QListWidget *>("scopeChannelList"); list->item(8)->setCheckState(Qt::Checked);
     scope.present(state, frame, output); pump(app);
+    auto tabs = scope.findChild<QTabWidget *>("scopeChannels");
+    require(tabs && tabs->count() == 3 && tabs->tabText(0) == "Cards" && tabs->tabText(1) == "Layout" && tabs->tabText(2) == "Display",
+            "Editor settings groups are missing.");
+    auto view = scope.findChild<QComboBox *>("cardView"); list->setCurrentRow(2);
+    view->setCurrentIndex(view->findData(int(ScopeWindow::ViewKind::Keyboard)));
+    const auto selected = list->currentItem()->data(Qt::UserRole);
+    const auto visible = scope.visibleChannels(); const auto beforeTabs = scope.panelRect(0);
+    int tabMaskChanges = 0; scope.onChannelsChanged = [&](VoiceMask) { ++tabMaskChanges; };
+    for (const QSize size : {QSize(1100,760), QSize(720,480), QSize(480,360)}) {
+        scope.resize(size); pump(app, 40);
+        for (int tab : {0,1,2,0}) {
+            tabs->setCurrentIndex(tab); pump(app, 30);
+            require(list->currentItem()->data(Qt::UserRole) == selected && scope.visibleChannels() == visible &&
+                    view->currentData().toInt() == int(ScopeWindow::ViewKind::Keyboard) && !tabMaskChanges,
+                    "Changing editor tabs altered card selection, views or capture.");
+            require(scope.rect().contains(tabs->geometry()) && scope.panelRect(0).right() < tabs->x(),
+                    "Editor overlaps the canvas or escapes a small window.");
+            scope.grab().save(QDir(directory).filePath(QString("editor-%1-%2.png").arg(size.width()).arg(tabs->tabText(tab).toLower())));
+        }
+        auto inspector = scope.findChild<QScrollArea *>("cardInspector");
+        inspector->ensureWidgetVisible(view); pump(app, 20);
+        require(view->isVisible() && inspector->viewport()->rect().contains(QRect(view->mapTo(inspector->viewport(), QPoint()), view->size())),
+                "Selected card view cannot be reached at a small size.");
+    }
+    scope.resize(1100,760); pump(app, 40);
+    require(scope.panelRect(0) == beforeTabs, "Tab navigation changed the grid.");
+    view->setCurrentIndex(view->findData(int(ScopeWindow::ViewKind::Waveform))); scope.onChannelsChanged = {};
+    log << "Editor tabs: selection/view/capture retention, normal/compact/minimum bounds, reachable inspector PASS\n"; log.flush();
     VoiceMask mask = 255; int updates = 0; bool capture = scope.outputEnabled();
     scope.onChannelsChanged = [&](VoiceMask value) { mask = value; ++updates; };
     scope.onOutputChanged = [&](bool value) { capture = value; };

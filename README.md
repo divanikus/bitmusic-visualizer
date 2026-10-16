@@ -35,7 +35,7 @@ notarized. See [platform requirements](docs/BUILDING.md).
 2. **Tracks** lists subsongs inside the file. **Channels** controls sound;
    **Shift-click** a visualization card or channel button to Solo it, and again
    to restore previous mutes.
-3. The scopes button toggles visualization. Closing that window keeps music playing.
+3. The visualization button toggles its window. Closing that window keeps music playing.
 4. Click its **pencil** to edit cards, colors, presets and display options.
 
 ## Formats
@@ -126,14 +126,16 @@ SF3 and DLS are not supported. [MIDI setup and limits](docs/MIDI.md).
 | Change or add a view | **Cards → View** or **Add card…**; MIDI also offers **Piano roll**, trackers offer **Pattern** |
 | Show the output mix | Enable **Full mix** in Cards; hidden by default |
 | Show stereo or level meters | **Stereo** / **Levels** in the editor toolbar |
-| Adjust waves and effects | **Waves…** for scale, trigger, line width and FPS; **Effects…** for glow/trails |
-| Save colors | **Theme → Save theme** |
-| Save a layout / set its default | **Preset** selector, disk icon, **★**; click the star again to clear the default |
+| Adjust waves and effects | **Display → Waves… / Effects…**; **Frame rate** is directly in Display |
+| Save colors | **Display → Color theme / Save theme…** |
+| Save a layout / set its default | **Layout → Preset / Save preset… / Use by default**; **Clear default** removes the assignment |
 | Set exact window dimensions | Window-size icon beside the background eyedropper |
 | Go fullscreen | **F11** or double-click outside edit mode; **Esc** to exit |
 
 Themes store colors; presets store the grid, cards, views, visibility and stereo
 display. **Keep grid** preserves only rows/columns when no default preset applies.
+**Layout** contains the grid and label options. **Done** closes the editor;
+changes apply live, while saving a preset or theme remains explicit.
 [Full visualization guide](docs/VISUALIZATION.md).
 
 ## Keyboard shortcuts

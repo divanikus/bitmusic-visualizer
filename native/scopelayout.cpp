@@ -15,7 +15,7 @@ QRectF ScopeWindow::colorButtonRect(const QRectF &card) const {
 QRectF ScopeWindow::cardRect(int slot) const {
     const int columns = columns_->value(), rows = rows_->value();
     const int top = edit_->isChecked() ? channelPanel_->y() : presentationFullscreen() ? 14 : 44;
-    const qreal right = edit_->isChecked() ? 226 : 14;
+    const qreal right = edit_->isChecked() ? width()-channelPanel_->x()+12 : 14;
     const qreal cellWidth = std::max(1.0, (width()-14.0-right-(columns-1)*10)/columns);
     const qreal bottom = height()-14;
     const qreal gap = std::clamp((bottom-top-rows)/std::max(1, rows-1), 0., 10.);

@@ -11,6 +11,7 @@
 #include <QSettings>
 #include <QTextStream>
 #include <QTimer>
+#include <QTabWidget>
 #include <stdexcept>
 
 namespace {
@@ -37,12 +38,13 @@ void edit(ScopeWindow &scope, const std::function<void(QDialog *)> &action) {
     scope.findChild<QPushButton *>("editLayout")->setChecked(false);
 }
 void selectRate(ScopeWindow &scope, int fps) {
-    edit(scope, [&](QDialog *dialog) {
-        auto combo = dialog->findChild<QComboBox *>("waveFrameRate");
-        require(combo && combo->count() == 3 && combo->findData(fps) >= 0, "FPS choices missing.");
-        combo->setCurrentIndex(combo->findData(fps));
-        require(scope.frameRate() == fps, "FPS is not applied live.");
-    });
+    scope.show(); scope.findChild<QPushButton *>("editLayout")->setChecked(true);
+    scope.findChild<QTabWidget *>("scopeChannels")->setCurrentIndex(2);
+    auto combo = scope.findChild<QComboBox *>("waveFrameRate");
+    require(combo && combo->count() == 3 && combo->findData(fps) >= 0 && combo->isVisible(), "Display FPS choices missing.");
+    combo->setCurrentIndex(combo->findData(fps));
+    require(scope.frameRate() == fps, "FPS is not applied live.");
+    scope.findChild<QPushButton *>("editLayout")->setChecked(false);
 }
 void preferences() {
     QSettings settings(playerSettingsPath(), playerSettingsFormat());
@@ -62,8 +64,9 @@ void preferences() {
         ScopeWindow scope; require(scope.frameRate() == 60, "60 FPS did not survive restart.");
         edit(scope, [&](QDialog *dialog) {
             dialog->findChild<QDialogButtonBox *>()->button(QDialogButtonBox::RestoreDefaults)->click();
-            require(scope.frameRate() == 30, "Waveform defaults did not restore 30 FPS.");
+            require(scope.frameRate() == 60, "Waveform defaults changed the separate Display frame rate.");
         });
+        selectRate(scope, 30);
     }
     settings.sync();
     require(settings.value("Waveforms/FrameRate").toInt() == 30 && settings.value("Other/PacingKeep").toInt() == 42,

@@ -55,10 +55,6 @@ void ScopeWindow::rememberWaves() {
 void ScopeWindow::editWaves() {
     QDialog dialog(this); dialog.setWindowTitle("Waveforms"); dialog.setObjectName("scopeWavesDialog"); dialog.setMinimumWidth(420);
     auto layout = new QVBoxLayout(&dialog); auto form = new QFormLayout; layout->addLayout(form);
-    auto fps = new QComboBox; fps->setObjectName("waveFrameRate");
-    for (int rate : {30, 60, 120}) fps->addItem(QString("%1 FPS").arg(rate), rate);
-    styleCombo(fps); fps->setCurrentIndex(fps->findData(frameRate_)); form->addRow("Frame rate", fps);
-    fps->setToolTip("Target refresh rate. Higher rates use more CPU/GPU; actual smoothness depends on the track, renderer and display.");
     auto width = new QDoubleSpinBox; width->setObjectName("waveLineWidth"); width->setRange(.5, 8); width->setDecimals(1);
     width->setSingleStep(.1); width->setSuffix(" px"); width->setValue(waveOptions_.lineWidth); form->addRow("Line width", width);
     width->setToolTip("Waveform and spectrum lines, in display-scaled pixels. Glow is controlled separately in Effects.");
@@ -89,9 +85,6 @@ void ScopeWindow::editWaves() {
     note->setObjectName("editorHint"); layout->addWidget(note);
     auto buttons = new QDialogButtonBox(QDialogButtonBox::Close | QDialogButtonBox::RestoreDefaults); layout->addWidget(buttons);
     bool edited = false;
-    connect(fps, &QComboBox::currentIndexChanged, &dialog, [&] {
-        edited = true; setFrameRate(fps->currentData().toInt());
-    });
     auto changed = [&] {
         edited = true;
         waveOptions_ = {WaveOptions::Scale(scale->currentIndex()), WaveOptions::Trigger(trigger->currentIndex()),
@@ -107,7 +100,6 @@ void ScopeWindow::editWaves() {
     connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::accept);
     connect(buttons->button(QDialogButtonBox::RestoreDefaults), &QPushButton::clicked, &dialog, [&] {
         const WaveOptions defaults;
-        fps->setCurrentIndex(fps->findData(ScopePacing::DefaultFps));
         scale->setCurrentIndex(defaults.scale); trigger->setCurrentIndex(defaults.trigger);
         hold->setValue(defaults.holdMs); release->setValue(defaults.releaseMs);
         width->setValue(defaults.lineWidth);

@@ -1,5 +1,17 @@
 # Visualization cards
 
+The pencil opens three tabs in the existing side panel:
+
+- **Cards:** visibility, adding/removing cards and the selected card's view/options.
+- **Layout:** grid dimensions, Numbers/Names, Keep grid and saved presets.
+- **Display:** color themes, FPS, global Waves/Effects and Advanced → Renderer.
+
+Stereo, Levels, background color and exact window size remain in the top strip.
+Changes apply live. **Done** closes the editor without saving a preset or theme;
+use their explicit Save buttons. **Reset layout** preserves colors and saved presets.
+The card list scrolls separately from its settings. **About this view** expands
+the explanation and limitations for Keyboard, Piano roll or Pattern.
+
 Click the pencil, select a card in **Cards**, then choose its **View**. The change
 is immediate. **Add card…** asks for a source and view, keeping existing cards.
 For example, keep Square 1's waveform, add Square 1 / Keyboard, then add a Full mix
@@ -36,19 +48,19 @@ F2–F4 also change hidden cards and Full mix, preserving their visibility and s
 
 ## Layout presets
 
-**Preset** lives at the top of the existing editor sidebar: a dropdown, star and
-disk icon. The dropdown applies immediately. The disk asks only for a name;
+**Preset** is in **Layout**, with **Save preset…** and **Use by default**.
+The dropdown applies immediately. Save preset asks only for a name;
 Save changes to Replace when that name already exists for this configuration.
 A different configuration's preset cannot be overwritten under the same name.
 An asterisk after a selected name means there are unsaved edits. No edits are
 written automatically, including changes made with shortcuts.
 
-The star assigns the **saved version** as the default for the current sound
-configuration. Clicking the filled star clears that assignment. Its tooltip names
-the configuration/default. Reset changes the current layout and leaves saved
-presets/defaults intact; the star also allows clearing the assignment after Reset
+Use by default assigns the **saved version** for the current sound configuration.
+**Clear default** removes that assignment; the current default's name is shown
+below the button. Reset changes the current layout and leaves saved
+presets/defaults intact; Clear default also works after Reset
 or when the assigned file is missing. To replace an existing default, select a
-different saved preset and click its star.
+different saved preset and click Use by default.
 
 Defaults apply when opening a file with the same hardware/channel configuration.
 Subsong switches keep current edits. Configurations without an assigned valid
@@ -86,7 +98,7 @@ note-roll direction and pattern options. KeyboardSize stores the piano keyboard'
 percentage of the plot, defaulting to 25% when absent.
 A view unavailable for the loaded file falls back to Waveform. The file
 contains no music paths. Files are validated before applying and saved atomically.
-Invalid default files use the ordinary initial layout; the star can clear their
+Invalid default files use the ordinary initial layout; Clear default removes their
 assignment. Defaults are bound to exact configurations in application settings.
 
 ## Window size
@@ -110,7 +122,7 @@ with a different scale may change the pixel dimensions.
 
 ## Presentation
 
-**Waves… → Line width** changes waveform and spectrum lines from 0.5 to 8
+**Display → Waves… → Line width** changes waveform and spectrum lines from 0.5 to 8
 display-scaled pixels (default 1.6). It applies immediately, including while
 paused, to CPU and GPU drawing. Spectrum bars and keyboard keys keep their
 dimensions. Glow remains a separate effect.
@@ -127,7 +139,7 @@ of the final audible mix. Muted voice/output lanes remain visible but dimmed;
 Full mix follows the actual final volume and mutes. Silence empties the meter.
 Meters have no glow or fading trail. Line width and Levels survive file changes
 and restarts, independently of color themes and layout presets. Restore Defaults
-in Waves resets line width but preserves the toolbar's Levels choice.
+in Waves resets line width but preserves Levels and the separate Display frame rate.
 
 The full-screen icon beside the pencil, or **F11** from either player window,
 expands the visualizer on its current display and hides the title bar/editor.
@@ -251,7 +263,7 @@ Glow and trail apply to signal plots, not note bars or pattern text.
 
 ## Waveform controls
 
-In the scope window, click the pencil and open **Waves…**. **Frame rate** selects
+In the visualization window, click the pencil and open **Display**. **Frame rate** selects
 a target of **30, 60 or 120 FPS**, applied immediately and remembered across
 restarts. The default is 30. It controls both channel snapshot preparation and
 scope presentation, including GPU trail fading; audio playback is independent.
@@ -260,6 +272,7 @@ on the track, audio device, renderer, system load and monitor refresh rate.
 The display can repeat a snapshot when no newer audio is available. Trail length
 and Hold/Release durations remain measured in time, not frames.
 
+Open **Display → Waves…** for the global waveform options.
 **Smooth auto** scales each card to its recent signal level. **Hold** delays
 shrinking the remembered peak; **Release** controls how slowly it then falls.
 This makes quiet notes grow back gradually. **Instant auto** rescales every frame,

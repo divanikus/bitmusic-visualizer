@@ -128,6 +128,8 @@ private:
     QComboBox *spectrumStyle_;
     QCheckBox *spectrumGrid_;
     QLabel *keyboardHint_;
+    QLabel *selectedCard_;
+    QPushButton *viewHelp_;
     QPushButton *addCard_, *removeCard_;
     struct SpectrumState {
         quint64 generation = 0, sequence = 0;
@@ -209,6 +211,7 @@ private:
     void presetEdited();
     void savePreset();
     QComboBox *presets_ = nullptr;
+    QLabel *presetStatus_ = nullptr;
     QPushButton *presetDefault_ = nullptr, *presetSave_ = nullptr;
     QString presetFile_, defaultPresetFile_, suggestedPresetName_;
     QByteArray savedPreset_;
@@ -221,7 +224,8 @@ private:
     QLabel *sizeRounding_;
     bool applyingWindowSize_ = false;
     QWidget *editor_, *channelPanel_;
-    QWidget *gridControls_, *labelControls_, *editorActions_;
+    QTabWidget *editorTabs_;
+    QWidget *gridControls_, *labelControls_, *editorActions_, *windowTools_;
     QGridLayout *settings_;
     int editorRows_ = 0;
     QSpinBox *rows_, *columns_;

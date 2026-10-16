@@ -10,45 +10,18 @@
 #include <QLineEdit>
 #include <QListWidget>
 #include <QMessageBox>
-#include <QPainter>
 #include <QPushButton>
 #include <QRegularExpression>
 #include <QSet>
 #include <QSignalBlocker>
 #include <QSpinBox>
 #include <QVBoxLayout>
-#include <cmath>
 
 namespace {
 class PresetCombo : public QComboBox {
 public:
     std::function<void()> refresh;
     void showPopup() override { if (refresh) refresh(); QComboBox::showPopup(); }
-};
-class PresetButton : public QPushButton {
-    bool star_;
-public:
-    explicit PresetButton(bool star) : star_(star) {
-        setFixedSize(26, 28); setCheckable(star); setCursor(Qt::PointingHandCursor);
-    }
-    void paintEvent(QPaintEvent *) override {
-        QPainter p(this); p.setRenderHint(QPainter::Antialiasing);
-        const QColor ink(isEnabled() ? "#b8cccf" : "#64757a");
-        p.setPen(Qt::NoPen); p.setBrush(QColor(underMouse() ? "#3b5057" : "#293b41")); p.drawRoundedRect(rect(), 5, 5);
-        p.setPen(QPen(ink, 1.3, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
-        p.setBrush(star_ && isChecked() ? QColor("#a2e5d5") : Qt::NoBrush);
-        if (star_) {
-            QPolygonF polygon;
-            for (int i = 0; i < 10; ++i) {
-                const double angle = i*3.141592653589793/5-3.141592653589793/2, radius = i%2 ? 4 : 9;
-                polygon << QPointF(13+radius*std::cos(angle), 14+radius*std::sin(angle));
-            }
-            p.drawPolygon(polygon);
-        } else {
-            p.drawPolygon(QPolygonF{{5,6},{18,6},{21,9},{21,22},{5,22}});
-            p.drawRect(QRectF(9,6,8,6)); p.drawRect(QRectF(9,16,8,6));
-        }
-    }
 };
 QString presetPath(const QString &file) {
     if (file.isEmpty() || QFileInfo(file).fileName() != file || file.contains('\\') || !file.endsWith(".ini", Qt::CaseInsensitive)) return {};
@@ -59,16 +32,16 @@ QString defaultKey(const QString &id) { return "PresetDefaults/" + id; }
 
 void ScopeWindow::setupPresets(QVBoxLayout *layout) {
     layout->addWidget(new QLabel("Preset"));
-    auto row = new QHBoxLayout; row->setSpacing(4);
     auto combo = new PresetCombo; presets_ = combo; combo->setObjectName("scopePreset"); styleCombo(combo);
     combo->setAccessibleName("Layout preset"); combo->setMinimumWidth(0);
     combo->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon); combo->setMinimumContentsLength(7);
-    combo->addItem("Current layout", QString()); combo->setEnabled(false); row->addWidget(combo, 1);
-    presetDefault_ = new PresetButton(true); presetDefault_->setObjectName("presetDefault");
-    presetSave_ = new PresetButton(false); presetSave_->setObjectName("savePreset");
+    combo->addItem("Current layout", QString()); combo->setEnabled(false); layout->addWidget(combo);
+    presetDefault_ = new QPushButton("Use by default"); presetDefault_->setCheckable(true); presetDefault_->setObjectName("presetDefault");
+    presetSave_ = new QPushButton("Save preset..."); presetSave_->setObjectName("savePreset");
     presetSave_->setToolTip("Save layout preset..."); presetSave_->setAccessibleName(presetSave_->toolTip());
     presetDefault_->setEnabled(false); presetSave_->setEnabled(false);
-    row->addWidget(presetDefault_); row->addWidget(presetSave_); layout->addLayout(row);
+    layout->addWidget(presetSave_); layout->addWidget(presetDefault_);
+    presetStatus_ = new QLabel; presetStatus_->setObjectName("presetStatus"); presetStatus_->setWordWrap(true); layout->addWidget(presetStatus_);
     combo->refresh = [this] { refreshPresets(); };
     connect(combo, &QComboBox::activated, this, [this] {
         const auto file = presets_->currentData().toString();
@@ -192,6 +165,9 @@ void ScopeWindow::updatePresetStatus() {
     const bool checked = !defaultPresetFile_.isEmpty() && (presetFile_.isEmpty() || defaultPresetFile_ == presetFile_);
     presetDefault_->setChecked(checked); presetDefault_->setEnabled(ready && (checked || !presetFile_.isEmpty()));
     const auto group = state_.info.configuration.name;
+    presetStatus_->setText(defaultPresetFile_.isEmpty() ? "Default: None" : "Default: " + QFileInfo(defaultPresetFile_).completeBaseName());
+    presetStatus_->setToolTip(group);
+    presetDefault_->setText(checked ? "Clear default" : "Use by default");
     presetDefault_->setToolTip(checked ? "Clear default preset for " + group + " (" + QFileInfo(defaultPresetFile_).completeBaseName() + ")"
         : "Use this saved preset automatically for " + group + ". Unsaved edits are not included.");
     presetDefault_->setAccessibleName(presetDefault_->toolTip());

@@ -181,11 +181,11 @@ PlayerWindow::PlayerWindow() {
     auto header = new QHBoxLayout; header->setSpacing(8);
     auto text = new QVBoxLayout; text->setSpacing(2);
     title_ = new QLabel(QString::fromUtf8("Open a file")); title_->setObjectName("title"); title_->setMinimumWidth(0); title_->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
-    subtitle_ = new QLabel("NSF · VGM · SPC · GBS · AY"); subtitle_->setObjectName("muted"); subtitle_->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
+    subtitle_ = new QLabel("Open music with Ctrl+O or drop a file"); subtitle_->setObjectName("muted"); subtitle_->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
     subtitle_->setTextFormat(Qt::PlainText);
     text->addWidget(title_); text->addWidget(subtitle_); header->addLayout(text, 1);
     auto open = new IconButton(Symbol::Open, "open", QString::fromUtf8("Open file (Ctrl+O)"));
-    showScopes_ = new IconButton(Symbol::Scopes, "showScopes", QString::fromUtf8("Scopes")); showScopes_->setCheckable(true);
+    showScopes_ = new IconButton(Symbol::Scopes, "showScopes", QString::fromUtf8("Visualizations")); showScopes_->setCheckable(true);
     header->addWidget(open); header->addWidget(showScopes_); root->addLayout(header);
     timeline_ = new Timeline; timeline_->setObjectName("timeline"); timeline_->setRange(0, unknownRangeMs_); root->addWidget(timeline_);
     auto times = new QHBoxLayout;
@@ -289,7 +289,7 @@ PlayerWindow::PlayerWindow() {
         player_.setScopesEnabled(visible);
         player_.setOutputScopesEnabled(visible && scopes_.outputEnabled());
         QSignalBlocker block(showScopes_); showScopes_->setChecked(visible);
-        showScopes_->setToolTip(visible ? QString::fromUtf8("Hide scopes") : QString::fromUtf8("Show scopes"));
+        showScopes_->setToolTip(visible ? QString::fromUtf8("Hide visualizations") : QString::fromUtf8("Show visualizations"));
     };
     scopes_.onChannelsChanged = [this](VoiceMask mask) { player_.setScopeMask(mask); };
     scopes_.onSoloRequested = [this](int source) { player_.toggleSolo(source); refresh(); };

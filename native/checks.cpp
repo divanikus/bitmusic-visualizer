@@ -598,7 +598,7 @@ void checkWindowSettings(QApplication &app, const QString &directory, QTextStrea
                     "Inline size minimum does not account for display scaling.");
             auto editor = scopes.findChild<QWidget *>("scopeEditor");
             QVector<QRect> controls;
-            for (auto name : {"scopeWindowSize", "scopePixelWidth", "scopePixelHeight", "gridRows", "gridColumns", "channelNumbers", "channelNames", "scopeStereo", "scopeLevels", "keepGrid", "scopeWindowColor", "resetLayout", "applyLayout"}) {
+            for (auto name : {"scopeWindowSize", "scopePixelWidth", "scopePixelHeight", "scopeStereo", "scopeLevels", "scopeWindowColor", "resetLayout", "applyLayout"}) {
                 auto control = editor->findChild<QWidget *>(name);
                 require(control && control->isVisible(), "A toolbar control disappeared at the minimum window size.");
                 const QRect bounds(control->mapTo(editor, QPoint()), control->size());
@@ -1083,7 +1083,7 @@ int runChecks(QApplication &app, const QStringList &arguments) {
         auto apply = scopes.findChild<QPushButton *>("applyLayout"); auto reset = scopes.findChild<QPushButton *>("resetLayout");
         require(apply->isVisible() && apply->parentWidget() == reset->parentWidget() && apply->geometry().left() > reset->geometry().right(), "Apply is not next to Reset.");
         scopes.resize(1000, 680); pump(app, 50); scopes.grab().save(QDir(directory).filePath("native-scope-editor.png"));
-        require(std::abs(rows->mapTo(&scopes, rows->rect().center()).y() - names->mapTo(&scopes, names->rect().center()).y()) < 5, "Wide editor did not put grid and label controls on one line.");
+        require(rows->parentWidget()->parentWidget() == names->parentWidget(), "Grid and labels are not grouped in Layout.");
         names->setChecked(false); visibility->item(2)->setCheckState(Qt::Unchecked);
         scopes.findChild<QPushButton *>("resetLayout")->click();
         require(rows->value() == 5 && columns->value() == 1 && scopes.visibleChannels() == QVector<int>({0, 1, 2, 3, 4}) && numbers->isChecked() && names->isChecked(), "Reset did not restore the full default view.");

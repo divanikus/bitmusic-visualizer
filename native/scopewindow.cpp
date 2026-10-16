@@ -26,6 +26,7 @@
 #include <QSpinBox>
 #include <QVBoxLayout>
 #include <QTimer>
+#include <QTabWidget>
 #include <QChronoTimer>
 #include <algorithm>
 #include <cmath>
@@ -98,7 +99,7 @@ protected:
 }
 
 ScopeWindow::ScopeWindow() {
-    setWindowTitle("Bit Music - Scopes"); setAttribute(Qt::WA_QuitOnClose, false);
+    setWindowTitle("Bit Music - Visualizations"); setAttribute(Qt::WA_QuitOnClose, false);
     setMouseTracking(true);
     restoreEffects();
     restoreWaves();
@@ -124,24 +125,31 @@ ScopeWindow::ScopeWindow() {
       QScrollBar::handle:vertical { background: #46575e; min-height: 24px; border-radius: 4px; }
       QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; }
       QLabel#editorHint { color: #92a6b0; font-size: 8pt; }
+      QLabel#selectedCard { font-weight: 600; }
+      QTabWidget::pane { border: none; background: #1b252b; }
+      QTabBar::tab { background: #202e35; padding: 7px 10px; border-bottom: 2px solid transparent; }
+      QTabBar::tab:selected { color: #a2e5d5; border-bottom-color: #a2e5d5; }
+      QTabBar::tab:hover { background: #293b41; }
+      QScrollArea { border: none; background: #1b252b; }
+      QWidget#scopeChannels QPushButton { padding: 5px 6px; }
       QToolTip { color: #ecf2f3; background: #304048; border: none; padding: 5px; }
     )");
     titleBar_ = new TitleBar(this, false);
     auto close = titleBar_->findChild<QPushButton *>("windowClose");
-    close->setToolTip("Hide scopes"); close->setAccessibleName("Hide scopes");
+    close->setToolTip("Hide visualizations"); close->setAccessibleName("Hide visualizations");
     edit_ = new EditLayoutButton; edit_->setObjectName("editLayout");
-    edit_->setToolTip("Edit layout"); edit_->setAccessibleName("Edit layout"); titleBar_->addAction(edit_);
+    edit_->setToolTip("Edit visualizations"); edit_->setAccessibleName("Edit visualizations"); titleBar_->addAction(edit_);
     setupFullscreen();
     editor_ = new QWidget(this); editor_->setObjectName("scopeEditor");
     settings_ = new QGridLayout(editor_); settings_->setContentsMargins(10, 6, 10, 6); settings_->setSpacing(10);
-    gridControls_ = new QWidget; labelControls_ = new QWidget; editorActions_ = new QWidget;
+    gridControls_ = new QWidget; labelControls_ = new QWidget; editorActions_ = new QWidget; windowTools_ = new QWidget;
     auto grid = new QHBoxLayout(gridControls_); grid->setContentsMargins(0, 0, 0, 0); grid->setSpacing(8);
     rows_ = new QSpinBox; rows_->setObjectName("gridRows"); rows_->setRange(1, 16); rows_->setValue(5); rows_->setAccessibleName("Rows");
     columns_ = new QSpinBox; columns_->setObjectName("gridColumns"); columns_->setRange(1, 8); columns_->setValue(1); columns_->setAccessibleName("Columns");
     grid->addWidget(new QLabel("Rows")); grid->addWidget(rows_);
     grid->addWidget(new QLabel("Columns")); grid->addWidget(columns_);
     windowSize_ = new WindowSizeButton;
-    windowSizeControls_ = new QWidget(editorActions_); windowSizeControls_->setObjectName("scopeWindowSizeControls");
+    windowSizeControls_ = new QWidget(windowTools_); windowSizeControls_->setObjectName("scopeWindowSizeControls");
     auto dimensions = new QHBoxLayout(windowSizeControls_); dimensions->setContentsMargins(0, 0, 0, 0); dimensions->setSpacing(4);
     pixelWidth_ = new QSpinBox; pixelWidth_->setObjectName("scopePixelWidth"); pixelWidth_->setAccessibleName("Width");
     pixelHeight_ = new QSpinBox; pixelHeight_->setObjectName("scopePixelHeight"); pixelHeight_->setAccessibleName("Height");
@@ -161,11 +169,12 @@ ScopeWindow::ScopeWindow() {
     keepGrid_ = new QCheckBox("Keep grid"); keepGrid_->setObjectName("keepGrid");
     keepGrid_->setToolTip("Keep rows and columns when opening another file. Card sizes, order and voice visibility reset.");
     auto actions = new QHBoxLayout(editorActions_); actions->setContentsMargins(0, 0, 0, 0); actions->setSpacing(6);
-    auto background = new WindowColorButton; actions->addWidget(background);
+    auto tools = new QHBoxLayout(windowTools_); tools->setContentsMargins(0, 0, 0, 0); tools->setSpacing(6);
+    auto background = new WindowColorButton; tools->addWidget(background);
     connect(background, &QPushButton::clicked, this, [this] { editWindowBackground(); });
-    actions->addWidget(windowSize_); actions->addWidget(windowSizeControls_);
-    auto reset = new QPushButton("Reset"); reset->setObjectName("resetLayout"); reset->setToolTip("Restore the grid, channel order, visibility and labels. Keep the current theme."); actions->addWidget(reset);
-    auto apply = new QPushButton("Apply"); apply->setObjectName("applyLayout"); apply->setToolTip("Finish editing this layout"); actions->addWidget(apply);
+    tools->addWidget(windowSize_); tools->addWidget(windowSizeControls_);
+    auto reset = new QPushButton("Reset layout"); reset->setObjectName("resetLayout"); reset->setToolTip("Restore the grid, channel order, visibility and labels. Keep the current theme and saved presets."); actions->addWidget(reset);
+    auto apply = new QPushButton("Done"); apply->setObjectName("applyLayout"); apply->setToolTip("Finish editing. Use Save preset in Layout to keep this arrangement."); actions->addWidget(apply);
     apply->setStyleSheet("QPushButton { background: #a2e5d5; color: #133c38; } QPushButton:hover { background: #baf0e3; }");
     auto labels = new QHBoxLayout(labelControls_); labels->setContentsMargins(0, 0, 0, 0); labels->setSpacing(14);
     numbers_ = new QCheckBox("Numbers"); numbers_->setObjectName("channelNumbers"); numbers_->setChecked(true);
@@ -174,27 +183,42 @@ ScopeWindow::ScopeWindow() {
     stereo_->setToolTip("Show left and right lanes with the same time and amplitude scale");
     auto meters = new QCheckBox("Levels"); meters->setObjectName("scopeLevels"); meters->setChecked(waveOptions_.meters);
     meters->setToolTip("Peak levels on a fixed -60 to 0 dBFS scale, independent of wave height. Stereo sources show L/R; mono shows M. Muted lanes are dimmed.");
-    labels->addWidget(numbers_); labels->addWidget(names_); labels->addWidget(stereo_); labels->addWidget(meters); labels->addWidget(keepGrid_);
+    labels->addWidget(stereo_); labels->addWidget(meters);
     connect(meters, &QCheckBox::toggled, this, [this](bool enabled) {
         waveOptions_.meters = enabled; rememberWaves(); layoutChanged(); update();
     });
-    settings_->addWidget(gridControls_, 0, 0); settings_->addWidget(labelControls_, 0, 1); settings_->addWidget(editorActions_, 0, 2);
+    settings_->addWidget(labelControls_, 0, 0); settings_->addWidget(windowTools_, 0, 1); settings_->addWidget(editorActions_, 0, 2);
     summary_ = new QLabel; summary_->setObjectName("editorHint");
-    auto scroll = new QScrollArea(this); channelPanel_ = scroll; channelPanel_->setObjectName("scopeChannels");
-    scroll->setFrameShape(QFrame::NoFrame); scroll->setWidgetResizable(true);
-    scroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-    auto content = new QWidget; content->setObjectName("scopeChannels"); scroll->setWidget(content);
-    auto channels = new QVBoxLayout(content); channels->setContentsMargins(10, 10, 10, 10); channels->setSpacing(4);
-    channels->setSizeConstraint(QLayout::SetMinimumSize);
-    setupPresets(channels);
-    channels->addWidget(new QLabel("Cards"));
-    auto hint = new QLabel("Drag headers to reorder.\nDrag right/bottom edges to resize."); hint->setWordWrap(true); hint->setObjectName("editorHint"); channels->addWidget(hint);
-    channels->addWidget(summary_);
+    editorTabs_ = new QTabWidget(this); channelPanel_ = editorTabs_; channelPanel_->setObjectName("scopeChannels");
+    editorTabs_->setAccessibleName("Visualization settings");
+    auto page = [this](const QString &name) {
+        auto scroll = new QScrollArea; scroll->setWidgetResizable(true); scroll->setFrameShape(QFrame::NoFrame);
+        scroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+        auto content = new QWidget; scroll->setWidget(content);
+        auto layout = new QVBoxLayout(content); layout->setContentsMargins(10, 10, 10, 10); layout->setSpacing(8);
+        layout->setSizeConstraint(QLayout::SetMinimumSize); editorTabs_->addTab(scroll, name); return layout;
+    };
+    auto cardsPage = new QWidget;
+    auto cardsLayout = new QVBoxLayout(cardsPage); cardsLayout->setContentsMargins(10, 10, 10, 10); cardsLayout->setSpacing(6);
+    editorTabs_->addTab(cardsPage, "Cards"); cardsLayout->addWidget(summary_);
     channelList_ = new QListWidget; channelList_->setObjectName("scopeChannelList");
-    channelList_->setMinimumHeight(110);
+    channelList_->setToolTip("Check cards to show them. Drag headers to reorder; drag card edges to resize. This does not mute audio.");
     channelList_->setDragDropMode(QAbstractItemView::InternalMove); channelList_->setDefaultDropAction(Qt::MoveAction);
     channelList_->setSelectionMode(QAbstractItemView::SingleSelection); channelList_->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-    channels->addWidget(channelList_, 1);
+    cardsLayout->addWidget(channelList_);
+    auto cardActions = new QHBoxLayout; cardActions->setSpacing(4);
+    addCard_ = new QPushButton("Add card..."); addCard_->setObjectName("addScopeCard"); cardActions->addWidget(addCard_);
+    removeCard_ = new QPushButton("Remove"); removeCard_->setObjectName("removeScopeCard"); cardActions->addWidget(removeCard_);
+    auto showAll = new QPushButton("Show all"); showAll->setObjectName("showAllScopes"); cardActions->addWidget(showAll);
+    cardsLayout->addLayout(cardActions);
+    auto inspectorScroll = new QScrollArea; inspectorScroll->setObjectName("cardInspector");
+    inspectorScroll->setWidgetResizable(true); inspectorScroll->setFrameShape(QFrame::NoFrame);
+    inspectorScroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff); cardsLayout->addWidget(inspectorScroll, 1);
+    auto inspector = new QWidget; inspectorScroll->setWidget(inspector);
+    auto channels = new QVBoxLayout(inspector); channels->setContentsMargins(0, 4, 4, 0); channels->setSpacing(6);
+    channels->setSizeConstraint(QLayout::SetMinimumSize);
+    selectedCard_ = new QLabel("Select a card"); selectedCard_->setObjectName("selectedCard");
+    selectedCard_->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Fixed); channels->addWidget(selectedCard_);
     auto viewRow = new QHBoxLayout; viewRow->addWidget(new QLabel("View"));
     cardView_ = new QComboBox; cardView_->setObjectName("cardView"); cardView_->setAccessibleName("Card view"); styleCombo(cardView_);
     for (auto kind : {ViewKind::Waveform, ViewKind::Spectrum, ViewKind::Keyboard}) cardView_->addItem(viewName(kind), int(kind));
@@ -209,7 +233,10 @@ ScopeWindow::ScopeWindow() {
     spectrumGrid_->setToolTip("Show frequency and level grid lines and labels on this card");
     spectrumRow->addWidget(spectrumGrid_); channels->addWidget(spectrumControls_); spectrumControls_->hide();
     keyboardHint_ = new QLabel; keyboardHint_->setObjectName("keyboardHint"); keyboardHint_->setWordWrap(true);
-    channels->addWidget(keyboardHint_); keyboardHint_->hide();
+    keyboardHint_->hide();
+    viewHelp_ = new QPushButton("About this view"); viewHelp_->setObjectName("viewHelp"); viewHelp_->setCheckable(true);
+    viewHelp_->hide();
+    connect(viewHelp_, &QPushButton::toggled, this, [this](bool expanded) { keyboardHint_->setVisible(expanded); });
     musicControls_=new QWidget;
     auto musicRow=new QVBoxLayout(musicControls_); musicRow->setContentsMargins(0,0,0,0);
     rollDirection_=new QComboBox; rollDirection_->setObjectName("rollDirection"); styleCombo(rollDirection_);
@@ -234,10 +261,6 @@ ScopeWindow::ScopeWindow() {
     connect(rollKeyboardSize_,&QSpinBox::valueChanged,this,musicChanged);
     connect(patternCommands_,&QCheckBox::toggled,this,musicChanged);
     connect(patternChannel_,&QSpinBox::valueChanged,this,musicChanged);
-    auto cardActions = new QHBoxLayout;
-    addCard_ = new QPushButton("Add card..."); addCard_->setObjectName("addScopeCard"); cardActions->addWidget(addCard_);
-    removeCard_ = new QPushButton("Remove"); removeCard_->setObjectName("removeScopeCard"); cardActions->addWidget(removeCard_);
-    channels->addLayout(cardActions);
     connect(channelList_, &QListWidget::currentRowChanged, this, [this] { updateViewEditor(); });
     connect(cardView_, &QComboBox::currentIndexChanged, this, [this](int index) {
         if (!channelList_->currentItem() || index < 0) return;
@@ -267,25 +290,46 @@ ScopeWindow::ScopeWindow() {
         layoutChanged(); updateViewEditor();
     });
     auto colors = new QPushButton("Colors..."); colors->setObjectName("scopeColors"); colors->setToolTip("Edit the selected channel's colors"); channels->addWidget(colors);
-    auto visualActions = new QHBoxLayout; visualActions->setSpacing(4); channels->addLayout(visualActions);
+    channels->addWidget(viewHelp_); channels->addWidget(keyboardHint_); channels->addStretch();
+    auto layoutPage = page("Layout");
+    layoutPage->addWidget(gridControls_);
+    auto labelRow = new QHBoxLayout; labelRow->addWidget(numbers_); labelRow->addWidget(names_); layoutPage->addLayout(labelRow);
+    layoutPage->addWidget(keepGrid_);
+    setupPresets(layoutPage);
+    auto layoutHint = new QLabel("Presets save the grid and cards. Colors are saved separately in Display.");
+    layoutHint->setObjectName("editorHint"); layoutHint->setWordWrap(true); layoutPage->addWidget(layoutHint); layoutPage->addStretch();
+    auto display = page("Display");
+    display->addWidget(new QLabel("Color theme"));
+    auto visualActions = new QHBoxLayout; visualActions->setSpacing(4);
     auto waves = new QPushButton("Waves..."); waves->setObjectName("scopeWaves"); visualActions->addWidget(waves);
     connect(waves, &QPushButton::clicked, this, [this] { editWaves(); });
     auto effects = new QPushButton("Effects..."); effects->setObjectName("scopeEffects"); visualActions->addWidget(effects);
     connect(effects, &QPushButton::clicked, this, [this] { editEffects(); });
-    auto renderer = new QPushButton("Renderer..."); renderer->setObjectName("scopeRenderer"); channels->addWidget(renderer);
+    auto renderer = new QPushButton("Renderer..."); renderer->setObjectName("scopeRenderer");
     renderer->setToolTip("Choose the renderer for the next application start");
     connect(renderer, &QPushButton::clicked, this, [this] { editRenderer(); });
-    auto showAll = new QPushButton("Show all"); showAll->setObjectName("showAllScopes"); channels->addWidget(showAll);
-    channels->addWidget(new QLabel("Theme"));
     auto themeCombo = new ThemeComboBox; themes_ = themeCombo;
     themes_->setObjectName("scopeTheme"); themes_->setAccessibleName("Theme");
     themes_->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);
     themes_->setMinimumContentsLength(10); styleCombo(themes_);
-    channels->addWidget(themes_); restoreTheme(); refreshThemes();
+    display->addWidget(themes_); restoreTheme(); refreshThemes();
     themeCombo->refresh = [this] { refreshThemes(); };
     connect(themes_, &QComboBox::activated, this, [this] { applyTheme(); });
-    auto save = new QPushButton("Save theme..."); save->setObjectName("saveTheme"); channels->addWidget(save);
+    auto save = new QPushButton("Save theme..."); save->setObjectName("saveTheme"); display->addWidget(save);
     connect(save, &QPushButton::clicked, this, [this] { saveTheme(); });
+    auto displayHint = new QLabel("All cards\nDisplay preferences below are remembered automatically.");
+    displayHint->setObjectName("editorHint"); displayHint->setWordWrap(true); display->addWidget(displayHint);
+    auto fps = new QComboBox; fps->setObjectName("waveFrameRate"); fps->setAccessibleName("Frame rate");
+    for (int rate : {30, 60, 120}) fps->addItem(QString("%1 FPS").arg(rate), rate);
+    styleCombo(fps); fps->setCurrentIndex(fps->findData(frameRate_));
+    fps->setToolTip("Target refresh rate for all views. Higher rates use more CPU/GPU.");
+    auto rateRow = new QFormLayout; rateRow->addRow("Frame rate", fps); display->addLayout(rateRow);
+    connect(fps, &QComboBox::currentIndexChanged, this, [this, fps] { setFrameRate(fps->currentData().toInt()); rememberWaves(); });
+    display->addLayout(visualActions);
+    auto advanced = new QPushButton("Advanced"); advanced->setObjectName("displayAdvanced"); advanced->setCheckable(true); display->addWidget(advanced);
+    display->addWidget(renderer); renderer->hide();
+    connect(advanced, &QPushButton::toggled, renderer, &QWidget::setVisible);
+    display->addStretch();
     editor_->hide(); channelPanel_->hide();
     motion_ = new QTimer(this); motion_->setInterval(16);
     connect(motion_, &QTimer::timeout, this, [this] {
@@ -293,7 +337,7 @@ ScopeWindow::ScopeWindow() {
         update();
     });
     connect(edit_, &QPushButton::toggled, this, [this](bool editing) {
-        edit_->setToolTip(editing ? "Done" : "Edit layout"); edit_->setAccessibleName(edit_->toolTip());
+        edit_->setToolTip(editing ? "Done" : "Edit visualizations"); edit_->setAccessibleName(edit_->toolTip());
         cancelDrag();
         editor_->setVisible(editing); channelPanel_->setVisible(editing); updateEditorGeometry(); update();
     });
@@ -327,6 +371,7 @@ ScopeWindow::ScopeWindow() {
     } else {
         effects->setEnabled(false); effects->setToolTip("Software scopes selected");
     }
+    updateViewEditor();
     resize(1120, 700); setMinimumSize(480, 360);
     QSettings settings(playerSettingsPath(), playerSettingsFormat()); settings.setFallbacksEnabled(false);
     // Qt corrects off-screen placement and rejects incompatible screen scaling.
@@ -471,6 +516,7 @@ void ScopeWindow::rebuildList() {
     }
     if (!channelList_->currentItem() && channelList_->count()) channelList_->setCurrentRow(0);
     updateViewEditor();
+    updateEditorGeometry();
 }
 void ScopeWindow::updateList() {
     const bool preview = dragging_ || resizeChannel_ >= 0;
@@ -559,21 +605,23 @@ void ScopeWindow::updateEditorGeometry() {
     updateWindowSizeControls();
     titleBar_->setGeometry(14, 6, width() - 28, 30);
     fullscreenExit_->move(width()-44, 8);
-    const int inlineWidth = gridControls_->sizeHint().width() + labelControls_->sizeHint().width() + editorActions_->sizeHint().width() + 40;
-    const int compactWidth = gridControls_->sizeHint().width() + editorActions_->sizeHint().width() + 30;
-    const int lines = width() - 28 >= inlineWidth ? 1 : width() - 28 >= compactWidth ? 2 : 3;
+    const int inlineWidth = windowTools_->sizeHint().width() + labelControls_->sizeHint().width() + editorActions_->sizeHint().width() + 40;
+    const int lines = width() - 28 >= inlineWidth ? 1 : 2;
     if (editorRows_ != lines) {
         editorRows_ = lines;
-        for (auto widget : {gridControls_, labelControls_, editorActions_}) settings_->removeWidget(widget);
-        settings_->setColumnStretch(1, lines == 1 ? 1 : 0);
-        settings_->setColumnStretch(0, lines > 1 ? 1 : 0);
-        settings_->addWidget(gridControls_, 0, 0, Qt::AlignLeft);
-        settings_->addWidget(labelControls_, lines == 1 ? 0 : 1, lines == 1 ? 1 : 0, 1, lines == 1 ? 1 : 2, Qt::AlignLeft);
-        settings_->addWidget(editorActions_, lines == 3 ? 2 : 0, lines == 1 ? 2 : lines == 2 ? 1 : 0, Qt::AlignRight);
+        for (auto widget : {windowTools_, labelControls_, editorActions_}) settings_->removeWidget(widget);
+        settings_->setColumnStretch(1, 1);
+        settings_->addWidget(labelControls_, 0, 0, Qt::AlignLeft);
+        settings_->addWidget(windowTools_, lines == 1 ? 0 : 1, lines == 1 ? 1 : 0, 1, lines == 1 ? 1 : 3, Qt::AlignLeft);
+        settings_->addWidget(editorActions_, 0, 2, Qt::AlignRight);
     }
     editor_->setGeometry(14, 44, width() - 28, 42 + (lines-1)*38);
     const int top = editor_->geometry().bottom() + 13;
-    channelPanel_->setGeometry(width() - 214, top, 200, std::max(80, height() - top - 14));
+    const int panelWidth = std::clamp(width()/3, 240, 280);
+    channelPanel_->setGeometry(width() - panelWidth - 14, top, panelWidth, std::max(80, height() - top - 14));
+    const int listLimit = std::clamp((channelPanel_->height()-30)/3, 54, 160);
+    const int listContent = std::max(1, channelList_->count())*(channelList_->fontMetrics().height()+14)+2;
+    channelList_->setFixedHeight(std::min(listLimit, listContent));
 }
 void ScopeWindow::resizeEvent(QResizeEvent *event) {
     FrameWindow::resizeEvent(event); cancelDrag(); updateEditorGeometry();
