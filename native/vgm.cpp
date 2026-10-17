@@ -10,14 +10,21 @@ struct ChipDescription {
     const char *name;
     int yamahaId = -1, writeCommand = 0, writePorts = 0;
     bool stereo = false;
+    int fmVoices = 9;
 };
 // Keep field order: it determines chip/source order and unsupported-message order.
 constexpr ChipDescription Chips[] = {
     {0x0c,0x100,"SN76489"}, {0x10,0x100,"YM2413"}, {0x2c,0x110,"YM2612"},
-    {0x30,0x110,"YM2151",3,0x54,1,true}, {0x38,0x151,"Sega PCM"}, {0x40,0x151,"RF5C68"},
-    {0x44,0x151,"YM2203",6,0x55,1}, {0x48,0x151,"YM2608",7,0x56,2,true}, {0x4c,0x151,"YM2610",8,0x58,2,true},
-    {0x50,0x151,"YM3812",9,0x5a,1}, {0x54,0x151,"YM3526",10,0x5b,1}, {0x58,0x151,"Y8950",11,0x5c,1},
-    {0x5c,0x151,"YMF262",12,0x5e,2,true}, {0x60,0x151,"YMF278B"}, {0x64,0x151,"YMF271"},
+    {0x30,0x110,"YM2151",3,0x54,1,true,8},
+    {0x38,0x151,"Sega PCM"}, {0x40,0x151,"RF5C68"},
+    {0x44,0x151,"YM2203",6,0x55,1,false,3},
+    {0x48,0x151,"YM2608",7,0x56,2,true,6},
+    {0x4c,0x151,"YM2610",8,0x58,2,true,6},
+    {0x50,0x151,"YM3812",9,0x5a,1},
+    {0x54,0x151,"YM3526",10,0x5b,1},
+    {0x58,0x151,"Y8950",11,0x5c,1},
+    {0x5c,0x151,"YMF262",12,0x5e,2,true,18},
+    {0x60,0x151,"YMF278B"}, {0x64,0x151,"YMF271"},
     {0x68,0x151,"YMZ280B"}, {0x6c,0x151,"RF5C164"}, {0x70,0x151,"PWM"},
     {0x74,0x151,"AY8910"}, {0x80,0x161,"Game Boy APU"}, {0x84,0x161,"NES APU"},
     {0x88,0x161,"MultiPCM"}, {0x8c,0x161,"uPD7759"}, {0x90,0x161,"OKIM6258"},
@@ -29,6 +36,23 @@ constexpr ChipDescription Chips[] = {
     {0xdc,0x171,"C352"}, {0xe0,0x171,"GA20"}
 };
 
+int fmVoiceCount(int id) {
+    for (const auto &chip : Chips) if (chip.yamahaId >= 0 && chip.yamahaId == id) return chip.fmVoices;
+    return 9; // Preserve the existing fallback for an unrecognized direct caller.
+}
+QString fmVoiceName(int id, int channel) {
+    QString label = QString("FM %1").arg(channel + 1);
+    if (id == 3 && channel == 7) label += " / Noise";
+    if (id >= 9 && channel >= 6 && channel <= 8) {
+        constexpr const char *rhythm[] = {"Bass drum", "Hi-hat + Snare", "Tom + Cymbal"};
+        label += QString(" / ") + QString::fromLatin1(rhythm[channel - 6]);
+    }
+    if (id == 12) {
+        if (channel % 9 < 3) label += QString(" / %1+%2 (4-op)").arg(channel + 1).arg(channel + 4);
+        else if (channel % 9 < 6) label += " (2-op only)";
+    }
+    return label;
+}
 quint32 word(const QByteArray &data, int at) { return qFromLittleEndian<quint32>(data.constData() + at); }
 VgmHeader readHeaderBounds(const QByteArray &data) {
     if (data.size() < 0x40 || !data.startsWith("Vgm ")) throw std::runtime_error("Invalid VGM header.");
@@ -130,28 +154,20 @@ YamahaRegisterCommand yamahaRegisterCommand(int opcode) {
 
 QVector<YamahaVoice> yamahaVoices(const VgmYamahaChip &chip) {
     QVector<YamahaVoice> result;
-    const bool opn=chip.id==7||chip.id==8, opl=chip.id>=9;
-    const int fm=chip.id==3?8:chip.id==6?3:opn?6:chip.id==12?18:9;
-    for(int c=0;c<fm;++c) {
-        if(chip.id==8&&!chip.variant&&(c==0||c==3)) continue;
-        QString label=QString("FM %1").arg(c+1);
-        if(chip.id==3&&c==7) label+=" / Noise";
-        if(opl&&c==6) label+=" / Bass drum";
-        if(opl&&c==7) label+=" / Hi-hat + Snare";
-        if(opl&&c==8) label+=" / Tom + Cymbal";
-        if(chip.id==12) {
-            if(c%9<3) label+=QString(" / %1+%2 (4-op)").arg(c+1).arg(c+4);
-            else if(c%9<6) label+=" (2-op only)";
-        }
-        result.push_back({c,QString("fm:%1").arg(c),label});
+    const bool hasAdpcmA = chip.id == 7 || chip.id == 8;
+    const int fm = fmVoiceCount(chip.id);
+    for (int channel = 0; channel < fm; ++channel) {
+        if (chip.id == 8 && !chip.variant && (channel == 0 || channel == 3)) continue;
+        result.push_back({channel, QString("fm:%1").arg(channel), fmVoiceName(chip.id, channel)});
     }
-    if(chip.id==6||opn) for(int c=0;c<3;++c)
-        result.push_back({(opn?6:3)+c,QString("ssg:%1").arg(c),QString("PSG %1").arg(QChar('A'+c))});
-    if(opn) {
-        const char *drums[]={"Bass drum","Snare","Cymbal","Hi-hat","Tom","Rim shot"};
-        for(int c=0;c<6;++c) result.push_back({9+c,QString("adpcm-a:%1").arg(c),
-            chip.id==7?QString::fromLatin1(drums[c]):QString("ADPCM-A %1").arg(c+1)});
+    if (chip.id == 6 || hasAdpcmA) for (int channel = 0; channel < 3; ++channel)
+        result.push_back({(hasAdpcmA ? 6 : 3) + channel, QString("ssg:%1").arg(channel), QString("PSG %1").arg(QChar('A' + channel))});
+    if (hasAdpcmA) {
+        constexpr const char *drums[] = {"Bass drum", "Snare", "Cymbal", "Hi-hat", "Tom", "Rim shot"};
+        for (int channel = 0; channel < 6; ++channel)
+            result.push_back({9 + channel, QString("adpcm-a:%1").arg(channel),
+                chip.id == 7 ? QString::fromLatin1(drums[channel]) : QString("ADPCM-A %1").arg(channel + 1)});
     }
-    if(opn||chip.id==11) result.push_back({opn?15:9,"adpcm-b:0","ADPCM-B"});
+    if (hasAdpcmA || chip.id == 11) result.push_back({hasAdpcmA ? 15 : 9, "adpcm-b:0", "ADPCM-B"});
     return result;
 }

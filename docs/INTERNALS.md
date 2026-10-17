@@ -7,10 +7,14 @@ exact malformed-header errors are compatibility boundaries; inspection still
 reports unsupported chips separately from `requireSupportedVgm` throwing.
 Extra clock/volume tables are inspected only when Yamaha is declared, keeping
 relative offsets, instance selection and ordered volume updates unchanged.
-The ordered private chip table also owns Yamaha IDs, register-write ranges and
-base stereo capability. `yamahaRegisterCommand` supplies chip/instance/register
+The ordered private chip table also owns Yamaha IDs, register-write ranges,
+base stereo capability and FM slot counts. `yamahaRegisterCommand` supplies chip/instance/register
 bank to the Yamaha playback parser, replacing its duplicate opcode mapping.
 Waits, blocks, operand/error checks and command limits remain in the decoder.
+Voice construction separates FM labels from native slot/role assembly, retaining
+YM2610 gaps, noise/rhythm sharing, OPL3 pairs and PSG/ADPCM indices. Unknown direct
+caller IDs keep their prior fallback. Total voice counts still derive from the
+same voice list, avoiding a second aggregate-count policy.
 
 `soundconfig.cpp` derives preset identities and ordered hardware roles. Concrete
 NES, Sega and Yamaha builders keep format rules separate from the shared source
