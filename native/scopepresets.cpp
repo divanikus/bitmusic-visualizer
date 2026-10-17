@@ -52,7 +52,7 @@ void ScopeWindow::setupPresets(QVBoxLayout *layout) {
         if (candidate.configuration.id == state_.info.configuration.id) applyPreset(candidate, file);
         else {
             const auto adapted = candidate.adapted(state_.info.configuration);
-            if (adapted.cards.size() > 512) {
+            if (adapted.cards.size() > ScopeCards::Maximum) {
                 refreshPresets(); QMessageBox::warning(this, "Too many cards", "This transfer would exceed 512 cards. Remove some duplicate cards in the original preset first."); return;
             }
             suggestedPresetName_ = QFileInfo(file).completeBaseName() + " - " + state_.info.configuration.name;

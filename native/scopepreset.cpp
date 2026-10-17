@@ -49,7 +49,7 @@ bool ScopePreset::load(const QString &path, QString &error) {
     candidate.rows = integer("Preset/Rows", 1, 16); candidate.columns = integer("Preset/Columns", 1, 8);
     candidate.numbers = integer("Preset/Numbers", 0, 1); candidate.names = integer("Preset/Names", 0, 1);
     candidate.stereo = integer("Preset/Stereo", 0, 1);
-    const int count = integer("Preset/Cards", 0, 512);
+    const int count = integer("Preset/Cards", 0, ScopePreset::MaximumCards);
     if (valid) for (int i = 0; i < count; ++i) {
         const auto group = QString("Card%1/").arg(i+1);
         PresetCard card; card.source = ini.value(group+"Source").toString();

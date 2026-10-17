@@ -9,6 +9,7 @@ enum class ScopeView { Waveform = 0, Spectrum = 1, Keyboard = 2, PianoRoll = 3, 
 inline constexpr std::array<ScopeView, 5> ScopeViews{
     ScopeView::Waveform, ScopeView::Spectrum, ScopeView::Keyboard, ScopeView::PianoRoll, ScopeView::Pattern};
 QString scopeViewName(ScopeView view);
+bool scopeViewNeedsPcm(ScopeView view);
 struct ScopeViewSupport {
     bool pianoRoll = false, pattern = false;
     bool supports(ScopeView view) const;
@@ -25,13 +26,18 @@ struct ScopeCard {
     QSize span{1, 1};
 };
 
+struct ScopeCaptureRequest {
+    VoiceMask channels;
+    bool output = false;
+};
+
 // Card IDs remain stable through reorder/hide/remove. Original IDs match their
 // source; extra cards use IDs above FullMix. Only order() contains active cards.
 // Analysis, theme colors and audio mutes belong to sources, never to card IDs.
 class ScopeCards {
 public:
     static constexpr int FullMix = VoiceMask::Capacity;
-    static constexpr int Maximum = 512;
+    static constexpr int Maximum = ScopePreset::MaximumCards;
     const QVector<int> &order() const { return order_; }
     void setOrder(const QVector<int> &order) { order_ = order; }
     int size() const { return int(cards_.size()); }
@@ -45,6 +51,9 @@ public:
     void showAll();
     bool hideEmpty(VoiceMask empty);
     void toggleSourceVisibility(int source);
+    bool cycleSourceView(int source, ScopeViewSupport support);
+    void setAllViews(ScopeView view);
+    ScopeCaptureRequest captureRequest(const ScopeGrid &displayed, bool meters) const;
     void clampSpans(int rows, int columns);
     ScopeGrid pack(int rows, int columns) const;
     ScopeGrid pack(int rows, int columns, const QVector<int> &order, int resized = -1, QSize span = {}) const;

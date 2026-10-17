@@ -396,14 +396,8 @@ QVector<int> ScopeWindow::visibleChannels() const {
     for (int channel : cards_.order()) if (gridLayout_.contains(channel)) result.push_back(channel);
     return result;
 }
-VoiceMask ScopeWindow::visibleMask() const {
-    VoiceMask mask = 0;
-    for (int card : visibleChannels()) {
-        const int source = sourceFor(card);
-        if (source < ScopeTheme::FullMix && (viewFor(card)<ViewKind::PianoRoll || waveOptions_.meters))
-            mask |= VoiceMask::bit(source);
-    }
-    return mask;
+ScopeCaptureRequest ScopeWindow::captureRequest() const {
+    return state_.valid && !newFile_ ? cards_.captureRequest(gridLayout_, waveOptions_.meters) : ScopeCaptureRequest{};
 }
 QString ScopeWindow::channelName(int channel) const {
     const int source = sourceFor(channel);
@@ -432,8 +426,9 @@ void ScopeWindow::layoutChanged() {
         waveOptions_.output = !cards_[ScopeTheme::FullMix].hidden; rememberWaves();
     }
     updateList();
-    if (onChannelsChanged) onChannelsChanged(newFile_ ? 0 : visibleMask());
-    const bool capture = outputEnabled();
+    const auto request = captureRequest();
+    if (onChannelsChanged) onChannelsChanged(request.channels);
+    const bool capture = request.output;
     if (capture != outputCapturing_) {
         outputCapturing_ = capture; output_ = {}; outputMono_.clear(); waveStates_[ScopeTheme::FullMix] = {};
         if (onOutputChanged) onOutputChanged(capture);

@@ -49,6 +49,33 @@ void checkInspector() {
     view->setCurrentIndex(view->findData(int(ScopeView::Spectrum)));
     require(viewEdits == 1 && !spectrumEdits && musicEdits == 1, "View edit leaked into another option group.");
 }
+void checkCardCapture() {
+    ScopeCards cards; cards.reset(70, true, {});
+    cards[0].kind = ScopeView::Pattern; cards[1].kind = ScopeView::PianoRoll;
+    const int duplicate = cards.add({0, ScopeView::Waveform}, 0);
+    // Only packed cards request signals; the high voice exercises multiword masks.
+    ScopeGrid displayed{{0, {}}, {1, {}}, {duplicate, {}}, {69, {}}, {ScopeCards::FullMix, {}}};
+    auto request = cards.captureRequest(displayed, false);
+    require(request.channels == (VoiceMask::bit(0) | VoiceMask::bit(69)) && request.output,
+            "Capture request lost duplicate/high sources or included event-only/overflow cards.");
+    cards[duplicate].kind = ScopeView::Pattern; cards[ScopeCards::FullMix].kind = ScopeView::PianoRoll;
+    request = cards.captureRequest(displayed, false);
+    require(request.channels == VoiceMask::bit(69) && !request.output, "Event-only cards requested audio without Levels.");
+    request = cards.captureRequest(displayed, true);
+    require(request.channels == (VoiceMask::bit(0) | VoiceMask::bit(1) | VoiceMask::bit(69)) && request.output,
+            "Levels failed to request PCM for event cards or Full mix.");
+    displayed.remove(ScopeCards::FullMix);
+    require(!cards.captureRequest(displayed, true).output, "Overflow Full mix kept output capture enabled.");
+    require(!cards.cycleSourceView(100, {}), "Cycling a source without cards must remain a no-op.");
+    cards.cycleSourceView(0, {});
+    require(cards.viewFor(0) == ScopeView::Waveform && cards.viewFor(duplicate) == ScopeView::Waveform,
+            "Source cycle failed to skip unsupported views or synchronize duplicates.");
+    cards.cycleSourceView(0, {true, true});
+    require(cards.viewFor(0) == ScopeView::Spectrum, "Source view cycle changed its order.");
+    cards.setAllViews(ScopeView::Keyboard);
+    require(cards.viewFor(69) == ScopeView::Keyboard && cards.viewFor(ScopeCards::FullMix) == ScopeView::Keyboard,
+            "Set all views missed a high source or Full mix.");
+}
 void checkCardState() {
     ScopeCards cards;
     cards.reset(3, false, VoiceMask::bit(1));
@@ -117,6 +144,7 @@ void checkPacking() {
 }
 }
 void checkLayoutSpans(QApplication &app, const QString &directory, QTextStream &log) {
+    checkCardCapture(); log << "Capture policy: duplicate source union, high masks, event-only cards, Levels and overflow PASS\n";
     checkInspector(); log << "Card inspector: selection synchronization without edits, independent view/music callbacks PASS\n";
     checkCardState(); log << "Card state: stable IDs, duplicates/removal, visibility, preset compatibility, preview isolation and capacity PASS\n";
     checkPacking(); log << "Span packing: all 128 grid sizes, bounds, no overlap, hidden/refill and hole filling PASS\n"; log.flush();

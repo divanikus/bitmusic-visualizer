@@ -13,6 +13,9 @@ QString scopeViewName(ScopeView view) {
 bool ScopeViewSupport::supports(ScopeView view) const {
     return view == ScopeView::PianoRoll ? pianoRoll : view == ScopeView::Pattern ? pattern : true;
 }
+bool scopeViewNeedsPcm(ScopeView view) {
+    return view == ScopeView::Waveform || view == ScopeView::Spectrum || view == ScopeView::Keyboard;
+}
 void ScopeCards::initialize(bool hidden) {
     cards_.clear(); order_.clear();
     for (int source = 0; source <= FullMix; ++source) {
@@ -53,6 +56,28 @@ void ScopeCards::toggleSourceVisibility(int source) {
     bool hide = false;
     for (int id : order_) if (cards_[id].source == source && !cards_[id].hidden) hide = true;
     for (int id : order_) if (cards_[id].source == source) cards_[id].hidden = hide;
+}
+bool ScopeCards::cycleSourceView(int source, ScopeViewSupport support) {
+    int first = order_.contains(source) ? source : -1;
+    if (first < 0) for (int id : order_) if (cards_[id].source == source) { first = id; break; }
+    if (first < 0) return false;
+    auto next = ScopeView((int(cards_[first].kind) + 1) % ScopeViews.size());
+    while (!support.supports(next)) next = ScopeView((int(next) + 1) % ScopeViews.size());
+    for (int id : order_) if (cards_[id].source == source) cards_[id].kind = next;
+    return true;
+}
+void ScopeCards::setAllViews(ScopeView view) {
+    for (int id : order_) cards_[id].kind = view;
+}
+ScopeCaptureRequest ScopeCards::captureRequest(const ScopeGrid &displayed, bool meters) const {
+    ScopeCaptureRequest request;
+    for (int id : order_) {
+        const auto &card = cards_[id];
+        if (!displayed.contains(id) || (!meters && !scopeViewNeedsPcm(card.kind))) continue;
+        if (card.source == FullMix) request.output = true;
+        else request.channels |= VoiceMask::bit(card.source);
+    }
+    return request;
 }
 void ScopeCards::clampSpans(int rows, int columns) {
     for (auto &card : cards_) card.span = QSize(std::clamp(card.span.width(), 1, columns), std::clamp(card.span.height(), 1, rows));

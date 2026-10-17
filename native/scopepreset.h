@@ -13,6 +13,7 @@ struct PresetCard {
     int keyboardSize = 25;
 };
 struct ScopePreset {
+    static constexpr int MaximumCards = 512;
     SoundConfiguration configuration;
     int rows = 5, columns = 1;
     bool numbers = true, names = true, stereo = false;

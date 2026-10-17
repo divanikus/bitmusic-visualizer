@@ -12,8 +12,6 @@
 #include <QMap>
 #include <QPainter>
 #include <QPushButton>
-#include <QSignalBlocker>
-#include <QSpinBox>
 #include <QVBoxLayout>
 #include <cmath>
 #include <algorithm>
@@ -28,18 +26,11 @@ bool ScopeWindow::viewSupported(ViewKind kind) const {
     return ScopeViewSupport{bool(state_.info.noteRoll), bool(state_.info.patterns)}.supports(kind);
 }
 bool ScopeWindow::outputEnabled() const {
-    if (newFile_) return false;
-    for (int id : visibleChannels()) if (sourceFor(id) == ScopeTheme::FullMix && (viewFor(id)<ViewKind::PianoRoll || waveOptions_.meters)) return true;
-    return false;
+    return captureRequest().output;
 }
 void ScopeWindow::cycleSourceView(int source) {
     if (!state_.valid || (source != ScopeTheme::FullMix && (source < 0 || source >= state_.info.voices.size()))) return;
-    int first = cards_.order().contains(source) ? source : -1;
-    if (first < 0) for (int id : cards_.order()) if (sourceFor(id) == source) { first = id; break; }
-    if (first < 0) return;
-    auto next = ViewKind((int(cards_[first].kind)+1)%5);
-    while(!viewSupported(next)) next=ViewKind((int(next)+1)%5);
-    for (int id : cards_.order()) if (sourceFor(id) == source) cards_[id].kind = next;
+    if (!cards_.cycleSourceView(source, {bool(state_.info.noteRoll), bool(state_.info.patterns)})) return;
     layoutChanged(); updateViewEditor();
 }
 void ScopeWindow::toggleSourceVisibility(int source) {
@@ -49,7 +40,7 @@ void ScopeWindow::toggleSourceVisibility(int source) {
 }
 void ScopeWindow::setAllViews(ViewKind kind) {
     if(!viewSupported(kind)) return;
-    for (int id : cards_.order()) cards_[id].kind = kind;
+    cards_.setAllViews(kind);
     layoutChanged(); updateViewEditor();
 }
 int ScopeWindow::selectedCardId() const {

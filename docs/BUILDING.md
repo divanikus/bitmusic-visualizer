@@ -28,6 +28,8 @@ The Unix companion is installed/relocated (and ad-hoc signed on macOS) before
 being removed from staging. `Runtime` installs only the player; the separate
 `CheckRunner` component is for packaging validation.
 
+For UI code ownership and the card/preset boundary, see [native internals](INTERNALS.md).
+
 ## Windows
 
 Install the Qt MinGW 64-bit kit and its GCC 13.1 toolchain. Defaults below match

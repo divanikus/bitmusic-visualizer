@@ -13,7 +13,10 @@ cell spans and active order. Removing a card removes its ID from the active orde
 hiding preserves it. Duplicates share a source, audio mutes, theme colors and
 analysis, while keeping independent display options. Full mix has a reserved ID
 outside the voice mask; extra card IDs start above it. Resize previews pack a
-temporary span without changing committed state.
+temporary span without changing committed state. Capture policy unions the
+sources of packed cards and requests Full mix separately. Piano roll/Pattern
+request PCM only when Levels is enabled. The window applies this single request
+to the existing capture callbacks after committing a layout.
 
 `ScopeCardInspector` owns selected-card controls, contextual help, adaptive
 scroll sizing and signal suppression during selection updates. It receives card

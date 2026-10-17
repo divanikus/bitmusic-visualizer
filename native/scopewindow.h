@@ -146,7 +146,7 @@ private:
     void resetGrid();
     void rebuildList();
     void updateList();
-    VoiceMask visibleMask() const;
+    ScopeCaptureRequest captureRequest() const;
     QString channelName(int channel) const;
     bool channelReady(int channel) const;
     bool channelStereo(int channel) const;
