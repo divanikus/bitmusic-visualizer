@@ -1,14 +1,10 @@
 #include "engine.h"
 #include "vgm.h"
-#include "trackertrack.h"
-#include "tia-replay/replay.h"
 #include "outputhistory.h"
 #include "gme-taps/taps.h"
 #include "gme-taps/notes.h"
 #include <QtEndian>
-#include <QFile>
 #include <QFileInfo>
-#include <zlib.h>
 #include <algorithm>
 #include <cstring>
 #include <limits>
@@ -89,36 +85,6 @@ bool psgHasStereoRouting(const QByteArray &data) {
     }
     return false;
 }
-}
-QByteArray readMusicFile(const QString &path) {
-    constexpr int limit = 64 * 1024 * 1024;
-    QFile file(path);
-    if (!file.open(QIODevice::ReadOnly)) throw std::runtime_error(file.errorString().toStdString());
-    auto data = file.read(limit + 1);
-    if (data.size() > limit) throw std::runtime_error("Music file exceeds 64 MB.");
-    if (data.startsWith(QByteArray::fromHex("1f8b"))) {
-        z_stream stream{};
-        stream.next_in = reinterpret_cast<Bytef *>(data.data());
-        stream.avail_in = static_cast<uInt>(data.size());
-        if (inflateInit2(&stream, 15 + 16) != Z_OK) throw std::runtime_error("Cannot initialize gzip decoder.");
-        QByteArray decoded;
-        std::array<char, 65536> chunk{};
-        int result = Z_OK;
-        while (result == Z_OK && decoded.size() <= limit) {
-            stream.next_out = reinterpret_cast<Bytef *>(chunk.data());
-            stream.avail_out = chunk.size();
-            result = inflate(&stream, Z_NO_FLUSH);
-            decoded.append(chunk.data(), static_cast<int>(chunk.size() - stream.avail_out));
-        }
-        inflateEnd(&stream);
-        if (result != Z_STREAM_END || decoded.size() > limit)
-            throw std::runtime_error("Invalid, truncated or oversized gzip music file.");
-        data = std::move(decoded);
-    }
-    if (!(data.startsWith("NESM\x1a") || data.startsWith("NSFE") ||
-          data.startsWith("Vgm ") || data.startsWith("SNES-SPC700") || data.startsWith("GBS") || data.startsWith("ZXAYEMUL") || data.startsWith("MThd") || Ttt::recognizes(data) || isTrackerModule(data)))
-        throw std::runtime_error("Supported formats: NSF, NSFE, VGM, VGZ, SPC, GBS, AY (ZXAYEMUL), SID (PSID/RSID), MIDI (SMF 0/1), TTT (TIATracker), tracker modules (MOD, XM, S3M, IT, MED and other libxmp formats).");
-    return data;
 }
 
 void applyOutputGain(short *samples, size_t count, float volume, uint32_t outputMask) {

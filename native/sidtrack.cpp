@@ -1,12 +1,4 @@
 #include "sidtrack.h"
-#include "pokeytrack.h"
-#include "yamahatrack.h"
-#include "miditrack.h"
-#include "mt32track.h"
-#include "trackertrack.h"
-#include "ttttrack.h"
-#include "tia-replay/replay.h"
-#include "vgm.h"
 #include "sid-taps/taps.h"
 #include "romfiles.h"
 #include <sidplayfp/sidplayfp.h>
@@ -162,28 +154,4 @@ bool SidTrack::readTap(int channel, QVector<float> &left, QVector<float> &right)
         if (at >= 0) { const auto v = t.history[channel%3][at % BmSidTaps::Capacity]; left[i] = v*l; right[i] = v*r; }
     }
     return true;
-}
-
-std::unique_ptr<MusicTrack> openMusicTrack(const QString &path, int song, bool playlist, bool capture,
-                                        std::shared_ptr<const SidRoms> roms, std::shared_ptr<const YamahaRoms> yamahaRoms,
-                                        std::shared_ptr<const MidiResources> midiResources, std::shared_ptr<const Mt32Resources> mt32Resources) {
-    if (mt32Resources) return std::make_unique<Mt32Track>(path,QByteArray{},song,playlist,capture,std::move(mt32Resources));
-    if (midiResources) return std::make_unique<MidiTrack>(path,QByteArray{},song,playlist,capture,std::move(midiResources));
-    QFile file(path);
-    if (file.open(QIODevice::ReadOnly)) {
-        const auto magic = file.read(4);
-        if (magic == "PSID" || magic == "RSID") return std::make_unique<SidTrack>(path, song, playlist, capture, std::move(roms));
-    }
-    auto data = readMusicFile(path);
-    if (Ttt::recognizes(data)) return std::make_unique<TttTrack>(path,std::move(data),song,playlist,capture);
-    if (data.startsWith("MThd")) return openMidiTrack(path,std::move(data),song,playlist,capture);
-    if (data.startsWith("Vgm ")) {
-        const auto header = inspectVgm(data); requireSupportedVgm(header);
-        if (!header.yamaha.isEmpty()) return std::make_unique<YamahaTrack>(path, std::move(data), song, playlist, capture, std::move(yamahaRoms));
-        if (header.pokeyClock) return std::make_unique<PokeyTrack>(path, std::move(data), song, playlist, capture);
-    }
-    const bool console = data.startsWith("NESM") || data.startsWith("NSFE") || data.startsWith("Vgm ") ||
-        data.startsWith("SNES-SPC700") || data.startsWith("GBS") || data.startsWith("ZXAYEMUL");
-    if (!console) return std::make_unique<TrackerTrack>(path, std::move(data), song, playlist, capture);
-    return std::make_unique<GmeTrack>(path, song, playlist, capture, std::move(data));
 }

@@ -1,5 +1,14 @@
 # Native code responsibilities
 
+`musicfile.cpp` owns bounded content-based file loading/gzip decoding and the
+concrete decoder factory. One GME signature predicate serves file admission and
+factory routing; routing retains its existing additional four-byte NESM probe.
+Keep factory precedence: MT-32/GM snapshots bypass disk, raw SID probes precede
+generic loading, then TTT, MIDI, validated VGM Yamaha/POKEY, GME or tracker.
+The 64 MiB packed/decoded limits, first-gzip-member/trailing-byte policy and exact
+errors remain intact. Raw SID retains its separate reader/limits; compressed SID
+does not acquire a new route. Backends still validate their own contents/resources.
+
 `NativePlayer` retains the public command mailbox, generation/state storage and
 independent scope worker. Its private `AudioWorker` in `engineplayback.cpp` is
 created inside `run()`, on the existing high-priority thread. It owns the active

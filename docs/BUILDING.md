@@ -52,6 +52,11 @@ runs decoder/tap checks; it is not a substitute for the full workstation suite.
 
 All bare check flags in this guide are arguments to `bitmusic_checks`.
 
+`--self-test test-output --loading-only` checks content-based routing, gzip
+first-member/trailing/error and 64 MiB size policies, raw SID precedence,
+missing/unsupported errors and selected-only versus full GME metadata. It uses
+private copies of authored fixtures and also runs in transport/full checks.
+
 `--playlist-checks test-output` checks queue identities/reordering, M3U8 subsongs,
 Unicode/relative paths, shuffle history, background metadata cancellation and
 live transport across files, repeats, edits, unknown durations and saved modes.

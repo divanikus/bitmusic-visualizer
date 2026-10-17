@@ -48,6 +48,7 @@ include(cmake/Tia.cmake)
 option(BITMUSIC_BUILD_TESTS "Build the separate developer check runner" ON)
 add_library(bitmusic_core OBJECT
   native/engine.cpp
+  native/musicfile.cpp
   native/engineplayback.cpp
   native/enginescopes.cpp
   native/enginecapture.cpp
@@ -112,6 +113,7 @@ if(BITMUSIC_BUILD_TESTS)
     native/enginechecks.cpp
     native/scopeworkerchecks.cpp
     native/capturechecks.cpp
+    native/loadchecks.cpp
     native/tapchecks.cpp
     native/gbschecks.cpp
     native/aychecks.cpp
