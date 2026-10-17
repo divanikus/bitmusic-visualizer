@@ -56,7 +56,10 @@ All bare check flags in this guide are arguments to `bitmusic_checks`.
 Unicode/relative paths, shuffle history, background metadata cancellation and
 live transport across files, repeats, edits, unknown durations and saved modes.
 Mouse checks cover source-header group selection and independent first-song
-selection/playback. It also checks decoder end/loop boundaries without VGM header
+selection/playback, stable selection during rebuilds and independent playback
+markers. Live checks cover appends during single-file expansion, superseded opens,
+navigation over pending replacement, selected-entry Play versus current-entry F7/F8,
+and paused/playing timeline seeks. It also checks decoder end/loop boundaries without VGM header
 timing, tracker loop/reset, the tabbed Settings window, resource presence/size
 refresh, live FPS, preference restoration and optional unknown-duration limits
 through natural queue advancement, replay and repeat.

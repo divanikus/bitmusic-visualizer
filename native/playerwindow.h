@@ -3,13 +3,13 @@
 #include "playlist.h"
 #include "chrome.h"
 #include "scopewindow.h"
-#include "timeline.h"
 #include <optional>
 
 class QLabel;
 class QPushButton;
 class QToolButton;
 class PlaylistView;
+class PlayerTransport;
 class QTabWidget;
 class QComboBox;
 class QGridLayout;
@@ -35,6 +35,7 @@ protected:
     void dropEvent(QDropEvent *) override;
 private:
     void refreshControls();
+    void togglePlayback();
     void refreshScopes();
     void rebuildChannels(const PlayerState &state);
     void setScopesVisible(bool visible);
@@ -64,14 +65,12 @@ private:
     bool replacingPlaylist_ = false;
     QString playlistPath_, playlistMessage_;
     quint64 completedGeneration_ = 0;
-    QPushButton *shuffle_ = nullptr;
     QLabel *playlistStatus_ = nullptr;
     NativePlayer player_;
     ScopeWindow scopes_;
-    QLabel *title_, *subtitle_, *clock_, *total_, *status_;
-    QPushButton *play_, *stop_, *previous_, *next_, *repeat_, *showScopes_;
-    QToolButton *leftOutput_, *rightOutput_;
-    Timeline *timeline_;
+    QLabel *title_, *subtitle_, *status_;
+    QPushButton *showScopes_;
+    PlayerTransport *transport_;
     PlaylistView *songs_;
     QTabWidget *tabs_;
     QWidget *midiControls_;
@@ -82,5 +81,4 @@ private:
     int shownSong_ = -1;
     bool openedOnce_ = false;
     quint64 romWarningGeneration_ = 0;
-    int unknownRangeMs_ = 180000;
 };

@@ -20,6 +20,14 @@ new file/navigation/replacement actions discard it at the existing cancellation
 points. Completed appends stay after the expanded subsongs. Keep this order and
 the generation-scoped completion check so an old EOF cannot override user Next.
 
+`PlayerTransport` builds the existing timeline, clock, output switches, playback
+buttons and volume controls directly in the window layout. It presents audio
+and read-only playlist state, blocks feedback while synchronizing controls, and
+reports user requests through callbacks. It owns the unknown-duration slider
+range and volume-mute restoration. The window retains track selection and engine
+commands: Play may start a selected paused entry, whereas F7 resumes the actual
+current entry. The shared vector-icon implementation stays in `playercontrols.*`.
+
 `ScopeWindow` coordinates transport snapshots, capture requests, layout gestures
 and CPU/GPU presentation. It does not own playback or decode music in painting.
 

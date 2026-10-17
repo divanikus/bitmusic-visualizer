@@ -1,4 +1,5 @@
 #include "playerwindow.h"
+#include "playercontrols.h"
 #include "playlistview.h"
 #include "shortcuts.h"
 #include "appsettings.h"
@@ -12,7 +13,6 @@
 #include <QApplication>
 #include <QCloseEvent>
 #include <QDragEnterEvent>
-#include <QFileDialog>
 #include <QFileInfo>
 #include <QGridLayout>
 #include <QKeyEvent>
@@ -22,7 +22,6 @@
 #include <QMouseEvent>
 #include <QMessageBox>
 #include <QPainter>
-#include <QPainterPath>
 #include <QPushButton>
 #include <QScrollArea>
 #include <QShortcut>
@@ -37,7 +36,6 @@
 #include <algorithm>
 
 namespace {
-enum class Symbol { Previous, Stop, Play, Pause, Next, Repeat, Shuffle, Open, Scopes, Volume, Settings };
 class ChannelButton : public QToolButton {
 public:
     std::function<void()> onSolo;
@@ -74,64 +72,6 @@ protected:
         }
     }
 };
-// Vector icons remain readable at different Windows display scales and need no icon font.
-class IconButton : public QPushButton {
-public:
-    IconButton(Symbol symbol, const QString &name, const QString &tip, QWidget *parent = nullptr)
-        : QPushButton(parent), symbol_(symbol) {
-        setObjectName(name); setToolTip(tip); setAccessibleName(tip); setFixedSize(34, 34);
-        setCursor(Qt::PointingHandCursor);
-    }
-    void setSymbol(Symbol symbol) { if (symbol_ != symbol) { symbol_ = symbol; update(); } }
-protected:
-    void paintEvent(QPaintEvent *) override {
-        QPainter p(this); p.setRenderHint(QPainter::Antialiasing);
-        const bool primary = objectName() == "primary";
-        const QColor ink = !isEnabled() ? QColor("#647078") : primary ? QColor("#093a34")
-            : isChecked() ? QColor("#9de9d8") : QColor("#dbe5e5");
-        QColor fill = primary ? QColor("#a2e5d5") : isChecked() ? QColor("#294c48") : QColor("#202a30");
-        if (underMouse() && isEnabled()) fill = fill.lighter(118);
-        if (isDown()) fill = fill.darker(115);
-        if (!isEnabled()) fill = QColor("#20282d");
-        p.setPen(hasFocus() ? QPen(QColor("#93d9cb"), 1) : QPen(Qt::NoPen)); p.setBrush(fill);
-        p.drawRoundedRect(rect().adjusted(1, 1, -1, -1), primary ? 20 : 10, primary ? 20 : 10);
-        p.translate(width() / 2.0 - 10, height() / 2.0 - 10);
-        p.setPen(QPen(ink, 1.7, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin)); p.setBrush(ink);
-        switch (symbol_) {
-        case Symbol::Play: p.setPen(Qt::NoPen); p.drawPolygon(QPolygonF{{6, 3}, {16, 10}, {6, 17}}); break;
-        case Symbol::Pause: p.setPen(Qt::NoPen); p.drawRoundedRect(QRectF(5, 3, 3.5, 14), 1, 1); p.drawRoundedRect(QRectF(12, 3, 3.5, 14), 1, 1); break;
-        case Symbol::Stop: p.setPen(Qt::NoPen); p.drawRoundedRect(QRectF(4, 4, 12, 12), 1.5, 1.5); break;
-        case Symbol::Previous: case Symbol::Next:
-            if (symbol_ == Symbol::Previous) { p.translate(20, 0); p.scale(-1, 1); }
-            p.setPen(Qt::NoPen); p.drawPolygon(QPolygonF{{4, 4}, {13, 10}, {4, 16}}); p.drawRoundedRect(QRectF(14, 4, 2, 12), .7, .7); break;
-        case Symbol::Repeat:
-            p.setBrush(Qt::NoBrush); p.drawLine(4, 5, 17, 5); p.drawLine(17, 5, 14, 2); p.drawLine(17, 5, 14, 8);
-            p.drawLine(16, 15, 3, 15); p.drawLine(3, 15, 6, 12); p.drawLine(3, 15, 6, 18);
-            p.drawLine(3, 5, 3, 9); p.drawLine(17, 11, 17, 15);
-            if (property("repeatOne").toBool()) { auto f=p.font(); f.setPixelSize(8); p.setFont(f); p.drawText(QRect(7,5,6,10),Qt::AlignCenter,"1"); } break;
-        case Symbol::Shuffle:
-            p.setBrush(Qt::NoBrush); p.drawPolyline(QPolygonF{{2,4},{5,4},{14,16},{18,16}});
-            p.drawPolyline(QPolygonF{{2,16},{5,16},{14,4},{18,4}});
-            p.drawPolyline(QPolygonF{{15,1},{18,4},{15,7}});p.drawPolyline(QPolygonF{{15,13},{18,16},{15,19}});break;
-        case Symbol::Open: {
-            p.setBrush(Qt::NoBrush); QPainterPath folder;
-            folder.moveTo(2, 15); folder.lineTo(2, 4); folder.lineTo(8, 4); folder.lineTo(10, 6); folder.lineTo(17, 6); folder.lineTo(17, 9);
-            folder.moveTo(2, 16); folder.lineTo(5, 9); folder.lineTo(19, 9); folder.lineTo(16, 16); folder.closeSubpath(); p.drawPath(folder); break;
-        }
-        case Symbol::Scopes:
-            p.setBrush(Qt::NoBrush); p.drawRoundedRect(QRectF(1, 2, 18, 16), 2, 2);
-            p.drawPolyline(QPolygonF{{3, 10}, {6, 10}, {8, 5}, {11, 15}, {13, 9}, {17, 9}}); break;
-        case Symbol::Settings:
-            p.setBrush(Qt::NoBrush);p.setPen(QPen(ink,1.8));p.drawEllipse(QRectF(4,4,12,12));p.drawEllipse(QRectF(8,8,4,4));
-            p.translate(10,10);for(int i=0;i<8;++i) {p.drawLine(QPointF(0,-7),QPointF(0,-9));p.rotate(45);}break;
-        case Symbol::Volume:
-            p.setPen(Qt::NoPen); p.drawPolygon(QPolygonF{{2, 8}, {6, 8}, {11, 4}, {11, 16}, {6, 12}, {2, 12}});
-            p.setBrush(Qt::NoBrush); p.setPen(QPen(ink, 1.7)); p.drawArc(QRectF(10, 4, 8, 12), -65 * 16, 130 * 16); break;
-        }
-    }
-private:
-    Symbol symbol_;
-};
 }
 
 PlayerWindow::PlayerWindow() {
@@ -164,7 +104,7 @@ PlayerWindow::PlayerWindow() {
     auto root = new QVBoxLayout(this); root->setContentsMargins(14, 6, 14, 12); root->setSpacing(6);
     auto titleBar = new TitleBar(this); titleBar->setTitle(QApplication::applicationName()); root->addWidget(titleBar);
     setupShortcuts();
-    auto settingsButton=new IconButton(Symbol::Settings,"playerSettingsButton","Settings");
+    auto settingsButton=createPlayerIconButton(PlayerIcon::Settings,"playerSettingsButton","Settings");
     connect(settingsButton,&QPushButton::clicked,this,[this] {showSettings();});
     auto header = new QHBoxLayout; header->setSpacing(8);
     auto text = new QVBoxLayout; text->setSpacing(2);
@@ -172,38 +112,19 @@ PlayerWindow::PlayerWindow() {
     subtitle_ = new QLabel("Open music with Ctrl+O or drop a file"); subtitle_->setObjectName("muted"); subtitle_->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
     subtitle_->setTextFormat(Qt::PlainText);
     text->addWidget(title_); text->addWidget(subtitle_); header->addLayout(text, 1);
-    auto open = new IconButton(Symbol::Open, "open", QString::fromUtf8("Open music or playlist (Ctrl+O)"));
-    showScopes_ = new IconButton(Symbol::Scopes, "showScopes", QString::fromUtf8("Visualizations")); showScopes_->setCheckable(true);
+    auto open = createPlayerIconButton(PlayerIcon::Open, "open", QString::fromUtf8("Open music or playlist (Ctrl+O)"));
+    showScopes_ = createPlayerIconButton(PlayerIcon::Scopes, "showScopes", QString::fromUtf8("Visualizations")); showScopes_->setCheckable(true);
     header->addWidget(open); header->addWidget(showScopes_); header->addWidget(settingsButton); root->addLayout(header);
-    timeline_ = new Timeline; timeline_->setObjectName("timeline"); timeline_->setRange(0, unknownRangeMs_); root->addWidget(timeline_);
-    auto times = new QHBoxLayout;
-    clock_ = new QLabel("00:00"); clock_->setObjectName("clock"); total_ = new QLabel(QString::fromUtf8("—")); total_->setObjectName("muted"); times->addWidget(clock_); times->addStretch();
-    leftOutput_ = new QToolButton; rightOutput_ = new QToolButton;
-    int side = 0;
-    for (auto button : {leftOutput_, rightOutput_}) {
-        button->setObjectName(side ? "rightOutput" : "leftOutput"); button->setText(side ? "R" : "L");
-        button->setAccessibleName(side ? "Right output" : "Left output");
-        button->setCheckable(true); button->setChecked(true); button->setFixedSize(26, 22);
-        button->setStyleSheet("QToolButton { padding: 0; border-radius: 5px; }");
-        button->setCursor(Qt::PointingHandCursor); times->addWidget(button);
-        connect(button, &QToolButton::toggled, this, [this](bool) {
-            player_.setOutputMask((leftOutput_->isChecked() ? 1u : 0u) | (rightOutput_->isChecked() ? 2u : 0u));
-            refresh();
-        });
-        ++side;
-    }
-    times->addSpacing(8); times->addWidget(total_); root->addLayout(times);
-    auto transport = new QHBoxLayout; transport->setSpacing(4);
-    previous_ = new IconButton(Symbol::Previous, "previous", QString::fromUtf8("Previous track"));
-    stop_ = new IconButton(Symbol::Stop, "stop", QString::fromUtf8("Stop"));
-    play_ = new IconButton(Symbol::Play, "primary", QString::fromUtf8("Play / pause (Space)")); play_->setFixedSize(42, 42);
-    next_ = new IconButton(Symbol::Next, "next", QString::fromUtf8("Next track"));
-    repeat_ = new IconButton(Symbol::Repeat, "repeat", QString::fromUtf8("Repeat current track")); repeat_->setCheckable(true);
-    shuffle_ = new IconButton(Symbol::Shuffle, "shuffle", "Shuffle playlist"); shuffle_->setCheckable(true);
-    for (auto button : {previous_, stop_, play_, next_, repeat_, shuffle_}) transport->addWidget(button);
-    transport->addStretch();
-    auto mute = new IconButton(Symbol::Volume, "muteVolume", QString::fromUtf8("Mute / unmute")); transport->addWidget(mute);
-    auto volume = new QSlider(Qt::Horizontal); volume->setObjectName("volume"); volume->setRange(0, 100); volume->setValue(65); volume->setFixedWidth(72); volume->setToolTip(QString::fromUtf8("Volume")); transport->addWidget(volume); root->addLayout(transport);
+    transport_ = new PlayerTransport(root);
+    transport_->onPlayPause = [this] { togglePlayback(); };
+    transport_->onStop = [this] { player_.seek(0, false); };
+    transport_->onPrevious = [this] { stepPlaylist(false); };
+    transport_->onNext = [this] { stepPlaylist(true); };
+    transport_->onRepeat = [this] { setPlaylistRepeat(PlaylistRepeat((int(playlistRepeat_) + 1) % 3)); refresh(); };
+    transport_->onShuffle = [this](bool on) { setPlaylistShuffle(on); refresh(); };
+    transport_->onVolume = [this](float volume) { player_.setVolume(volume); };
+    transport_->onOutputMask = [this](uint32_t mask) { player_.setOutputMask(mask); refresh(); };
+    transport_->onSeek = [this](int position) { player_.seek(position, player_.state().playing); };
     tabs_ = new QTabWidget; tabs_->setObjectName("tabs");
     setupPlaylistUi();
     auto channelPage = new QWidget; auto channelLayout = new QVBoxLayout(channelPage); channelLayout->setContentsMargins(8, 8, 8, 8); channelLayout->setSpacing(6);
@@ -229,7 +150,7 @@ PlayerWindow::PlayerWindow() {
     soundFont_->setMinimumContentsLength(12);
     soundFont_->setToolTip("General MIDI bank. Changing it restarts the current MIDI.");
     midiRow->addWidget(soundFont_,1);
-    auto bankFolder=new IconButton(Symbol::Open,"soundFontFolder","Open SoundFonts folder"); midiRow->addWidget(bankFolder);
+    auto bankFolder=createPlayerIconButton(PlayerIcon::Open,"soundFontFolder","Open SoundFonts folder"); midiRow->addWidget(bankFolder);
     auto bankRefresh=new QToolButton; bankRefresh->setText(QString::fromUtf8("↻"));
     bankRefresh->setObjectName("refreshSoundFonts"); bankRefresh->setToolTip("Refresh SoundFont list"); midiRow->addWidget(bankRefresh);
     root->addWidget(midiControls_); midiControls_->hide();
@@ -249,28 +170,11 @@ PlayerWindow::PlayerWindow() {
     status_ = new QLabel; status_->setObjectName("status"); status_->setWordWrap(true); status_->hide(); root->addWidget(status_);
     connect(open, &QPushButton::clicked, this, [this] { chooseMusic(true); });
     connect(showScopes_, &QPushButton::clicked, this, [this] { setScopesVisible(!scopes_.renderingVisible()); });
-    connect(play_, &QPushButton::clicked, this, [this] {
-        const auto s = player_.state();
-        if (songs_->currentRow() >= 0 && (!s.valid || (!s.playing && songs_->currentRow() != playlist_.currentRow()))) playSong(songs_->currentRow());
-        else player_.seek(s.info.durationMs > 0 && s.positionMs >= s.info.durationMs ? 0 : s.positionMs, !s.playing);
-    });
-    connect(stop_, &QPushButton::clicked, this, [this] { player_.seek(0, false); });
-    connect(previous_, &QPushButton::clicked, this, [this] { stepPlaylist(false); });
-    connect(next_, &QPushButton::clicked, this, [this] { stepPlaylist(true); });
-    connect(repeat_, &QPushButton::clicked, this, [this] { setPlaylistRepeat(PlaylistRepeat((int(playlistRepeat_)+1)%3)); refresh(); });
-    connect(shuffle_, &QPushButton::clicked, this, [this](bool on) { setPlaylistShuffle(on); refresh(); });
-    connect(volume, &QSlider::valueChanged, this, [this](int value) { player_.setVolume(value / 100.f); });
-    connect(mute, &QPushButton::clicked, this, [volume, savedVolume = 65]() mutable {
-        if (volume->value()) { savedVolume = volume->value(); volume->setValue(0); } else volume->setValue(savedVolume);
-    });
     connect(all, &QPushButton::clicked, this, [this] { player_.setMuteMask(0); });
     connect(none, &QPushButton::clicked, this, [this] { player_.setMuteMask(~VoiceMask{}); });
     connect(songs_, &QListWidget::itemActivated, this, [this](QListWidgetItem *item) { playSong(songs_->row(item)); });
-    connect(timeline_, &QSlider::sliderReleased, this, [this] { player_.seek(timeline_->value(), player_.state().playing); });
-    connect(timeline_, &QSlider::sliderMoved, this, [this](int value) { clock_->setText(timeText(value)); });
-    connect(timeline_, &QSlider::valueChanged, this, [this](int value) { if (!timeline_->isSliderDown() && timeline_->hasFocus()) player_.seek(value, player_.state().playing); });
     auto openShortcut = new QShortcut(QKeySequence::Open, this); connect(openShortcut, &QShortcut::activated, open, &QPushButton::click);
-    auto playShortcut = new QShortcut(QKeySequence(Qt::Key_Space), this); connect(playShortcut, &QShortcut::activated, play_, &QPushButton::click);
+    auto playShortcut = new QShortcut(QKeySequence(Qt::Key_Space), this); connect(playShortcut, &QShortcut::activated, transport_, &PlayerTransport::clickPlay);
     scopes_.onVisibilityChanged = [this](bool visible) {
         player_.setScopesEnabled(visible);
         player_.setOutputScopesEnabled(visible && scopes_.outputEnabled());
@@ -360,6 +264,12 @@ void PlayerWindow::rebuildChannels(const PlayerState &state) {
         });
     }
 }
+void PlayerWindow::togglePlayback() {
+    const auto state = player_.state();
+    const int selected = songs_->currentRow();
+    if (selected >= 0 && (!state.valid || (!state.playing && selected != playlist_.currentRow()))) playSong(selected);
+    else player_.seek(state.info.durationMs > 0 && state.positionMs >= state.info.durationMs ? 0 : state.positionMs, !state.playing);
+}
 void PlayerWindow::refresh() {
     refreshControls(); refreshScopes();
 }
@@ -369,7 +279,7 @@ void PlayerWindow::refreshControls() {
     const bool changed = s.valid && (shownPath_ != s.info.path || shownSong_ != s.info.song);
     if (changed) {
         const bool fileChanged = shownPath_ != s.info.path;
-        shownPath_ = s.info.path; shownSong_ = s.info.song; unknownRangeMs_ = 180000;
+        shownPath_ = s.info.path; shownSong_ = s.info.song; transport_->resetTimelineRange();
         if (fileChanged || channels_->count()!=s.info.voices.size()) rebuildChannels(s);
         player_.setRepeat(playlistRepeat_==PlaylistRepeat::Track);
     }
@@ -382,39 +292,13 @@ void PlayerWindow::refreshControls() {
         subtitle_->setAccessibleName(subtitle);
     }
     if (!s.valid && !s.busy && playlist_.entries.isEmpty()) {title_->setText("Open music");title_->setToolTip({});subtitle_->clear();}
+    transport_->present(s, playlist_, playlistRepeat_);
+    songs_->setEnabled(true);
     const bool ready = s.valid && !s.busy;
-    play_->setEnabled(!s.busy && (ready || !playlist_.entries.isEmpty())); stop_->setEnabled(ready); previous_->setEnabled(!playlist_.entries.isEmpty());
-    next_->setEnabled(playlist_.hasNext(playlistRepeat_==PlaylistRepeat::All)); timeline_->setEnabled(ready); songs_->setEnabled(true);
-    static_cast<IconButton *>(play_)->setSymbol(s.playing && !s.busy ? Symbol::Pause : Symbol::Play);
-    repeat_->setEnabled(true);
-    { QSignalBlocker block(repeat_); repeat_->setChecked(playlistRepeat_!=PlaylistRepeat::Off); }
-    const bool repeatOne=playlistRepeat_==PlaylistRepeat::Track;
-    if(repeat_->property("repeatOne").toBool()!=repeatOne) {repeat_->setProperty("repeatOne",repeatOne);repeat_->update();}
-    { QSignalBlocker block(shuffle_); shuffle_->setChecked(playlist_.shuffle); }
-    shuffle_->setToolTip(playlist_.shuffle?"Shuffle playlist: on":"Shuffle playlist: off");
-    int side = 0;
-    for (auto button : {leftOutput_, rightOutput_}) {
-        const bool audible = (s.outputMask & (1u << side)) != 0;
-        QSignalBlocker block(button); button->setChecked(audible); button->setEnabled(s.valid);
-        button->setToolTip(QString("%1 output: %2\n%3: toggle output")
-            .arg(side ? "Right" : "Left", audible ? "on (click to mute)" : "muted (click to enable)",
-                shortcutLabel(Qt::ControlModifier, side ? Qt::Key_Right : Qt::Key_Left)));
-        ++side;
-    }
-    repeat_->setToolTip(QString("Repeat: %1 (click to change)").arg(playlistRepeat_==PlaylistRepeat::Off?"Off":playlistRepeat_==PlaylistRepeat::Track?"Track":"Playlist")+
-        (s.valid && s.playbackEndMs<0?"\nNo known end: use Next to advance.":""));
-    repeat_->setAccessibleName(repeat_->toolTip());
-    if (!timeline_->isSliderDown()) {
-        if (s.positionMs > unknownRangeMs_ - 30000) unknownRangeMs_ = std::min(3600000, ((s.positionMs / 60000) + 2) * 60000);
-        QSignalBlocker block(timeline_); timeline_->setRange(0, s.playbackEndMs > 0 ? std::min(3600000, s.playbackEndMs) : unknownRangeMs_); timeline_->setValue(s.positionMs); clock_->setText(timeText(s.positionMs));
-    }
-    total_->setText(s.playbackEndMs > 0 ? timeText(s.playbackEndMs) : QString::fromUtf8("—"));
     const bool mt32=midiEngine_->currentData()=="mt32" || (midiEngine_->currentData()=="auto" && ((s.valid && s.info.mt32Resources) || s.error.contains("MT-32")));
     soundFont_->setVisible(!mt32);
     findChild<QToolButton *>("refreshSoundFonts")->setVisible(!mt32);
     findChild<QPushButton *>("soundFontFolder")->setToolTip(mt32?"Open MT-32 ROM folder":"Open SoundFonts folder");
-    total_->setToolTip(s.durationLimited?"Playback limit for a track without duration":(s.info.durationMs<0 && s.playbackEndMs>=0)?"End or loop boundary reported by the decoder":(s.info.midiResources || s.info.mt32Resources) ? "MIDI sequence duration plus 2 seconds for release and effects" : s.info.configuration.family=="tracker" ? "Duration calculated from module patterns" : s.info.durationMs > 0 ? QString::fromUtf8("Duration from file") : QString::fromUtf8("No known end; playback continues until stopped"));
-    timeline_->setToolTip(s.playbackEndMs > 0 ? QString::fromUtf8("Seek") : QString::fromUtf8("Seek: range expands during playback"));
     songs_->presentPlayback(s.valid ? playlist_.current : 0, !s.busy && s.playing);
     for (int i = 0; i < channels_->count(); ++i) {
         auto button = static_cast<ChannelButton *>(channels_->itemAt(i)->widget()); QSignalBlocker block(button);

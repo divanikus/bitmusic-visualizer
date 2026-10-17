@@ -10,6 +10,7 @@
 #include <QMouseEvent>
 #include <QPushButton>
 #include <QSettings>
+#include <QSlider>
 #include <QTemporaryDir>
 #include <QTextStream>
 #include <QToolButton>
@@ -65,6 +66,34 @@ void checkPlaylistView(QTextStream &log) {
                 !view.item(i)->data(PlaylistView::PlayingRole).toBool(),"Clearing playback left a stale playlist marker.");
     require(view.selectedIds()==selected,"Clearing playback changed playlist selection.");
     log<<"Playlist view stable selection, row order and independent playback markers PASS\n";log.flush();
+}
+void checkPlaylistTransport(QApplication &app, PlayerWindow &window, const QString &path, QTextStream &log) {
+    auto &player=window.player();
+    auto list=window.findChild<QListWidget*>("songs");
+    window.loadFile(path);
+    spin(app,[&]{return !player.state().busy && window.playlist().entries.size()==3;},"Transport selection fixture failed.");
+    player.seek(100,false);spin(app,[&]{return !player.state().busy;},"Transport selection pause failed.");
+    list->setCurrentRow(1);window.activateWindow();list->setFocus();app.processEvents();
+    QKeyEvent resume(QEvent::KeyPress,Qt::Key_F7,Qt::NoModifier);QApplication::sendEvent(&window,&resume);
+    spin(app,[&]{return !player.state().busy && player.state().playing;},"F7 resume failed with another row selected.");
+    require(player.state().info.song==0 && list->currentRow()==1 && window.playlist().currentRow()==0,
+            "F7 played the selected row instead of resuming the current entry.");
+    QKeyEvent pause(QEvent::KeyPress,Qt::Key_F8,Qt::NoModifier);QApplication::sendEvent(&window,&pause);
+    spin(app,[&]{return !player.state().busy && !player.state().playing;},"F8 pause failed.");window.refresh();
+    window.findChild<QPushButton*>("primary")->click();
+    spin(app,[&]{return !player.state().busy && player.state().info.song==1 && player.state().playing;},"Play did not start the selected paused entry.");
+    player.seek(100,false);spin(app,[&]{return !player.state().busy;},"Timeline fixture pause failed.");window.refresh();
+    auto timeline=window.findChild<QSlider*>("timeline");timeline->setFocus();app.processEvents();timeline->setValue(500);
+    spin(app,[&]{return !player.state().busy && player.state().positionMs==500;},"Focused timeline seek failed.");
+    require(!player.state().playing && player.state().info.song==1,"Paused timeline seek changed the transport mode or entry.");
+    window.refresh();window.findChild<QPushButton*>("primary")->click();
+    spin(app,[&]{return !player.state().busy && player.state().playing;},"Timeline fixture resume failed.");window.refresh();
+    timeline->setSliderDown(true);timeline->setValue(700);timeline->setSliderDown(false);
+    spin(app,[&]{return !player.state().busy && player.state().positionMs>=700;},"Released timeline seek failed.");
+    require(player.state().playing && player.state().info.song==1,"Playing timeline seek changed the transport mode or entry.");
+    window.refresh();window.findChild<QPushButton*>("stop")->click();
+    spin(app,[&]{return !player.state().busy && !player.state().playing && player.state().positionMs==0;},"Stop after timeline seek failed.");
+    log<<"Selected-entry Play versus current-entry F7/F8, paused/playing timeline seeks and Stop PASS\n";log.flush();
 }
 }
 int runPlaylistChecks(QApplication &app,const QStringList &args) {
@@ -227,6 +256,7 @@ int runPlaylistChecks(QApplication &app,const QStringList &args) {
         spin(app,[&]{return !player.state().busy && player.state().info.path==loop && window.playlist().entries.size()==1;},"Superseding a pending single file failed.");
         require(window.playlist().entries[0].path==loop,"Stale single-file expansion changed the new queue.");
         log<<"Single-file append ordering, superseded loads and navigation over pending replacement PASS\n";log.flush();
+        checkPlaylistTransport(app,window,named,log);
         window.setPlaylistShuffle(true);window.setPlaylistRepeat(PlaylistRepeat::All);window.close();
         {PlayerWindow restored;require(restored.playlist().shuffle,"Shuffle preference was not saved.");require(restored.findChild<QPushButton*>("repeat")->toolTip().contains("Playlist"),"Repeat preference was not saved.");}
         checkPlayerSettings(app,dir,log);
