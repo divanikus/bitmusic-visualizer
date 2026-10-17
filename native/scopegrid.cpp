@@ -1,6 +1,10 @@
 #include "scopegrid.h"
 #include <algorithm>
 
+QSize clampScopeSpan(QSize span, int rows, int columns) {
+    return {std::clamp(span.width(), 1, columns), std::clamp(span.height(), 1, rows)};
+}
+
 ScopeGrid packScopes(int rows, int columns, const QVector<int> &order,
                      const QVector<bool> &hidden, const QVector<QSize> &spans) {
     ScopeGrid result;
@@ -8,7 +12,8 @@ ScopeGrid packScopes(int rows, int columns, const QVector<int> &order,
     QVector<bool> used(rows * columns, false);
     for (int id : order) {
         if (id < 0 || id >= hidden.size() || id >= spans.size() || hidden[id] || result.contains(id)) continue;
-        const int w = std::clamp(spans[id].width(), 1, columns), h = std::clamp(spans[id].height(), 1, rows);
+        const auto span = clampScopeSpan(spans[id], rows, columns);
+        const int w = span.width(), h = span.height();
         bool placed = false;
         for (int y = 0; y <= rows-h && !placed; ++y) for (int x = 0; x <= columns-w; ++x) {
             bool free = true;

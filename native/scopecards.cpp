@@ -13,6 +13,11 @@ QString scopeViewName(ScopeView view) {
 bool ScopeViewSupport::supports(ScopeView view) const {
     return view == ScopeView::PianoRoll ? pianoRoll : view == ScopeView::Pattern ? pattern : true;
 }
+ScopeView ScopeViewSupport::nextView(ScopeView current) const {
+    auto next = ScopeView((int(current) + 1) % ScopeViews.size());
+    while (!supports(next)) next = ScopeView((int(next) + 1) % ScopeViews.size());
+    return next;
+}
 bool scopeViewNeedsPcm(ScopeView view) {
     return view == ScopeView::Waveform || view == ScopeView::Spectrum || view == ScopeView::Keyboard;
 }
@@ -72,8 +77,7 @@ bool ScopeCards::cycleSourceView(int source, ScopeViewSupport support) {
     int first = order_.contains(source) ? source : -1;
     if (first < 0) for (int id : order_) if (cards_[id].source == source) { first = id; break; }
     if (first < 0) return false;
-    auto next = ScopeView((int(cards_[first].kind) + 1) % ScopeViews.size());
-    while (!support.supports(next)) next = ScopeView((int(next) + 1) % ScopeViews.size());
+    const auto next = support.nextView(cards_[first].kind);
     for (int id : order_) if (cards_[id].source == source) cards_[id].kind = next;
     return true;
 }
@@ -100,7 +104,7 @@ ScopeCaptureRequest ScopeCards::captureRequest(const ScopeGrid &displayed) const
     return request;
 }
 void ScopeCards::clampSpans(int rows, int columns) {
-    for (auto &card : cards_) card.span = QSize(std::clamp(card.span.width(), 1, columns), std::clamp(card.span.height(), 1, rows));
+    for (auto &card : cards_) card.span = clampScopeSpan(card.span, rows, columns);
 }
 ScopeGrid ScopeCards::pack(int rows, int columns) const { return pack(rows, columns, order_); }
 ScopeGrid ScopeCards::pack(int rows, int columns, const QVector<int> &order, int resized, QSize span) const {

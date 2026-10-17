@@ -13,6 +13,7 @@ bool scopeViewNeedsPcm(ScopeView view);
 struct ScopeViewSupport {
     bool pianoRoll = false, pattern = false;
     bool supports(ScopeView view) const;
+    ScopeView nextView(ScopeView current) const;
 };
 
 struct ScopeCard {

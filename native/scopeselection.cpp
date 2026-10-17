@@ -102,16 +102,15 @@ bool ScopeWindow::handleCardShortcut(QKeyEvent *event, QWidget *target) {
     if (resize) {
         auto span = cards_[id].span;
         if (key == Qt::Key_Left || key == Qt::Key_Right)
-            span.setWidth(std::clamp(span.width()+(key == Qt::Key_Right ? 1 : -1), 1, columns_->value()));
-        else span.setHeight(std::clamp(span.height()+(key == Qt::Key_Down ? 1 : -1), 1, rows_->value()));
+            span.rwidth() += key == Qt::Key_Right ? 1 : -1;
+        else span.rheight() += key == Qt::Key_Down ? 1 : -1;
+        span = clampScopeSpan(span, rows_->value(), columns_->value());
         if (span == cards_[id].span) return true;
         // Like mouse resizing, do not push the selected visible card out of the grid.
         // Hidden/overflow cards can still be resized from the list, including recovery.
         if (gridLayout_.contains(id) && !cards_.pack(rows_->value(), columns_->value(), cards_.order(), id, span).contains(id))
             return true;
-        const auto from = panelPositions();
-        cards_[id].span = span; automaticGrid_ = false;
-        layoutChanged(); animateLayout(from);
+        applyCardSize(id, span);
         return true;
     }
     const int source = sourceFor(id);
@@ -125,9 +124,7 @@ bool ScopeWindow::handleCardShortcut(QKeyEvent *event, QWidget *target) {
     } else {
         auto &card = cards_[id];
         if (key == Qt::Key_V) {
-            auto next = ViewKind((int(card.kind)+1) % ScopeViews.size());
-            while (!viewSupported(next)) next = ViewKind((int(next)+1) % ScopeViews.size());
-            card.kind = next;
+            card.kind = ScopeViewSupport{bool(state_.info.noteRoll), bool(state_.info.patterns)}.nextView(card.kind);
         } else if (key == Qt::Key_L) card.levels = !card.levels;
         else if (key == Qt::Key_H) cards_.setHidden(id, !card.hidden);
         layoutChanged(); updateViewEditor();

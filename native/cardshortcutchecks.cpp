@@ -93,6 +93,11 @@ void checkSelectedCardShortcuts(QApplication &app, const QString &directory, QTe
     require(view->currentData().toInt()==0,"A card changed without an explicit selection.");
     key(scope,Qt::Key_Right,Qt::ShiftModifier); require(hasSpan(0,1,1),"Resize selected an implicit card.");
     click(15); const auto generation=player.state().generation;
+    QKeyEvent claim(QEvent::ShortcutOverride,Qt::Key_V,Qt::NoModifier);
+    claim.setAccepted(false); QApplication::sendEvent(&scope,&claim);
+    require(claim.isAccepted() && view->currentData().toInt()==0,"Shortcut override executed a card action or failed to claim it.");
+    key(scope,Qt::Key_V,Qt::ShiftModifier); key(scope,Qt::Key_V,Qt::ControlModifier);
+    require(view->currentData().toInt()==0,"Modified V was treated as a plain card shortcut.");
     key(scope,Qt::Key_V); require(view->currentData().toInt()==1,"Channel 16 could not cycle its view.");
     key(scope,Qt::Key_V,{},true); require(view->currentData().toInt()==1,"Held view key cycled repeatedly.");
     key(scope,Qt::Key_L); require(levels->isChecked(),"Per-card Levels shortcut failed.");

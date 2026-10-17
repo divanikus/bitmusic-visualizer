@@ -90,6 +90,12 @@ void ScopeWindow::animateLayout(const QHash<int, QRectF> &from) {
     for (int channel : displayedChannels()) animationTo_.insert(channel, cellsRect(displayLayout().value(channel)));
     motionClock_.start(); motion_->start();
 }
+void ScopeWindow::applyCardSize(int id, QSize span) {
+    const auto from = panelPositions();
+    if (cards_[id].span != span) automaticGrid_ = false;
+    cards_[id].span = span;
+    layoutChanged(); animateLayout(from);
+}
 void ScopeWindow::cancelDrag() {
     pressedSolo_ = -1; soloMoved_ = false;
     motion_->stop(); animationFrom_.clear(); animationTo_.clear();
@@ -105,8 +111,9 @@ void ScopeWindow::previewGesture(const QPointF &point) {
         const qreal pitchX = columns_->value() > 1 ? cardRect(1).left()-first.left() : first.width()+10;
         const qreal pitchY = rows_->value() > 1 ? cardRect(columns_->value()).top()-first.top() : first.height()+10;
         const auto delta = point-dragStart_;
-        const QSize span(std::clamp(originalSpan_.width()+(resizeEdges_&1 ? qRound(delta.x()/pitchX) : 0), 1, columns_->value()),
-                         std::clamp(originalSpan_.height()+(resizeEdges_&2 ? qRound(delta.y()/pitchY) : 0), 1, rows_->value()));
+        const auto span = clampScopeSpan(originalSpan_ + QSize(resizeEdges_&1 ? qRound(delta.x()/pitchX) : 0,
+                                                              resizeEdges_&2 ? qRound(delta.y()/pitchY) : 0),
+                                         rows_->value(), columns_->value());
         if (span == resizeSpan_) return;
         resizeSpan_ = span;
         previewLayout_ = cards_.pack(rows_->value(), columns_->value(), cards_.order(), resizeChannel_, span);
@@ -231,12 +238,10 @@ void ScopeWindow::mouseReleaseEvent(QMouseEvent *event) {
     }
     if (event->button() == Qt::LeftButton && resizeChannel_ >= 0) {
         previewGesture(event->position());
-        const auto from = panelPositions();
-        if (previewValid_ && cellsRect(QRect(0, 0, columns_->value(), rows_->value())).contains(event->position())) {
-            if (cards_[resizeChannel_].span != resizeSpan_) automaticGrid_ = false;
-            cards_[resizeChannel_].span = resizeSpan_;
-        }
-        layoutChanged(); animateLayout(from); event->accept(); return;
+        const bool commit = previewValid_ && cellsRect(QRect(0, 0, columns_->value(), rows_->value())).contains(event->position());
+        // Releasing an invalid/outside preview still cancels the gesture and settles the layout.
+        applyCardSize(resizeChannel_, commit ? resizeSpan_ : cards_[resizeChannel_].span);
+        event->accept(); return;
     }
     if (event->button() == Qt::LeftButton && pressedColor_ >= 0) {
         const int channel = pressedColor_;

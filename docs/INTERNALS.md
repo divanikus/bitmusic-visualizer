@@ -299,6 +299,15 @@ mute/Solo use callbacks into the player, while view/visibility/Levels update onl
 one card. Selection changes refresh chrome without invalidating the GPU trace
 history key or touching audio/capture. Reset, presets and new files clear selection.
 
+`ScopeViewSupport::nextView` supplies the same supported-view cycle for one card
+and all copies of a numbered source. `clampScopeSpan` bounds sizes in grid cells
+for packing, committed cards, mouse previews and keyboard proposals.
+`ScopeWindow::applyCardSize` commits a size through the existing layout/capture/
+preset and animation paths. Mouse previews remain uncommitted; a rejected or
+outside release settles back to the committed size. Keyboard resizing ignores
+unchanged sizes and growth that would displace the selected visible card, while
+hidden/overflow cards remain adjustable through the list.
+
 Preset card conversion belongs to `ScopeCards`; `ScopePreset` retains the
 versioned INI format, validation and hardware compatibility/adaptation. The window
 coordinates grid/label controls, explicit saves and default assignments. Themes,

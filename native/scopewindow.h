@@ -159,6 +159,7 @@ private:
     QRectF gestureTarget() const;
     QHash<int, QRectF> panelPositions() const;
     void animateLayout(const QHash<int, QRectF> &from);
+    void applyCardSize(int id, QSize span);
     void cancelDrag();
     void editColors(int channel = -1);
     void editWindowBackground();
