@@ -75,6 +75,10 @@ sample-cache identity includes its content hash to prevent stale samples.
   explicit output ports are rejected.
 - Split SysEx packets are joined at their completion time; unsupported system
   escape events and malformed tracks are reported, not repaired.
+- SMF format 2 stores independent patterns, rather than simultaneous parts.
+  These are not silently merged as format 1, including when a file puts tempo
+  in one pattern and notes in another. A `.mid` extension alone does not identify
+  a Standard MIDI file; unrelated data with that extension remains unsupported.
 - GM-compatible arrangements are the target. FluidSynth handles its supported
   SysEx subset; full Roland GS/Yamaha XG device behavior is not promised.
   Auto routes recognized MT-32 SysEx to Munt. Explicit General MIDI rejects it

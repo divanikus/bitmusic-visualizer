@@ -8,6 +8,13 @@ not published GitHub releases. Unreleased lists changes made after the latest ta
 
 ## Unreleased
 
+## [0.10.1](https://github.com/divanikus/bitmusic-visualizer/releases/tag/v0.10.1) — 2026-10-17
+
+### Changed
+
+- Reorganized player, visualization and decoder internals for easier maintenance,
+  preserving controls, settings, themes and presets.
+
 ### Fixed
 
 - Full mix now clears when a track is unloaded immediately after playback starts.
