@@ -5,6 +5,8 @@
 #include <QtEndian>
 #include <stdexcept>
 
+void checkVgm(QApplication &app, const QString &directory, QTextStream &log);
+
 namespace {
 void require(bool ok, const char *message) { if (!ok) throw std::runtime_error(message); }
 QStringList voices(int count) {
@@ -42,7 +44,8 @@ void expect(const char *label, const QByteArray &data, const QStringList &voiceN
 }
 }
 
-void checkSoundConfigurations(QApplication &, const QString &, QTextStream &log) {
+void checkSoundConfigurations(QApplication &app, const QString &directory, QTextStream &log) {
+    checkVgm(app, directory, log);
     // Fixed identities/roles were checked against the implementation before refactoring.
     expect("Base NSF", nsf(0), voices(5), "nes", "NES APU",
            "nes.apu:0|nes.apu:1|nes.apu:2|nes.apu:3|nes.apu:4",

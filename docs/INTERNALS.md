@@ -1,5 +1,13 @@
 # Native code responsibilities
 
+`vgm.cpp` inspects header bounds, chip clocks, chip combinations and Yamaha extra
+tables in named phases, in their existing order. One private little-endian word
+reader serves these phases. Version/field bounds, unsupported-list order and
+exact malformed-header errors are compatibility boundaries; inspection still
+reports unsupported chips separately from `requireSupportedVgm` throwing.
+Extra clock/volume tables are inspected only when Yamaha is declared, keeping
+relative offsets, instance selection and ordered volume updates unchanged.
+
 `soundconfig.cpp` derives preset identities and ordered hardware roles. Concrete
 NES, Sega and Yamaha builders keep format rules separate from the shared source
 numbering and identity/opaque-layout finalization. `soundConfiguration` parses

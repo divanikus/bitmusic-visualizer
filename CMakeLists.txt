@@ -140,6 +140,7 @@ if(BITMUSIC_BUILD_TESTS)
     native/musicviewchecks.cpp
     native/presetchecks.cpp
     native/soundconfigchecks.cpp
+    native/vgmchecks.cpp
     native/playlistchecks.cpp
     native/preferenceschecks.cpp
   )

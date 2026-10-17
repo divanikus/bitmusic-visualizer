@@ -154,6 +154,11 @@ malformed-header errors. Standalone and reused-header VGM paths must match the
 same expectations. These pure checks also run in preset/full suites;
 they do not open audio or use user presets/settings.
 
+`--self-test test-output --vgm-only` checks clock version/header bounds, chip
+descriptions and variants, unsupported-name/error ordering, extra-header clock/
+volume rules and fixed Yamaha native-index/role/display-label snapshots. It also
+runs in configuration/preset/full suites and uses authored header bytes only.
+
 `--self-test test-output --layout-only` checks card spans and editor tab navigation,
 selection/capture retention, adaptive card-list/help sizing, bounded sidebar/toolbar
 geometry and reachable card controls at normal and minimum sizes. It saves screenshots

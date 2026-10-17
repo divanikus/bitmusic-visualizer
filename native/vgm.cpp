@@ -3,18 +3,22 @@
 #include <algorithm>
 #include <stdexcept>
 
-VgmHeader inspectVgm(const QByteArray &data) {
+namespace {
+quint32 word(const QByteArray &data, int at) { return qFromLittleEndian<quint32>(data.constData() + at); }
+VgmHeader readHeaderBounds(const QByteArray &data) {
     if (data.size() < 0x40 || !data.startsWith("Vgm ")) throw std::runtime_error("Invalid VGM header.");
-    auto word = [&](int at) { return qFromLittleEndian<quint32>(data.constData() + at); };
-    VgmHeader h; h.version = word(8);
-    h.dataOffset = h.version >= 0x150 && word(0x34) ? 0x34ULL + word(0x34) : 0x40;
+    VgmHeader h; h.version = word(data, 8);
+    h.dataOffset = h.version >= 0x150 && word(data, 0x34) ? 0x34ULL + word(data, 0x34) : 0x40;
     if (h.dataOffset < 0x40 || h.dataOffset > data.size()) throw std::runtime_error("Invalid VGM data offset.");
     h.headerEnd = h.dataOffset;
-    if (h.version >= 0x170 && h.headerEnd >= 0xc0 && word(0xbc)) {
-        const quint64 extra = 0xbcULL + word(0xbc);
+    if (h.version >= 0x170 && h.headerEnd >= 0xc0 && word(data, 0xbc)) {
+        const quint64 extra = 0xbcULL + word(data, 0xbc);
         if (extra < 0xc0 || extra >= quint64(h.dataOffset)) throw std::runtime_error("Invalid VGM extra header.");
         h.headerEnd = qsizetype(extra);
     }
+    return h;
+}
+void readChipClocks(const QByteArray &data, VgmHeader &h) {
     struct Chip { int offset; quint32 version; const char *name; };
     static constexpr Chip chips[] = {
         {0x0c,0x100,"SN76489"}, {0x10,0x100,"YM2413"}, {0x2c,0x110,"YM2612"},
@@ -33,11 +37,11 @@ VgmHeader inspectVgm(const QByteArray &data) {
         {0xdc,0x171,"C352"}, {0xe0,0x171,"GA20"}
     };
     for (const auto &chip : chips) {
-        if (h.version < chip.version || chip.offset+4 > h.headerEnd || !word(chip.offset)) continue;
+        if (h.version < chip.version || chip.offset+4 > h.headerEnd || !word(data, chip.offset)) continue;
         const int id = chip.offset == 0x30 ? 3 : chip.offset >= 0x44 && chip.offset <= 0x5c ?
             6 + (chip.offset-0x44)/4 : -1;
         if (id >= 0) {
-            const auto raw = word(chip.offset), clock = raw & 0x3fffffffu;
+            const auto raw = word(data, chip.offset), clock = raw & 0x3fffffffu;
             const bool dual = raw & 0x40000000u, variant = raw & 0x80000000u;
             if (clock < 100000 || clock > 20000000 || (variant && !(id == 9 && dual) && id != 8))
                 h.unsupported << QString::fromLatin1(chip.name) + " clock/variant";
@@ -45,25 +49,29 @@ VgmHeader inspectVgm(const QByteArray &data) {
                 h.yamaha.push_back({id, n, clock, id == 8 && variant ? QString("YM2610B") : QString::fromLatin1(chip.name),
                                    id == 3 || id == 7 || id == 8 || id == 12 || variant,
                                    id == 9 && variant ? (n ? 1 : -1) : 0, 1, 1, id == 8 && variant});
-        } else if (chip.offset == 0xb0) h.pokeyClock = word(chip.offset);
+        } else if (chip.offset == 0xb0) h.pokeyClock = word(data, chip.offset);
         else if (chip.offset == 0x0c || chip.offset == 0x10 || chip.offset == 0x2c) h.sega = true;
         else h.unsupported << QString::fromLatin1(chip.name);
     }
+}
+void checkChipCombinations(const QByteArray &data, VgmHeader &h) {
     if (h.pokeyClock & 0xc0000000u) h.unsupported << "dual/variant POKEY";
     if (h.pokeyClock && h.sega) h.unsupported << "POKEY combined with other chips";
     if (!h.yamaha.isEmpty() && (h.sega || h.pokeyClock)) h.unsupported << "Yamaha combined with Sega/POKEY chips";
-    if (word(0x10) && word(0x2c) && h.version >= 0x110) h.unsupported << "YM2413 + YM2612 together";
+    if (word(data, 0x10) && word(data, 0x2c) && h.version >= 0x110) h.unsupported << "YM2413 + YM2612 together";
+}
+void readYamahaExtraHeader(const QByteArray &data, VgmHeader &h) {
     // Extended clocks and volumes are relative to their own offset fields.
     if (!h.yamaha.isEmpty() && h.headerEnd < h.dataOffset) {
         const auto at = h.headerEnd;
         auto valid = [&](bool ok) { if (!ok) throw std::runtime_error("Invalid VGM chip clock/volume header."); };
         valid(at + 4 <= h.dataOffset);
-        const auto size = word(int(at));
+        const auto size = word(data, int(at));
         valid(size >= 4 && size <= quint64(h.dataOffset-at));
         for (int kind = 0; kind < 2; ++kind) {
             const int field = 4 + 4*kind;
-            if (size < quint32(field+4) || !word(int(at+field))) continue;
-            const quint64 table = quint64(at+field)+word(int(at+field));
+            if (size < quint32(field+4) || !word(data, int(at+field))) continue;
+            const quint64 table = quint64(at+field)+word(data, int(at+field));
             valid(table >= quint64(at)+size && table < quint64(h.dataOffset));
             const int count = quint8(data[qsizetype(table)]), stride = kind ? 4 : 5;
             valid(table+1+count*stride <= quint64(h.dataOffset));
@@ -76,7 +84,7 @@ VgmHeader inspectVgm(const QByteArray &data) {
                 });
                 valid(found != h.yamaha.end());
                 if (!kind) {
-                    found->clock = word(int(p+1)); valid(found->clock >= 100000 && found->clock <= 20000000);
+                    found->clock = word(data, int(p+1)); valid(found->clock >= 100000 && found->clock <= 20000000);
                 } else {
                     valid(!(quint8(data[p+1]) & ~1) && (!(id & 0x80) || (found->id >= 6 && found->id <= 8)));
                     const auto volume = qFromLittleEndian<quint16>(data.constData()+p+2);
@@ -86,6 +94,14 @@ VgmHeader inspectVgm(const QByteArray &data) {
             }
         }
     }
+}
+}
+
+VgmHeader inspectVgm(const QByteArray &data) {
+    auto h = readHeaderBounds(data);
+    readChipClocks(data, h);
+    checkChipCombinations(data, h);
+    readYamahaExtraHeader(data, h);
     return h;
 }
 void requireSupportedVgm(const VgmHeader &h) {
