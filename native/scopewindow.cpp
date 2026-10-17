@@ -5,7 +5,6 @@
 #include "appsettings.h"
 #include "renderersettings.h"
 #include "spectrum.h"
-#include <QApplication>
 #include <QCheckBox>
 #include <QCloseEvent>
 #include <QDialog>
@@ -16,7 +15,6 @@
 #include <QGridLayout>
 #include <QLabel>
 #include <QListWidget>
-#include <QMouseEvent>
 #include <QMessageBox>
 #include <QSettings>
 #include <QPainter>

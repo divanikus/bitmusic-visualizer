@@ -1,7 +1,6 @@
 #include "scopewindow.h"
 #include "appsettings.h"
 #include "palette.h"
-#include <QCheckBox>
 #include <QComboBox>
 #include <QDialog>
 #include <QDialogButtonBox>

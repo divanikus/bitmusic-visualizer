@@ -1,7 +1,12 @@
 #pragma once
-#include "engine.h"
 #include <QSet>
+#include <QStringList>
+#include <QThread>
+#include <QVector>
+#include <atomic>
+#include <condition_variable>
 #include <deque>
+#include <mutex>
 
 struct PlaylistEntry {
     quint64 id = 0;

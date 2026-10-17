@@ -10,12 +10,14 @@
 #include <algorithm>
 #include <atomic>
 #include <condition_variable>
+#include <cstddef>
+#include <cstdint>
 #include <functional>
 #include <memory>
 #include <mutex>
 #include <optional>
-#include <gme.h>
 #include "scopepacing.h"
+struct Music_Emu;
 struct BmTaps;
 struct BmNotes;
 class OutputHistory;
@@ -37,7 +39,6 @@ class PcmRing {
 public:
     static constexpr size_t Capacity = 32768;
     size_t size() const;
-    size_t free() const { return Capacity - size(); }
     bool push(const short *source, size_t samples);
     size_t pop(short *destination, size_t samples);
     void reset();

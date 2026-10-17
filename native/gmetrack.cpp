@@ -3,6 +3,7 @@
 #include "gmevgm.h"
 #include "gme-taps/taps.h"
 #include "gme-taps/notes.h"
+#include <gme.h>
 #include <QtEndian>
 #include <QFileInfo>
 #include <limits>

@@ -149,6 +149,11 @@ because the player owns that window; scope code has no dependency on the player
 or playlist UI. `timeline.h` contains the transport slider and time label helper.
 Implementation files include the header they use, without an umbrella window header.
 
+`engine.h` forward-declares the libgme handle; only the GME implementation and
+tap integrations include its C API. `playlist.h` declares its Qt/thread/container
+dependencies directly. The metadata reader in `playlist.cpp` depends on the
+decoder factory; queue and playlist-view declarations do not.
+
 `PlaylistView` owns playlist painting, source-group hit regions, selection, drag
 and drop, and row presentation. Named data roles retain their existing numeric
 values. Rebuilds preserve selection by entry ID; the playing entry is independent

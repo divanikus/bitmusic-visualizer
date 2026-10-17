@@ -1,4 +1,5 @@
 #include "playlist.h"
+#include "engine.h"
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
