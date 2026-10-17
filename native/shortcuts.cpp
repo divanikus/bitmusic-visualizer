@@ -86,9 +86,9 @@ void PlayerWindow::showShortcutsHelp() {
       <tr><td><b>F11 / Esc</b></td><td>Toggle full-screen visualizer / leave full screen</td></tr>
       </table>
       <h3>Playlist (main player)</h3>
-      <p>%8 opens music or a playlist. %9 or + adds files.
-      Drag rows to reorder; Ctrl/Shift selects several. Delete or − removes
-      selected rows. Use ⋯ below Tracks to create, open or save a playlist.</p>
+      <p>%8 opens music or a playlist. %9 or the Add icon adds files.
+      Drag rows to reorder; Ctrl/Shift selects several. Delete or the Remove icon removes
+      selected rows. Use Playlist actions below Tracks to create, open or save a playlist.</p>
       <p>Repeat cycles through Off, Track (1), and Playlist. Shuffle visits
       tracks in random order; Previous follows listening history.
       Settings (gear) offers an optional limit for tracks with no known end.

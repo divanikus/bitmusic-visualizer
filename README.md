@@ -33,8 +33,8 @@ use `--appimage-extract-and-run` if FUSE is unavailable. macOS builds are not
 notarized. See [platform requirements](docs/BUILDING.md).
 
 1. Open music with **Ctrl+O** or drag it onto the player.
-2. **Tracks** is the playlist, including subsongs inside each file. Use **+ / −**
-   to add/remove, drag to reorder and **⋯** to open/save M3U8.
+2. **Tracks** is the playlist, including subsongs inside each file. Use the **Add / Remove** icons
+   below the list, drag to reorder and the **Playlist actions** icon to open/save M3U8.
    **Channels** controls sound;
    **Shift-click** a visualization card or channel button to Solo it, and again
    to restore previous mutes.
@@ -73,7 +73,7 @@ within one file play together as one song. [Format details and limits](#document
 
 ## Settings
 
-The gear in the player title bar opens a separate window with three tabs:
+The gear beside Open and Visualizations opens a separate window with three tabs:
 
 | Tab | Options |
 | --- | --- |

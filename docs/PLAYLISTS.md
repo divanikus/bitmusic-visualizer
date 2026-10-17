@@ -5,11 +5,11 @@
 | Action | Control |
 | --- | --- |
 | Open music / replace the queue | Folder button or Ctrl+O; select one or more files |
-| Add files / playlists | **+**, Ctrl+Shift+O, or drop files onto the player |
+| Add files / playlists | **Add** icon (list with a plus), Ctrl+Shift+O, or drop files onto the player |
 | Play a track | Double-click or Enter |
 | Reorder | Drag selected rows; Ctrl/Shift selects several |
-| Remove from the list | **−** or Delete; music files are never deleted |
-| New / open / save playlist | **⋯** below the list |
+| Remove from the list | **Remove** icon (list with a minus) or Delete; music files are never deleted |
+| New / open / save playlist | **Playlist actions** icon (list with a dropdown arrow) below the list |
 | Repeat | Click the repeat button: Off → Track (1) → Playlist → Off |
 | Random order | Toggle Shuffle beside Repeat |
 

@@ -26,6 +26,36 @@
 namespace {
 constexpr int HeaderRole=Qt::UserRole+3, IdRole=Qt::UserRole+4, SourceRole=Qt::UserRole+7;
 constexpr int HeaderHeight=23, TrackHeight=30;
+enum class PlaylistSymbol { Add, Remove, Menu };
+class PlaylistButton final : public QToolButton {
+public:
+    PlaylistButton(PlaylistSymbol symbol,const char *name,const QString &tip) : symbol_(symbol) {
+        setObjectName(name);setToolTip(tip);setAccessibleName(tip);
+        setFixedSize(32,30);setCursor(Qt::PointingHandCursor);
+    }
+protected:
+    void paintEvent(QPaintEvent *) override {
+        QPainter p(this);p.setRenderHint(QPainter::Antialiasing);
+        QColor fill(isEnabled()?"#202a30":"#20282d");
+        if(underMouse() && isEnabled())fill=fill.lighter(118);
+        if(isDown())fill=fill.darker(115);
+        p.setPen(hasFocus()?QPen(QColor("#93d9cb"),1):QPen(Qt::NoPen));p.setBrush(fill);
+        p.drawRoundedRect(QRectF(rect()).adjusted(.5,.5,-.5,-.5),6,6);
+        p.translate((width()-20)/2.0,(height()-20)/2.0);
+        p.setPen(QPen(QColor(isEnabled()?"#dbe5e5":"#647078"),1.7,Qt::SolidLine,Qt::RoundCap,Qt::RoundJoin));
+        p.drawLine(QPointF(2,4),QPointF(13,4));
+        p.drawLine(QPointF(2,9),QPointF(10,9));
+        p.drawLine(QPointF(2,14),QPointF(7,14));
+        if(symbol_==PlaylistSymbol::Menu) p.drawPolyline(QPolygonF{{12,12},{15,15},{18,12}});
+        else {
+            p.drawLine(QPointF(12,14),QPointF(18,14));
+            if(symbol_==PlaylistSymbol::Add)p.drawLine(QPointF(15,11),QPointF(15,17));
+        }
+    }
+private:
+    PlaylistSymbol symbol_;
+};
+
 int groupEnd(const QListWidget &list,int first) {
     const auto source=list.item(first)->data(SourceRole).toString();
     int end=first+1;
@@ -155,12 +185,12 @@ void PlayerWindow::setupPlaylistUi() {
     list->onDelete=[this]{removePlaylistSelection();};
     layout->addWidget(songs_,1);
     auto actions=new QHBoxLayout;actions->setContentsMargins(2,0,2,0);actions->setSpacing(4);
-    auto button=[&](const QString &text,const char *name,const QString &tip) {
-        auto b=new QToolButton;b->setText(text);b->setObjectName(name);b->setToolTip(tip);b->setAccessibleName(tip);b->setFixedSize(28,26);actions->addWidget(b);return b;
+    auto button=[&](PlaylistSymbol symbol,const char *name,const QString &tip) {
+        auto b=new PlaylistButton(symbol,name,tip);actions->addWidget(b);return b;
     };
-    auto add=button("+","addTracks","Add music files to playlist");
-    auto remove=button(QString::fromUtf8("−"),"removeTracks","Remove selected tracks (Delete)");
-    auto more=button(QString::fromUtf8("⋯"),"playlistMenu","Playlist actions");
+    auto add=button(PlaylistSymbol::Add,"addTracks","Add music files to playlist (Ctrl+Shift+O)");
+    auto remove=button(PlaylistSymbol::Remove,"removeTracks","Remove selected tracks (Delete)");
+    auto more=button(PlaylistSymbol::Menu,"playlistMenu","Playlist actions");
     more->setStyleSheet("QToolButton::menu-indicator { image: none; }");
     auto menu=new QMenu(more); more->setMenu(menu);more->setPopupMode(QToolButton::InstantPopup);
     menu->addAction("New playlist",this,[this]{clearPlaylist();});

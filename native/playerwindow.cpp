@@ -163,7 +163,7 @@ PlayerWindow::PlayerWindow() {
     auto root = new QVBoxLayout(this); root->setContentsMargins(14, 6, 14, 12); root->setSpacing(6);
     auto titleBar = new TitleBar(this); titleBar->setTitle(QApplication::applicationName()); root->addWidget(titleBar);
     setupShortcutsHelp(titleBar);
-    auto settingsButton=new IconButton(Symbol::Settings,"playerSettingsButton","Settings");settingsButton->setFixedSize(28,28);titleBar->addAction(settingsButton);
+    auto settingsButton=new IconButton(Symbol::Settings,"playerSettingsButton","Settings");
     connect(settingsButton,&QPushButton::clicked,this,[this] {showSettings();});
     auto header = new QHBoxLayout; header->setSpacing(8);
     auto text = new QVBoxLayout; text->setSpacing(2);
@@ -173,7 +173,7 @@ PlayerWindow::PlayerWindow() {
     text->addWidget(title_); text->addWidget(subtitle_); header->addLayout(text, 1);
     auto open = new IconButton(Symbol::Open, "open", QString::fromUtf8("Open music or playlist (Ctrl+O)"));
     showScopes_ = new IconButton(Symbol::Scopes, "showScopes", QString::fromUtf8("Visualizations")); showScopes_->setCheckable(true);
-    header->addWidget(open); header->addWidget(showScopes_); root->addLayout(header);
+    header->addWidget(open); header->addWidget(showScopes_); header->addWidget(settingsButton); root->addLayout(header);
     timeline_ = new Timeline; timeline_->setObjectName("timeline"); timeline_->setRange(0, unknownRangeMs_); root->addWidget(timeline_);
     auto times = new QHBoxLayout;
     clock_ = new QLabel("00:00"); clock_->setObjectName("clock"); total_ = new QLabel(QString::fromUtf8("—")); total_->setObjectName("muted"); times->addWidget(clock_); times->addStretch();
