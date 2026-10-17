@@ -27,6 +27,18 @@ all tasks finish before request-local references or worker storage are destroyed
 Audio decoders and the real-time callback remain independent. Public capture
 controls, revision/state storage and published snapshots stay in `NativePlayer`.
 
+Each scope iteration keeps one immutable request containing revision, FPS,
+mask, player state and pacing start time. Named phases synchronize source identity,
+advance shared taps or ready fallback voices, join a bounded preparation batch,
+build a snapshot and publish after rechecking cancellation under the scope mutex.
+Both paths share frame dimensions, the capture factory and pacing wait; fallback
+pitch rows retain their `{-1}` default, shared rows start empty, and fallback
+instruments stay empty. FPS only reschedules waits. Preparing voices skip pacing
+between batches, and ready histories keep the existing half-second lag rule.
+Error publication keeps its separate generation/revision guard and cache reset;
+it never changes primary audio state. A preparation failure is rethrown only
+after all scheduled tasks have released the batch semaphore.
+
 The UI headers follow ownership: `playerwindow.h` includes `scopewindow.h`
 because the player owns that window; scope code has no dependency on the player
 or playlist UI. `timeline.h` contains the transport slider and time label helper.

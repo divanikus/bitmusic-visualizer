@@ -39,6 +39,7 @@ void checkPreparation(QApplication &app, const QString &path, bool shared) {
     until(app, [&] { return ready(player, 1, 250); }, "Single scope did not prepare.");
     require(player.state().sharedScopes == shared, "Scope fixture used an unexpected capture path.");
     const auto first = player.scopes();
+    const QVector<float> frozen(first.channels[0].cbegin(), first.channels[0].cend());
     require(first.channels.size() == player.state().info.voices.size() && first.left[0].size() == ScopeFrames &&
             first.right[0].size() == ScopeFrames, "Scope snapshot shape changed.");
     for (int i = 1; i < first.channels.size(); ++i) {
@@ -74,6 +75,7 @@ void checkPreparation(QApplication &app, const QString &path, bool shared) {
     until(app, [&] { return ready(player, 1, 250); }, "Newest paused snapshot did not replace cancelled work.");
     pump(app, 100);
     const auto frame = player.scopes();
+    require(first.channels[0] == frozen, "Worker mutated an already published snapshot.");
     require(!player.state().playing && frame.mask == VoiceMask(1) && frame.positionMs == 250 &&
             frame.generation == player.state().generation, "Cancelled preparation published stale data.");
     for (int i = 1; i < frame.channels.size(); ++i)

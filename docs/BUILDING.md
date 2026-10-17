@@ -80,8 +80,8 @@ recovery, paused/clamped positions, long seeks superseded by a seek, failed load
 or unload, and shutdown cancellation with silent audio and isolated settings.
 `--scope-worker-only` focuses on fallback NSF and shared SPC capture: paused
 history retention across mask/FPS edits, empty-mask suspension, seek/revision
-cancellation, snapshot shape and scope-only decoder/task error recovery. These
-checks also run in the transport and full suites. Error probes remove/restore
+cancellation, snapshot shape/immutability and scope-only decoder/task error
+recovery. These checks also run in the transport and full suites. Error probes remove/restore
 only private copies of authored fixtures while the audio decoder remains loaded.
 
 For a focused frame-rate check after generating fixtures, run
