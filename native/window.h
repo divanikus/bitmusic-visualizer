@@ -288,8 +288,7 @@ private:
     void rebuildChannels(const PlayerState &state);
     void setScopesVisible(bool visible);
     void playSong(int song);
-    void setupShortcutsHelp(TitleBar *bar);
-    void showShortcutsHelp();
+    void setupShortcuts();
     void refreshSoundFonts();
     void setupPlaylistUi();
     void pollPlaylist();

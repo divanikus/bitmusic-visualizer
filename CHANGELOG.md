@@ -29,6 +29,7 @@ not published GitHub releases. Unreleased lists changes made after the latest ta
 
 ### Changed
 
+- Shortcut help is now in the visualizer title bar, with a shorter playlist reference.
 - Smaller player executable: automated checks now run in a separate developer tool.
 - The visualization editor now groups settings into Cards, Layout and Display.
   The card list uses the available height; FPS and Renderer are in Settings → Rendering.

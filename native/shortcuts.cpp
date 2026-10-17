@@ -41,9 +41,13 @@ bool editing(QWidget *widget) {
 }
 }
 
-void PlayerWindow::setupShortcutsHelp(TitleBar *bar) {
-    auto button = new ShortcutsButton; bar->addAction(button);
-    connect(button, &QPushButton::clicked, this, [this] { showShortcutsHelp(); });
+QPushButton *createShortcutsHelpButton(QWidget *owner) {
+    auto button = new ShortcutsButton;
+    QObject::connect(button, &QPushButton::clicked, owner, [owner] { showShortcutsHelp(owner); });
+    return button;
+}
+
+void PlayerWindow::setupShortcuts() {
     // Qt resolves shifted number-row keys through the current keyboard layout.
     // Raw key() can instead contain '!' / '@' / other national-layout symbols.
     for (QWidget *owner : {static_cast<QWidget *>(this), static_cast<QWidget *>(&scopes_)}) {
@@ -59,8 +63,8 @@ void PlayerWindow::setupShortcutsHelp(TitleBar *bar) {
         }
     }
 }
-void PlayerWindow::showShortcutsHelp() {
-    QDialog dialog(this); dialog.setWindowTitle("Keyboard shortcuts"); dialog.setObjectName("shortcutsDialog");
+void showShortcutsHelp(QWidget *owner) {
+    QDialog dialog(owner); dialog.setWindowTitle("Keyboard shortcuts"); dialog.setObjectName("shortcutsDialog");
     auto layout = new QVBoxLayout(&dialog);
     auto text = new QTextBrowser; text->setObjectName("shortcutsGuide");
     text->setStyleSheet("QTextBrowser { background: #1b252b; color: #dce5e8; border: none; padding: 8px; }");
@@ -85,14 +89,6 @@ void PlayerWindow::showShortcutsHelp() {
       <tr><td><b>F1</b></td><td>This guide</td></tr>
       <tr><td><b>F11 / Esc</b></td><td>Toggle full-screen visualizer / leave full screen</td></tr>
       </table>
-      <h3>Playlist (main player)</h3>
-      <p>%8 opens music or a playlist. %9 or the Add icon adds files.
-      Drag rows to reorder; Ctrl/Shift selects several. Delete or the Remove icon removes
-      selected rows. Use Playlist actions below Tracks to create, open or save a playlist.</p>
-      <p>Repeat cycles through Off, Track (1), and Playlist. Shuffle visits
-      tracks in random order; Previous follows listening history.
-      Settings (gear) offers an optional limit for tracks with no known end.
-      Without a limit they continue until you press Next.</p>
       <p>Works in either player window. Use the number row or the numpad with
       Num Lock on. Numbers refer to the original channel numbers, even after
       reordering. Multiple cards of one channel change together.</p>
@@ -104,6 +100,9 @@ void PlayerWindow::showShortcutsHelp() {
       Colors, effects, volume and window size are kept.</p>
       <p>Shortcuts are inactive while editing fields, using dropdowns or dialogs.
       F1 also works from fields. No global system shortcuts are registered.</p>
+      <h3>Playlist</h3>
+      <p><b>%8</b>: Open · <b>%9</b>: Add · <b>Delete</b>: Remove.<br>
+      Drag to reorder; Ctrl/Shift-click to select multiple tracks.</p>
     )").arg(shortcutLabel(Qt::ControlModifier, Qt::Key_1).toHtmlEscaped(),
         shortcutLabel(Qt::AltModifier, Qt::Key_1).toHtmlEscaped(),
         shortcutLabel(Qt::ControlModifier | Qt::ShiftModifier, Qt::Key_R).toHtmlEscaped(),
@@ -115,7 +114,7 @@ void PlayerWindow::showShortcutsHelp() {
         shortcutLabel(Qt::ControlModifier | Qt::ShiftModifier, Qt::Key_O).toHtmlEscaped()));
     layout->addWidget(text);
     auto buttons = new QDialogButtonBox(QDialogButtonBox::Close); layout->addWidget(buttons);
-    connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+    QObject::connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
     dialog.resize(520, 500); dialog.exec();
 }
 
@@ -145,7 +144,7 @@ bool PlayerWindow::eventFilter(QObject *object, QEvent *event) {
     if (!help && !fullscreen && !digit && !mix && !output && !reset && !function) return FrameWindow::eventFilter(object, event);
     event->accept();
     if (event->type() == QEvent::ShortcutOverride || keyEvent->isAutoRepeat()) return true;
-    if (help) { showShortcutsHelp(); return true; }
+    if (help) { showShortcutsHelp(widget->window()); return true; }
     if (fullscreen) { scopes_.toggleFullscreen(); return true; }
     const auto state = player_.state();
     if (!state.valid || state.busy) return true;

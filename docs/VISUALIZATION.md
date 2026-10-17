@@ -36,7 +36,7 @@ with all card views, including duplicates, in normal,
 edit and fullscreen modes. Full mix is not a voice and cannot be soloed.
 Unmodified editor clicks still drag, resize, hide cards or edit colors.
 
-The main player's keyboard icon or **F1** opens the [shortcut guide](../README.md#keyboard-shortcuts).
+The keyboard icon in the visualizer title bar or **F1** opens the [shortcut guide](../README.md#keyboard-shortcuts).
 Digits refer to audio channel numbers, not grid slots. If several cards share
 a channel, a digit cycles them together based on its original card's current
 view (or the first remaining card if the original was removed). Alt+digit hides

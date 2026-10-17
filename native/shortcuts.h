@@ -1,6 +1,11 @@
 #pragma once
 #include <QKeySequence>
 
+class QWidget;
+class QPushButton;
+QPushButton *createShortcutsHelpButton(QWidget *owner);
+void showShortcutsHelp(QWidget *owner);
+
 inline QString shortcutLabel(Qt::KeyboardModifiers modifiers, Qt::Key key) {
     return QKeySequence(QKeyCombination(modifiers, key)).toString(QKeySequence::NativeText);
 }

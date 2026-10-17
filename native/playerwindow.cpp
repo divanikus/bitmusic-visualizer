@@ -162,7 +162,7 @@ PlayerWindow::PlayerWindow() {
     )");
     auto root = new QVBoxLayout(this); root->setContentsMargins(14, 6, 14, 12); root->setSpacing(6);
     auto titleBar = new TitleBar(this); titleBar->setTitle(QApplication::applicationName()); root->addWidget(titleBar);
-    setupShortcutsHelp(titleBar);
+    setupShortcuts();
     auto settingsButton=new IconButton(Symbol::Settings,"playerSettingsButton","Settings");
     connect(settingsButton,&QPushButton::clicked,this,[this] {showSettings();});
     auto header = new QHBoxLayout; header->setSpacing(8);

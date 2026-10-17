@@ -217,8 +217,8 @@ void checkSolo(QApplication &app, PlayerWindow &window, const QString &directory
 void checkShortcuts(QApplication &app, const QString &directory, QTextStream &log) {
     PlayerWindow window; auto &player = window.player(); auto &scope = window.scopeWindow();
     player.setVolume(0); window.show();
-    auto help = window.findChild<QPushButton *>("keyboardShortcuts");
-    require(help && !scope.findChild<QPushButton *>("keyboardShortcuts"), "Help button must exist only in the main player.");
+    auto help = scope.findChild<QPushButton *>("keyboardShortcuts");
+    require(help && !window.findChild<QPushButton *>("keyboardShortcuts"), "Help button must exist only in the visualizer.");
     key(window, Qt::Key_F5); key(window, Qt::Key_9, Qt::ControlModifier);
     key(window, Qt::Key_1, Qt::ControlModifier | Qt::ShiftModifier);
     key(window, Qt::Key_0); key(window, Qt::Key_Left, Qt::ControlModifier);
@@ -375,6 +375,7 @@ void checkShortcuts(QApplication &app, const QString &directory, QTextStream &lo
     for (int i = 0; i < list->count(); ++i) require(kind(list->item(i)->data(Qt::UserRole).toInt()) == 0, "Reset retained a non-waveform view.");
     require(scope.size() == size && scope.findChild<QComboBox *>("scopeTheme")->currentText() == theme, "Reset changed size or theme.");
     window.grab().save(QDir(directory).filePath("native-shortcuts-player.png"));
+    scope.grab().save(QDir(directory).filePath("native-shortcuts-scopes.png"));
 
     int dialogs = 0; bool guideValid = true;
     auto closeGuide = [&] {

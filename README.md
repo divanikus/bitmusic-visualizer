@@ -162,7 +162,7 @@ changes apply live, while saving a preset or theme remains explicit.
 
 ## Keyboard shortcuts
 
-Press **F1** or click the keyboard icon in the main player for the in-app guide.
+Press **F1** or click the keyboard icon in the visualizer title bar for the in-app guide.
 
 | Key | Action |
 | --- | --- |

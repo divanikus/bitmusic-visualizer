@@ -151,6 +151,7 @@ ScopeWindow::ScopeWindow() {
       QToolTip { color: #ecf2f3; background: #304048; border: none; padding: 5px; }
     )");
     titleBar_ = new TitleBar(this, false);
+    titleBar_->addAction(createShortcutsHelpButton(this));
     auto close = titleBar_->findChild<QPushButton *>("windowClose");
     close->setToolTip("Hide visualizations"); close->setAccessibleName("Hide visualizations");
     edit_ = new EditLayoutButton; edit_->setObjectName("editLayout");

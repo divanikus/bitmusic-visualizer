@@ -98,7 +98,7 @@ windows, number-row/numpad mapping, duplicate/reordered/hidden cards, independen
 mute and visibility, Full mix on 0/Alt+0, L/R output toggles, input/dialog
 protection, transport and reset. Solo checks cover Shift-click, Ctrl+Shift+1–9,
 switching/restoring mutes, manual overrides and transport/file changes. It also checks
-the main-window help button and F1 guide, saving screenshots with isolated
+the visualizer help button and F1 guide in both windows, saving screenshots with isolated
 preferences and silent playback. It is included in the complete native suite.
 
 `--self-test test-output --presets-only` checks preset serialization/validation,
