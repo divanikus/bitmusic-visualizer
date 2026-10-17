@@ -11,12 +11,15 @@
 #include <QFile>
 #include <QFileInfo>
 #include <QLabel>
+#include <QLineEdit>
+#include <QMessageBox>
 #include <QPushButton>
 #include <QSettings>
 #include <QTabWidget>
 #include <QTemporaryDir>
 #include <QTextStream>
 #include <QTimeEdit>
+#include <QTimer>
 #include <QTreeWidget>
 #include <QtEndian>
 #include <array>
@@ -78,6 +81,39 @@ void checkResourceInspection(const QDir &scratch, QTextStream &log) {
     for (const auto &path : {control, kernal, first, second, ignored}) require(QFile::remove(path), "Resource-check cleanup failed.");
     log << "Resource catalog: order/kinds, read-only presence, fixed/MT-32 size bounds and SoundFont count versus validation PASS\n"; log.flush();
 }
+void checkSettingsCallbacks(QApplication &app, const QDir &scratch, QTextStream &log) {
+    const auto previous = app.property("settingsFileForTests");
+    struct Restore { QApplication &app; QVariant path; ~Restore() { app.setProperty("settingsFileForTests", path); } } restore{app, previous};
+    const auto path = scratch.filePath("dialog.ini"); app.setProperty("settingsFileForTests", path);
+    PlayerSettingsDialog dialog(60, "Test renderer");
+    int changes = 0, appliedLimit = -1, appliedRate = -1;
+    dialog.onUnknownDurationLimitChanged = [&](int ms) { ++changes; appliedLimit = ms; };
+    dialog.onFrameRateChanged = [&](int fps) { appliedRate = fps; };
+    auto enabled = dialog.findChild<QCheckBox *>("unknownDurationEnabled");
+    auto duration = dialog.findChild<QTimeEdit *>("unknownDurationTime");
+    auto fps = dialog.findChild<QComboBox *>("waveFrameRate");
+    require(changes == 0 && appliedRate == -1 && !QFileInfo::exists(path) && fps->currentData() == 60,
+        "Settings initialization wrote preferences or requested live changes.");
+    duration->setTime(QTime(0,0,2)); enabled->setChecked(true);
+    require(changes == 1 && appliedLimit == 2000 && unknownTrackLimitPreference() == 2000,
+        "Saved Settings limit was not reported once.");
+    enabled->setChecked(false);
+    require(changes == 2 && appliedLimit == 0 && unknownTrackLimitPreference() == 0,
+        "Disabling the limit did not report unlimited playback.");
+    fps->setCurrentIndex(fps->findData(120)); require(appliedRate == 120, "Settings FPS request did not reach its callback.");
+    const auto blocked = scratch.filePath("blocked-settings"); require(QDir().mkpath(blocked), "Blocked Settings fixture failed.");
+    app.setProperty("settingsFileForTests", blocked);
+    bool warned = false;
+    QTimer::singleShot(0, &dialog, [&] {
+        if (auto warning = qobject_cast<QMessageBox *>(QApplication::activeModalWidget())) {
+            warned = warning->windowTitle() == "Could not save settings";
+            warning->accept();
+        }
+    });
+    enabled->setChecked(true);
+    require(warned && changes == 2 && appliedLimit == 0, "Failed Settings save applied a live playback change or lost its warning.");
+    log << "Settings callbacks: initialization, saved limit/FPS requests and no live apply after save failure PASS\n"; log.flush();
+}
 }
 void checkPlaybackBoundaries(QApplication &,const QDir &dir,QTextStream &log) {
     QTemporaryDir scratch(dir.filePath("boundary-checks-XXXXXX"));require(scratch.isValid(),"Boundary temporary directory failed.");
@@ -113,6 +149,7 @@ void checkPlayerSettings(QApplication &app,const QDir &dir,QTextStream &log) {
     app.setProperty("settingsFileForTests",scratch.filePath("settings.ini"));app.setProperty("romsDirectoryForTests",scratch.filePath("roms"));app.setProperty("soundFontsDirectoryForTests",scratch.filePath("soundfonts"));
     require(unknownTrackLimitPreference()==0,"Unknown duration default is not unlimited.");
     checkResourceInspection(QDir(scratch.path()),log);
+    checkSettingsCallbacks(app,QDir(scratch.path()),log);
     {
         PlayerWindow window;window.player().setVolume(0);window.show();auto &player=window.player();
         auto gear=window.findChild<QPushButton *>("playerSettingsButton");require(gear,"Settings gear missing.");gear->click();
@@ -138,6 +175,18 @@ void checkPlayerSettings(QApplication &app,const QDir &dir,QTextStream &log) {
         write(scratch.filePath("roms/c64/kernal.rom"),QByteArray(8192,'x'));refresh->click();files->setCurrentItem(files->topLevelItem(2));
         require(files->topLevelItem(2)->text(1)=="Found (size OK)" && dialog->findChild<QLabel *>("resourceDetail")->text().contains("not verified"),"Presence check incorrectly claimed ROM validation.");
         require(player.state().generation==generation,"Resource refresh restarted playback.");
+        files->setCurrentItem(files->topLevelItem(6));
+        const auto bank = scratch.filePath("soundfonts/Added.sf2"); write(bank,{}); refresh->click();
+        auto resourcePath = dialog->findChild<QLineEdit *>("resourcePath");
+        require(files->currentIndex().row()==6 && files->currentItem()->text(1)=="1 found" &&
+            files->currentItem()->data(0,Qt::UserRole+2).toBool() && resourcePath->isReadOnly() && resourcePath->cursorPosition()==0 &&
+            resourcePath->text()==QDir::toNativeSeparators(scratch.filePath("soundfonts")) &&
+            window.findChild<QComboBox *>("soundFont")->currentData()=="Added.sf2" && player.state().generation==generation,
+            "Resource refresh lost selection/path, failed to refresh MIDI banks or restarted playback.");
+        require(QFile::remove(bank),"Resource-bank fixture cleanup failed."); refresh->click();
+        require(files->currentItem()->text(1)=="Missing" && window.findChild<QComboBox *>("soundFont")->currentData().toString().isEmpty(),
+            "Removed bank remained in Settings or the MIDI resource row.");
+        files->setCurrentItem(files->topLevelItem(2));
         dialog->resize(540,530);
         for(int i=0;i<3;++i){tabs->setCurrentIndex(i);app.processEvents();require(dialog->grab().save(dir.filePath(QString("settings-%1.png").arg(tabs->tabText(i).toLower()))),"Settings screenshot failed.");}
         require(window.grab().save(dir.filePath("settings-player.png")),"Gear screenshot failed.");

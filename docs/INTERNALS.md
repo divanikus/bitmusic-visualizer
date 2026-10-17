@@ -52,6 +52,14 @@ Directory rows are explicit data rather than inferred from their display label.
 These checks never create folders or validate resource contents; backends still
 validate ROM identities/models and banks only when opening relevant music.
 
+`PlayerSettingsDialog` owns the three Settings pages, control initialization,
+automatic preference saves and resource-table selection/details/folder actions.
+It receives current FPS/renderer labels and reports saved limit changes, FPS
+requests and resource refreshes through callbacks. PlayerWindow owns reuse/close
+and applies those callbacks to playback, scopes and the MIDI bank row. Opening
+Settings never applies a live change; a failed preference save never applies a
+new playback limit. Renderer changes remain deferred until app restart.
+
 `ScopeWindow` coordinates transport snapshots, capture requests, layout gestures
 and CPU/GPU presentation. It does not own playback or decode music in painting.
 

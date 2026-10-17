@@ -213,3 +213,15 @@ void PlayerWindow::refreshScopes() {
     scopes_.present(player_.state(), scopes_.renderingVisible() ? player_.scopes() : ScopeFrame{},
                     scopes_.renderingVisible() && scopes_.outputEnabled() ? player_.outputScopes() : OutputFrame{});
 }
+
+void PlayerWindow::showSettings() {
+    if (auto existing = findChild<QDialog *>("playerSettings")) {
+        existing->show(); existing->raise(); existing->activateWindow(); return;
+    }
+    auto dialog = new PlayerSettingsDialog(scopes_.frameRate(), scopes_.rendererName(), this);
+    dialog->onUnknownDurationLimitChanged = [this](int ms) { player_.setUnknownDurationLimit(ms); };
+    dialog->onFrameRateChanged = [this](int fps) { scopes_.setFrameRate(fps); scopes_.saveFrameRate(); };
+    dialog->onResourcesRefreshed = [this] { midiControls_->refreshSoundFonts(); };
+    dialog->refreshResources();
+    dialog->show();
+}
