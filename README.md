@@ -168,19 +168,34 @@ changes apply live, while saving a preset or theme remains explicit.
 
 Press **F1** or click the keyboard icon in the visualizer title bar for the in-app guide.
 
-Click a card to select it, or use **arrow keys** on the visualization canvas.
-The selected card has a highlighted border. **V** cycles its view, **M** toggles
-its source's sound, **S** toggles Solo, **H** hides/shows the card, **L** toggles
-its Levels, and **Enter** opens Card settings. **Esc** clears selection; press it
-again to leave fullscreen. Single clicks select immediately; double-clicking
-toggles fullscreen and keeps the clicked card selected. These commands also work
-in the Cards list and have no
-channel-number limit. **Alt + arrows** move the selected card toward a neighbor,
-reflowing the grid like mouse dragging. **Shift + arrows** resize it by one grid
-cell: Right/Down grow, Left/Up shrink. These edits affect only the selected card.
+### Visualization window
 
-On the visualizer canvas or in the Cards list, **F9/F10** decrease/increase columns;
-**Shift + F9/F10** decrease/increase rows. No card selection is required.
+Click a card to select it; its border is highlighted. These shortcuts work on the
+visualization canvas and in the **Cards** list, with no channel-number limit.
+
+| Key | Action |
+| --- | --- |
+| Arrow keys | Select a card |
+| V | Cycle the selected card's available views |
+| M | Mute / unmute its source |
+| S | Solo its source / restore previous mutes |
+| H | Hide / show the selected card |
+| L | Toggle its level meters |
+| Enter | Open Card settings |
+| Alt + arrows | Move the selected card toward a neighbor; reflow the grid |
+| Shift+← / Shift+→ | Decrease / increase card width by one grid cell |
+| Shift+↑ / Shift+↓ | Decrease / increase card height by one grid cell |
+| F9 / F10 | Decrease / increase grid columns |
+| Shift+F9 / Shift+F10 | Decrease / increase grid rows |
+| Esc | Clear card selection without leaving fullscreen |
+
+Grid size shortcuts do not require a selected card. Card edits affect only that
+card; mute/Solo affect its source, including other copies. Double-clicking outside
+edit mode toggles fullscreen and keeps the clicked card selected. **Esc** cancels
+an active gesture first, then clears selection, then exits fullscreen, one action
+per press.
+
+### Both windows
 
 | Key | Action |
 | --- | --- |
@@ -193,11 +208,11 @@ On the visualizer canvas or in the Cards list, **F9/F10** decrease/increase colu
 | F2 / F3 / F4 | Set all cards to Waveform / Spectrum / Keyboard |
 | F5 | Play from the beginning |
 | F7 / F8 | Resume / pause |
-| F11 / Esc | Toggle fullscreen / exit fullscreen |
+| F11 / Esc | Toggle fullscreen / exit fullscreen after clearing card selection |
 | Ctrl+Shift+R | Reset cards/layout and enable all voices and L/R outputs |
 
-The shortcuts in the table work in either window; digits use original channel numbers and also
-work on the numpad with Num Lock. On macOS, use **Command** for Ctrl and **Option**
+Digits use original channel numbers and also work on the numpad with Num Lock.
+On macOS, use **Command** for Ctrl and **Option**
 for Alt. Text fields, dropdowns and dialogs keep their normal keys.
 
 ## Settings and diagnostics
