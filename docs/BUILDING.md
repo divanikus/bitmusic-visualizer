@@ -28,7 +28,7 @@ The Unix companion is installed/relocated (and ad-hoc signed on macOS) before
 being removed from staging. `Runtime` installs only the player; the separate
 `CheckRunner` component is for packaging validation.
 
-For UI code ownership and the card/preset boundary, see [native internals](INTERNALS.md).
+For native code ownership and the card/preset boundary, see [native internals](INTERNALS.md).
 
 ## Windows
 
@@ -56,6 +56,9 @@ All bare check flags in this guide are arguments to `bitmusic_checks`.
 first-member/trailing/error and 64 MiB size policies, raw SID precedence,
 missing/unsupported errors and selected-only versus full GME metadata. It uses
 private copies of authored fixtures and also runs in transport/full checks.
+It also covers GME title/game/Unicode-filename fallbacks and pure VGM timing/
+stereo probes at legacy/extended offsets, including waits, loop boundaries,
+data-block/metadata exclusion and deliberately different unsupported-command rules.
 
 `--playlist-checks test-output` checks queue identities/reordering, M3U8 subsongs,
 Unicode/relative paths, shuffle history, background metadata cancellation and

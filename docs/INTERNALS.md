@@ -16,6 +16,13 @@ deleter. Constructor failure and destruction share decoder/taps/notes release;
 initialization, capture-scope lifetime, mute restoration and seek order stay the
 same. Metadata never uses libgme's invented `play_length` or changes source tags.
 
+`gmevgm.*` contains pure GME boundary and PSG stereo probes using the already
+validated VGM data offset. GmeTrack also reads its three clock fields once for
+note/tap capability checks. Timing stays conservative for unsupported commands,
+truncation and invalid loop targets; stereo keeps its wider skip/marker policy.
+Data-block bytes and trailing metadata cannot become pan commands. These probes
+do not replace Yamaha/POKEY playback parsers or infer extra format support.
+
 `NativePlayer` retains the public command mailbox, generation/state storage and
 independent scope worker. Its private `AudioWorker` in `engineplayback.cpp` is
 created inside `run()`, on the existing high-priority thread. It owns the active

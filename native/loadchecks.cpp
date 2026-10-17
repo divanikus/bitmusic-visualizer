@@ -1,10 +1,13 @@
 #include "engine.h"
+#include "gmevgm.h"
+#include "vgm.h"
 #include <QApplication>
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
 #include <QTemporaryDir>
 #include <QTextStream>
+#include <QtEndian>
 #include <zlib.h>
 #include <stdexcept>
 
@@ -31,9 +34,48 @@ QByteArray gzip(const QByteArray &bytes) {
     require(result == Z_STREAM_END, "Cannot compress loading fixture.");
     return packed;
 }
+QByteArray vgm(QByteArray commands, int loop = -1, int start = 0x100) {
+    QByteArray bytes(start, '\0'); bytes.replace(0, 4, "Vgm ");
+    qToLittleEndian<quint32>(start == 0x40 ? 0x110 : 0x150, bytes.data() + 8);
+    qToLittleEndian<quint32>(3579545, bytes.data() + 12);
+    if (start != 0x40) qToLittleEndian<quint32>(start - 0x34, bytes.data() + 0x34);
+    if (loop >= 0) qToLittleEndian<quint32>(start + loop - 0x1c, bytes.data() + 0x1c);
+    bytes += commands;
+    qToLittleEndian<quint32>(bytes.size() - 4, bytes.data() + 4);
+    return bytes;
+}
+void checkGmeVgmProbes() {
+    struct Case { const char *hex; int loop; qint64 frames, loopFrame; bool stereo; };
+    const Case cases[] = {
+        {"50906111006263707f808f66", 5, 1666, 17, false},
+        {"4ff061010066", -1, 1, -1, true},
+        {"676600040000004ff0666161010066", -1, 1, -1, false},
+        {"610100664ff0", -1, 1, -1, false},
+        {"64ff4ff061010066", -1, -1, -1, true},
+        {"90000000004ff061010066", -1, -1, -1, true},
+        {"670000000000004ff061010066", -1, -1, -1, true},
+        {"61ff", -1, -1, -1, false},
+        {"676600100000004ff0", -1, -1, -1, false},
+        {"664ff0", -1, -1, -1, false},
+        {"61010066", 1, -1, -1, false},
+        {"61010066", 3, -1, -1, false},
+    };
+    for (const auto &test : cases) for (int start : {0x40, 0x100}) {
+        const auto bytes = vgm(QByteArray::fromHex(test.hex), test.loop, start);
+        const auto header = inspectVgm(bytes);
+        const auto boundary = gmeVgmBoundary(bytes, header.dataOffset);
+        require(boundary.frame == test.frames && boundary.loopFrame == test.loopFrame &&
+                gmeVgmStereoRouting(bytes, header.dataOffset) == test.stereo,
+                "GME VGM timing/stereo command or loop policy changed.");
+    }
+    auto t6w28 = vgm(QByteArray::fromHex("61010066"));
+    qToLittleEndian<quint32>(0xc0000000u | 3579545, t6w28.data() + 12);
+    require(gmeVgmStereoRouting(t6w28, inspectVgm(t6w28).dataOffset), "T6W28 stereo header flag changed.");
+}
 }
 
 void checkMusicLoading(QApplication &, const QString &directory, QTextStream &log) {
+    checkGmeVgmProbes();
     QTemporaryDir files(QDir(directory).absoluteFilePath("loading-XXXXXX"));
     require(files.isValid(), "Cannot isolate loading checks.");
     const auto original = QDir(directory).filePath("demo.nsf");

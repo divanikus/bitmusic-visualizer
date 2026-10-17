@@ -50,6 +50,7 @@ add_library(bitmusic_core OBJECT
   native/engine.cpp
   native/musicfile.cpp
   native/gmetrack.cpp
+  native/gmevgm.cpp
   native/engineplayback.cpp
   native/enginescopes.cpp
   native/enginecapture.cpp
