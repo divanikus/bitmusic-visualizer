@@ -1,4 +1,5 @@
 #include "window.h"
+#include "scopecardinspector.h"
 #include "shortcuts.h"
 #include "palette.h"
 #include "appsettings.h"
@@ -36,22 +37,6 @@ class ThemeComboBox : public QComboBox {
 public:
     std::function<void()> refresh;
     void showPopup() override { if (refresh) refresh(); QComboBox::showPopup(); }
-};
-class CardInspector : public QScrollArea {
-public:
-    QSize sizeHint() const override {
-        if (!widget()) return QScrollArea::sizeHint();
-        auto hint = widget()->sizeHint();
-        if (widget()->hasHeightForWidth()) hint.setHeight(widget()->heightForWidth(viewport()->width()));
-        return hint;
-    }
-protected:
-    bool eventFilter(QObject *object, QEvent *event) override {
-        // View-specific controls and expanded help change the space needed below
-        // the list. QScrollArea normally caches its initial content size hint.
-        if (object == widget() && event->type() == QEvent::LayoutRequest) updateGeometry();
-        return QScrollArea::eventFilter(object, event);
-    }
 };
 void drawPipette(QPainter &p, const QRectF &button, const QColor &ink, bool active) {
     p.save();
@@ -228,76 +213,30 @@ ScopeWindow::ScopeWindow() {
     removeCard_ = new QPushButton("Remove"); removeCard_->setObjectName("removeScopeCard"); cardActions->addWidget(removeCard_);
     auto showAll = new QPushButton("Show all"); showAll->setObjectName("showAllScopes"); cardActions->addWidget(showAll);
     cardsLayout->addLayout(cardActions);
-    auto inspectorScroll = new CardInspector; inspectorScroll->setObjectName("cardInspector");
-    inspectorScroll->setWidgetResizable(true); inspectorScroll->setFrameShape(QFrame::NoFrame);
-    inspectorScroll->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Preferred);
-    inspectorScroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff); cardsLayout->addWidget(inspectorScroll);
-    cardsLayout->addStretch();
-    auto inspector = new QWidget; inspectorScroll->setWidget(inspector);
-    auto channels = new QVBoxLayout(inspector); channels->setContentsMargins(0, 4, 4, 0); channels->setSpacing(6);
-    channels->setSizeConstraint(QLayout::SetMinimumSize);
-    selectedCard_ = new QLabel("Select a card"); selectedCard_->setObjectName("selectedCard");
-    selectedCard_->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Fixed); channels->addWidget(selectedCard_);
-    auto viewRow = new QHBoxLayout; viewRow->addWidget(new QLabel("View"));
-    cardView_ = new QComboBox; cardView_->setObjectName("cardView"); cardView_->setAccessibleName("Card view"); styleCombo(cardView_);
-    for (auto kind : {ViewKind::Waveform, ViewKind::Spectrum, ViewKind::Keyboard}) cardView_->addItem(viewName(kind), int(kind));
-    viewRow->addWidget(cardView_, 1); channels->addLayout(viewRow);
-    spectrumControls_ = new QWidget;
-    auto spectrumRow = new QHBoxLayout(spectrumControls_); spectrumRow->setContentsMargins(0, 0, 0, 0);
-    spectrumRow->addWidget(new QLabel("Style"));
-    spectrumStyle_ = new QComboBox; spectrumStyle_->setObjectName("spectrumStyle"); styleCombo(spectrumStyle_);
-    spectrumStyle_->setAccessibleName("Spectrum style"); spectrumStyle_->addItems({"Line", "Bars"});
-    spectrumRow->addWidget(spectrumStyle_, 1);
-    spectrumGrid_ = new QCheckBox("Grid"); spectrumGrid_->setObjectName("spectrumGrid");
-    spectrumGrid_->setToolTip("Show frequency and level grid lines and labels on this card");
-    spectrumRow->addWidget(spectrumGrid_); channels->addWidget(spectrumControls_); spectrumControls_->hide();
-    keyboardHint_ = new QLabel; keyboardHint_->setObjectName("keyboardHint"); keyboardHint_->setWordWrap(true);
-    keyboardHint_->hide();
-    viewHelp_ = new QPushButton("About this view"); viewHelp_->setObjectName("viewHelp"); viewHelp_->setCheckable(true);
-    viewHelp_->hide();
-    connect(viewHelp_, &QPushButton::toggled, this, [this](bool expanded) { keyboardHint_->setVisible(expanded); });
-    musicControls_=new QWidget;
-    auto musicRow=new QVBoxLayout(musicControls_); musicRow->setContentsMargins(0,0,0,0);
-    rollDirection_=new QComboBox; rollDirection_->setObjectName("rollDirection"); styleCombo(rollDirection_);
-    rollDirection_->addItems({"Notes fall down", "Notes move left"}); musicRow->addWidget(rollDirection_);
-    rollKeyboardSize_=new QSpinBox; rollKeyboardSize_->setObjectName("rollKeyboardSize");
-    rollKeyboardSize_->setPrefix("Keyboard size: "); rollKeyboardSize_->setSuffix(" %");
-    rollKeyboardSize_->setRange(5,80); rollKeyboardSize_->setSingleStep(5);
-    rollKeyboardSize_->setToolTip("Keyboard height as a percentage of the plot. In horizontal view this controls its width. The note range stays unchanged.");
-    musicRow->addWidget(rollKeyboardSize_);
-    patternCommands_=new QCheckBox("Volume and effects"); patternCommands_->setObjectName("patternCommands"); musicRow->addWidget(patternCommands_);
-    patternChannel_=new QSpinBox; patternChannel_->setObjectName("patternFirstChannel"); patternChannel_->setPrefix("First channel: ");
-    patternChannel_->setToolTip("First column when the whole pattern does not fit. Enlarge the card to see more channels."); musicRow->addWidget(patternChannel_);
-    channels->addWidget(musicControls_); musicControls_->hide();
-    auto musicChanged=[this] {
-        if(!channelList_->currentItem()) return;
-        auto &card=cards_[channelList_->currentItem()->data(Qt::UserRole).toInt()];
-        card.horizontal=rollDirection_->currentIndex()==1; card.commands=patternCommands_->isChecked();
-        card.keyboardSize=rollKeyboardSize_->value();
-        card.firstChannel=patternChannel_->value()-1; musicImages_.clear(); presetEdited(); update();
+    cardInspector_ = new ScopeCardInspector;
+    cardsLayout->addWidget(cardInspector_); cardsLayout->addStretch();
+    cardInspector_->onViewChanged = [this](ScopeView view) {
+        if (const int id = selectedCardId(); id >= 0) {
+            cards_[id].kind = view; layoutChanged(); updateViewEditor();
+        }
     };
-    connect(rollDirection_,&QComboBox::currentIndexChanged,this,musicChanged);
-    connect(rollKeyboardSize_,&QSpinBox::valueChanged,this,musicChanged);
-    connect(patternCommands_,&QCheckBox::toggled,this,musicChanged);
-    connect(patternChannel_,&QSpinBox::valueChanged,this,musicChanged);
+    cardInspector_->onSpectrumChanged = [this](bool bars, bool grid) {
+        if (const int id = selectedCardId(); id >= 0) {
+            cards_[id].spectrumBars = bars; cards_[id].spectrumGrid = grid;
+            presetEdited(); update();
+        }
+    };
+    cardInspector_->onMusicChanged = [this](const ScopeCard &options) {
+        if (const int id = selectedCardId(); id >= 0) {
+            auto &card = cards_[id];
+            card.horizontal = options.horizontal; card.commands = options.commands;
+            card.keyboardSize = options.keyboardSize; card.firstChannel = options.firstChannel;
+            musicImages_.clear(); presetEdited(); update();
+        }
+    };
+    cardInspector_->onColorsRequested = [this] { editColors(); };
     connect(channelList_, &QListWidget::currentRowChanged, this, [this] { updateViewEditor(); });
-    connect(cardView_, &QComboBox::currentIndexChanged, this, [this](int index) {
-        if (!channelList_->currentItem() || index < 0) return;
-        const int id = channelList_->currentItem()->data(Qt::UserRole).toInt();
-        cards_[id].kind = ViewKind(cardView_->itemData(index).toInt());
-        layoutChanged(); updateViewEditor();
-    });
     connect(addCard_, &QPushButton::clicked, this, [this] { addCard(); });
-    auto spectrumChanged = [this] {
-        if (!channelList_->currentItem()) return;
-        const int id = channelList_->currentItem()->data(Qt::UserRole).toInt();
-        cards_[id].spectrumBars = spectrumStyle_->currentIndex() == 1;
-        cards_[id].spectrumGrid = spectrumGrid_->isChecked();
-        presetEdited();
-        update();
-    };
-    connect(spectrumStyle_, &QComboBox::currentIndexChanged, this, spectrumChanged);
-    connect(spectrumGrid_, &QCheckBox::toggled, this, spectrumChanged);
     connect(removeCard_, &QPushButton::clicked, this, [this] {
         if (!channelList_->currentItem()) return;
         const int id = channelList_->currentItem()->data(Qt::UserRole).toInt();
@@ -308,8 +247,6 @@ ScopeWindow::ScopeWindow() {
         if (channelList_->count()) channelList_->setCurrentRow(std::min(row, channelList_->count()-1));
         layoutChanged(); updateViewEditor();
     });
-    auto colors = new QPushButton("Colors..."); colors->setObjectName("scopeColors"); colors->setToolTip("Edit the selected channel's colors"); channels->addWidget(colors);
-    channels->addWidget(viewHelp_); channels->addWidget(keyboardHint_); channels->addStretch();
     auto layoutPage = page("Layout");
     layoutPage->addWidget(gridControls_);
     auto labelRow = new QHBoxLayout; labelRow->addWidget(numbers_); labelRow->addWidget(names_); layoutPage->addLayout(labelRow);
@@ -355,7 +292,6 @@ ScopeWindow::ScopeWindow() {
     connect(stereo_, &QCheckBox::toggled, this, [this] { presetEdited(); waveStates_ = {}; update(); });
     connect(reset, &QPushButton::clicked, this, [this] { resetLayout(); });
     connect(apply, &QPushButton::clicked, this, [this] { edit_->setChecked(false); });
-    connect(colors, &QPushButton::clicked, this, [this] { editColors(); });
     connect(showAll, &QPushButton::clicked, this, [this] { cards_.showAll(); layoutChanged(); });
     connect(channelList_, &QListWidget::itemChanged, this, [this](QListWidgetItem *item) {
         const int channel = item->data(Qt::UserRole).toInt();

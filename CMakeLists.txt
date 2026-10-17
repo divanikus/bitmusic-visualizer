@@ -59,6 +59,7 @@ add_library(bitmusic_core OBJECT
   native/scopecontrols.cpp
   native/scopepresentation.cpp
   native/outputhistory.cpp
+  native/scopecardinspector.cpp
   native/scopecards.cpp
   native/scopegrid.cpp
   native/scopelayout.cpp

@@ -28,6 +28,7 @@ class QChronoTimer;
 class QDialog;
 class QComboBox;
 class QVBoxLayout;
+class ScopeCardInspector;
 
 class Timeline : public QSlider {
 public:
@@ -109,24 +110,14 @@ private:
     QVector<ScopeOverlay> musicOverlays();
     struct MusicImage { QByteArray key; QImage image; };
     QHash<int, MusicImage> musicImages_;
-    QWidget *musicControls_;
-    QComboBox *rollDirection_;
-    QSpinBox *rollKeyboardSize_;
-    QCheckBox *patternCommands_;
-    QSpinBox *patternChannel_;
+    int selectedCardId() const;
     void updateViewEditor();
     void updateKeyboardNotes();
     QVector<float> keyboardPitches(int card) const;
     void addCard();
     void paintKeyboard(QPainter &p, int card, const QRectF &plot, bool muted);
     void paintSpectrumAxes(QPainter &p, int card, const QRectF &plot, bool stereo);
-    QComboBox *cardView_;
-    QWidget *spectrumControls_;
-    QComboBox *spectrumStyle_;
-    QCheckBox *spectrumGrid_;
-    QLabel *keyboardHint_;
-    QLabel *selectedCard_;
-    QPushButton *viewHelp_;
+    ScopeCardInspector *cardInspector_;
     QPushButton *addCard_, *removeCard_;
     struct SpectrumState {
         quint64 generation = 0, sequence = 0;

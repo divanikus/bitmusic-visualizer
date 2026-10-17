@@ -1,4 +1,5 @@
 #include "window.h"
+#include "scopecardinspector.h"
 #include <QApplication>
 #include <QCheckBox>
 #include <QDir>
@@ -27,6 +28,26 @@ void mouse(ScopeWindow &scope, QEvent::Type type, QPointF point) {
     QMouseEvent event(type, point, scope.mapToGlobal(point.toPoint()), type == QEvent::MouseMove ? Qt::NoButton : Qt::LeftButton,
                       type == QEvent::MouseButtonRelease ? Qt::NoButton : Qt::LeftButton, Qt::NoModifier);
     QApplication::sendEvent(&scope, &event);
+}
+void checkInspector() {
+    ScopeCardInspector inspector;
+    int viewEdits = 0, spectrumEdits = 0, musicEdits = 0;
+    ScopeCard music;
+    inspector.onViewChanged = [&](ScopeView) { ++viewEdits; };
+    inspector.onSpectrumChanged = [&](bool, bool) { ++spectrumEdits; };
+    inspector.onMusicChanged = [&](const ScopeCard &options) { ++musicEdits; music = options; };
+    ScopeCard card; card.source = ScopeCards::FullMix; card.kind = ScopeView::Pattern;
+    card.firstChannel = 2; card.keyboardSize = 65; card.commands = true; card.horizontal = true;
+    inspector.setCard(&card, "Full mix", {true, true}, "Notes", 8);
+    inspector.setCard(nullptr, "Select a card", {}, "", 0);
+    inspector.setCard(&card, "Full mix", {true, true}, "Notes", 8);
+    require(!viewEdits && !spectrumEdits && !musicEdits, "Inspector selection emitted edits while restoring fields.");
+    inspector.findChild<QSpinBox *>("patternFirstChannel")->setValue(5);
+    require(musicEdits == 1 && music.firstChannel == 4 && music.keyboardSize == 65 && music.commands && music.horizontal,
+            "Inspector edit lost other per-card music options.");
+    auto view = inspector.findChild<QComboBox *>("cardView");
+    view->setCurrentIndex(view->findData(int(ScopeView::Spectrum)));
+    require(viewEdits == 1 && !spectrumEdits && musicEdits == 1, "View edit leaked into another option group.");
 }
 void checkCardState() {
     ScopeCards cards;
@@ -96,6 +117,7 @@ void checkPacking() {
 }
 }
 void checkLayoutSpans(QApplication &app, const QString &directory, QTextStream &log) {
+    checkInspector(); log << "Card inspector: selection synchronization without edits, independent view/music callbacks PASS\n";
     checkCardState(); log << "Card state: stable IDs, duplicates/removal, visibility, preset compatibility, preview isolation and capacity PASS\n";
     checkPacking(); log << "Span packing: all 128 grid sizes, bounds, no overlap, hidden/refill and hole filling PASS\n"; log.flush();
     ScopeWindow scope; scope.resize(1100, 760); scope.show();

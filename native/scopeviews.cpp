@@ -1,4 +1,5 @@
 #include "window.h"
+#include "scopecardinspector.h"
 #include "palette.h"
 #include "spectrum.h"
 #include <QComboBox>
@@ -51,42 +52,23 @@ void ScopeWindow::setAllViews(ViewKind kind) {
     for (int id : cards_.order()) cards_[id].kind = kind;
     layoutChanged(); updateViewEditor();
 }
-void ScopeWindow::updateViewEditor() {
+int ScopeWindow::selectedCardId() const {
     const auto item = channelList_->currentItem();
     const int id = item ? item->data(Qt::UserRole).toInt() : -1;
-    const bool valid = id >= 0 && id < cards_.size();
-    const auto selectedName = valid ? channelName(id) : QString("Select a card");
-    selectedCard_->setText(selectedName); selectedCard_->setToolTip(selectedName);
-    QSignalBlocker block(cardView_);
-    cardView_->clear();
-    for (auto kind : ScopeViews)
-        if(viewSupported(kind)) cardView_->addItem(viewName(kind),int(kind));
-    cardView_->setEnabled(valid); cardView_->setCurrentIndex(valid ? cardView_->findData(int(cards_[id].kind)) : 0);
-    cardView_->setToolTip("Keyboard shows pitches from chip or MIDI data where available; other sources estimate one pitch from audio.");
-    const QSignalBlocker styleBlock(spectrumStyle_), gridBlock(spectrumGrid_);
-    spectrumControls_->setVisible(valid && cards_[id].kind == ViewKind::Spectrum);
-    spectrumStyle_->setCurrentIndex(valid && cards_[id].spectrumBars ? 1 : 0);
-    spectrumGrid_->setChecked(!valid || cards_[id].spectrumGrid);
+    return id >= 0 && id < cards_.size() ? id : -1;
+}
+void ScopeWindow::updateViewEditor() {
+    const int id = selectedCardId();
+    const bool valid = id >= 0;
     const int source = valid ? sourceFor(id) : -1;
-    const bool exact = source >= 0 && source < VoiceMask::Capacity && (state_.info.tonalMask & (VoiceMask::bit(source)));
-    keyboardHint_->setText(exact ? (state_.info.mt32Resources ? "MT-32 played keys. Timbre tuning, pitch bend and modulation are not measured." : state_.info.midiResources ? "MIDI notes, sustain and channel pitch bend. Sample tuning and synthesis modulation are not measured." : "Notes from chip oscillators. All active tonal pitches are shown.") : "Estimated from audio: one pitch. Chords, noise and drums may be inaccurate.");
-    const bool roll=valid&&cards_[id].kind==ViewKind::PianoRoll, pattern=valid&&cards_[id].kind==ViewKind::Pattern;
-    const QSignalBlocker directionBlock(rollDirection_),sizeBlock(rollKeyboardSize_),commandsBlock(patternCommands_),channelBlock(patternChannel_);
-    musicControls_->setVisible(roll||pattern); rollDirection_->setVisible(roll); patternCommands_->setVisible(pattern);
-    rollKeyboardSize_->setVisible(roll);
-    patternChannel_->setVisible(pattern&&source==ScopeTheme::FullMix);
-    rollDirection_->setCurrentIndex(valid&&cards_[id].horizontal?1:0);
-    rollKeyboardSize_->setValue(valid?cards_[id].keyboardSize:25);
-    patternCommands_->setChecked(valid&&cards_[id].commands);
-    patternChannel_->setRange(1,std::max(1,int(state_.info.voices.size())));
-    patternChannel_->setValue(valid?cards_[id].firstChannel+1:1);
-    if(roll||pattern) {
-        keyboardHint_->setText(roll?
-            "MIDI key presses, colored by instrument. Pedal, pitch bend and sound tails are not drawn. Enlarge the card for more space.":
-            "Live pattern rows: note and instrument. Volume/effects use libxmp's normalized commands. Enlarge Full mix to see more channels.");
-    }
-    const bool hasHelp = valid && (cards_[id].kind == ViewKind::Keyboard || roll || pattern);
-    viewHelp_->setVisible(hasHelp); keyboardHint_->setVisible(hasHelp && viewHelp_->isChecked());
+    const bool exact = state_.info.tonalMask.test(source);
+    const QString hint = exact ? (state_.info.mt32Resources ?
+        "MT-32 played keys. Timbre tuning, pitch bend and modulation are not measured." : state_.info.midiResources ?
+        "MIDI notes, sustain and channel pitch bend. Sample tuning and synthesis modulation are not measured." :
+        "Notes from chip oscillators. All active tonal pitches are shown.") :
+        "Estimated from audio: one pitch. Chords, noise and drums may be inaccurate.";
+    cardInspector_->setCard(valid ? &cards_[id] : nullptr, valid ? channelName(id) : QString("Select a card"),
+        {bool(state_.info.noteRoll), bool(state_.info.patterns)}, hint, int(state_.info.voices.size()));
     addCard_->setEnabled(state_.valid && cards_.order().size() < ScopeCards::Maximum);
     removeCard_->setEnabled(valid);
     removeCard_->setToolTip("Remove this card without muting its source. Add card... or Reset can bring it back.");
