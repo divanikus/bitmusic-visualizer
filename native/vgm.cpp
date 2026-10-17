@@ -4,6 +4,31 @@
 #include <stdexcept>
 
 namespace {
+struct ChipDescription {
+    int offset;
+    quint32 version;
+    const char *name;
+    int yamahaId = -1, writeCommand = 0, writePorts = 0;
+    bool stereo = false;
+};
+// Keep field order: it determines chip/source order and unsupported-message order.
+constexpr ChipDescription Chips[] = {
+    {0x0c,0x100,"SN76489"}, {0x10,0x100,"YM2413"}, {0x2c,0x110,"YM2612"},
+    {0x30,0x110,"YM2151",3,0x54,1,true}, {0x38,0x151,"Sega PCM"}, {0x40,0x151,"RF5C68"},
+    {0x44,0x151,"YM2203",6,0x55,1}, {0x48,0x151,"YM2608",7,0x56,2,true}, {0x4c,0x151,"YM2610",8,0x58,2,true},
+    {0x50,0x151,"YM3812",9,0x5a,1}, {0x54,0x151,"YM3526",10,0x5b,1}, {0x58,0x151,"Y8950",11,0x5c,1},
+    {0x5c,0x151,"YMF262",12,0x5e,2,true}, {0x60,0x151,"YMF278B"}, {0x64,0x151,"YMF271"},
+    {0x68,0x151,"YMZ280B"}, {0x6c,0x151,"RF5C164"}, {0x70,0x151,"PWM"},
+    {0x74,0x151,"AY8910"}, {0x80,0x161,"Game Boy APU"}, {0x84,0x161,"NES APU"},
+    {0x88,0x161,"MultiPCM"}, {0x8c,0x161,"uPD7759"}, {0x90,0x161,"OKIM6258"},
+    {0x98,0x161,"OKIM6295"}, {0x9c,0x161,"K051649"}, {0xa0,0x161,"K054539"},
+    {0xa4,0x161,"HuC6280"}, {0xa8,0x161,"C140"}, {0xac,0x161,"K053260"},
+    {0xb0,0x161,"POKEY"}, {0xb4,0x161,"QSound"}, {0xb8,0x171,"SCSP"},
+    {0xc0,0x171,"WonderSwan"}, {0xc4,0x171,"VSU"}, {0xc8,0x171,"SAA1099"},
+    {0xcc,0x171,"ES5503"}, {0xd0,0x171,"ES5506"}, {0xd8,0x171,"X1-010"},
+    {0xdc,0x171,"C352"}, {0xe0,0x171,"GA20"}
+};
+
 quint32 word(const QByteArray &data, int at) { return qFromLittleEndian<quint32>(data.constData() + at); }
 VgmHeader readHeaderBounds(const QByteArray &data) {
     if (data.size() < 0x40 || !data.startsWith("Vgm ")) throw std::runtime_error("Invalid VGM header.");
@@ -18,38 +43,23 @@ VgmHeader readHeaderBounds(const QByteArray &data) {
     }
     return h;
 }
+void appendYamahaChips(VgmHeader &h, const ChipDescription &chip, quint32 raw) {
+    const int id = chip.yamahaId;
+    const auto clock = raw & 0x3fffffffu;
+    const bool dual = raw & 0x40000000u, variant = raw & 0x80000000u;
+    if (clock < 100000 || clock > 20000000 || (variant && !(id == 9 && dual) && id != 8))
+        h.unsupported << QString::fromLatin1(chip.name) + " clock/variant";
+    for (int n = 0; n < (dual ? 2 : 1); ++n)
+        h.yamaha.push_back({id, n, clock, id == 8 && variant ? QString("YM2610B") : QString::fromLatin1(chip.name),
+                           chip.stereo || variant, id == 9 && variant ? (n ? 1 : -1) : 0, 1, 1, id == 8 && variant});
+}
 void readChipClocks(const QByteArray &data, VgmHeader &h) {
-    struct Chip { int offset; quint32 version; const char *name; };
-    static constexpr Chip chips[] = {
-        {0x0c,0x100,"SN76489"}, {0x10,0x100,"YM2413"}, {0x2c,0x110,"YM2612"},
-        {0x30,0x110,"YM2151"}, {0x38,0x151,"Sega PCM"}, {0x40,0x151,"RF5C68"},
-        {0x44,0x151,"YM2203"}, {0x48,0x151,"YM2608"}, {0x4c,0x151,"YM2610"},
-        {0x50,0x151,"YM3812"}, {0x54,0x151,"YM3526"}, {0x58,0x151,"Y8950"},
-        {0x5c,0x151,"YMF262"}, {0x60,0x151,"YMF278B"}, {0x64,0x151,"YMF271"},
-        {0x68,0x151,"YMZ280B"}, {0x6c,0x151,"RF5C164"}, {0x70,0x151,"PWM"},
-        {0x74,0x151,"AY8910"}, {0x80,0x161,"Game Boy APU"}, {0x84,0x161,"NES APU"},
-        {0x88,0x161,"MultiPCM"}, {0x8c,0x161,"uPD7759"}, {0x90,0x161,"OKIM6258"},
-        {0x98,0x161,"OKIM6295"}, {0x9c,0x161,"K051649"}, {0xa0,0x161,"K054539"},
-        {0xa4,0x161,"HuC6280"}, {0xa8,0x161,"C140"}, {0xac,0x161,"K053260"},
-        {0xb0,0x161,"POKEY"}, {0xb4,0x161,"QSound"}, {0xb8,0x171,"SCSP"},
-        {0xc0,0x171,"WonderSwan"}, {0xc4,0x171,"VSU"}, {0xc8,0x171,"SAA1099"},
-        {0xcc,0x171,"ES5503"}, {0xd0,0x171,"ES5506"}, {0xd8,0x171,"X1-010"},
-        {0xdc,0x171,"C352"}, {0xe0,0x171,"GA20"}
-    };
-    for (const auto &chip : chips) {
-        if (h.version < chip.version || chip.offset+4 > h.headerEnd || !word(data, chip.offset)) continue;
-        const int id = chip.offset == 0x30 ? 3 : chip.offset >= 0x44 && chip.offset <= 0x5c ?
-            6 + (chip.offset-0x44)/4 : -1;
-        if (id >= 0) {
-            const auto raw = word(data, chip.offset), clock = raw & 0x3fffffffu;
-            const bool dual = raw & 0x40000000u, variant = raw & 0x80000000u;
-            if (clock < 100000 || clock > 20000000 || (variant && !(id == 9 && dual) && id != 8))
-                h.unsupported << QString::fromLatin1(chip.name) + " clock/variant";
-            for (int n = 0; n < (dual ? 2 : 1); ++n)
-                h.yamaha.push_back({id, n, clock, id == 8 && variant ? QString("YM2610B") : QString::fromLatin1(chip.name),
-                                   id == 3 || id == 7 || id == 8 || id == 12 || variant,
-                                   id == 9 && variant ? (n ? 1 : -1) : 0, 1, 1, id == 8 && variant});
-        } else if (chip.offset == 0xb0) h.pokeyClock = word(data, chip.offset);
+    for (const auto &chip : Chips) {
+        if (h.version < chip.version || chip.offset + 4 > h.headerEnd) continue;
+        const auto raw = word(data, chip.offset);
+        if (!raw) continue;
+        if (chip.yamahaId >= 0) appendYamahaChips(h, chip, raw);
+        else if (chip.offset == 0xb0) h.pokeyClock = raw;
         else if (chip.offset == 0x0c || chip.offset == 0x10 || chip.offset == 0x2c) h.sega = true;
         else h.unsupported << QString::fromLatin1(chip.name);
     }
@@ -108,6 +118,14 @@ void requireSupportedVgm(const VgmHeader &h) {
     if (!h.unsupported.isEmpty())
         throw std::runtime_error(("Unsupported sound chip in VGM/VGZ: " + h.unsupported.join(", ") +
             ".\nThis player cannot play this chip configuration yet.").toStdString());
+}
+
+YamahaRegisterCommand yamahaRegisterCommand(int opcode) {
+    const int primary = opcode >= 0xa0 && opcode <= 0xaf ? opcode - 0x50 : opcode;
+    for (const auto &chip : Chips)
+        if (chip.yamahaId >= 0 && primary >= chip.writeCommand && primary < chip.writeCommand + chip.writePorts)
+            return {chip.yamahaId, opcode >= 0xa0 ? 1 : 0, 256 * (primary - chip.writeCommand)};
+    return {};
 }
 
 QVector<YamahaVoice> yamahaVoices(const VgmYamahaChip &chip) {

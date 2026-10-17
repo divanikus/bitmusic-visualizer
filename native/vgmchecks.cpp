@@ -141,6 +141,25 @@ void checkBounds() {
     data = vgm(); word(data, 0x34, data.size() - 0x34);
     require(inspectVgm(data).dataOffset == data.size(), "Data offset at EOF changed.");
 }
+void checkRegisterCommands() {
+    struct Expected { int opcode, id, instance, base; };
+    const Expected expected[] = {
+        {0x54,3,0,0}, {0x55,6,0,0}, {0x56,7,0,0}, {0x57,7,0,256},
+        {0x58,8,0,0}, {0x59,8,0,256}, {0x5a,9,0,0}, {0x5b,10,0,0},
+        {0x5c,11,0,0}, {0x5e,12,0,0}, {0x5f,12,0,256},
+        {0xa4,3,1,0}, {0xa5,6,1,0}, {0xa6,7,1,0}, {0xa7,7,1,256},
+        {0xa8,8,1,0}, {0xa9,8,1,256}, {0xaa,9,1,0}, {0xab,10,1,0},
+        {0xac,11,1,0}, {0xae,12,1,0}, {0xaf,12,1,256}
+    };
+    for (int opcode = 0; opcode < 256; ++opcode) {
+        const auto command = yamahaRegisterCommand(opcode);
+        const Expected *match = nullptr;
+        for (const auto &test : expected) if (test.opcode == opcode) match = &test;
+        if (match) require(command.chipId == match->id && command.instance == match->instance && command.registerBase == match->base,
+                           "Yamaha opcode chip/instance/register bank changed.");
+        else require(command.chipId == -1, "An unsupported Yamaha opcode became a register write.");
+    }
+}
 void checkVoices() {
     // Fixed snapshots include native indices, role keys AND every displayed label.
     struct Expected { int id; bool variant; int count; const char *hash; };
@@ -170,7 +189,7 @@ void checkVoices() {
 }
 }
 void checkVgm(QApplication &, const QString &, QTextStream &log) {
-    checkBounds(); checkHeaderClocks(); checkExtraHeader(); checkVoices();
+    checkBounds(); checkHeaderClocks(); checkExtraHeader(); checkRegisterCommands(); checkVoices();
     log << "VGM: clock versions/bounds, chip/variant descriptions, ordered exact errors, extra-header clocks/volumes and fixed native voice/role/label snapshots PASS\n";
     log.flush();
 }

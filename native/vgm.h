@@ -23,6 +23,9 @@ struct VgmHeader {
 };
 VgmHeader inspectVgm(const QByteArray &data);
 void requireSupportedVgm(const VgmHeader &header);
+struct YamahaRegisterCommand { int chipId = -1, instance = 0, registerBase = 0; };
+// Register writes only; an unknown opcode has chipId -1. Waits/blocks stay in the decoder.
+YamahaRegisterCommand yamahaRegisterCommand(int opcode);
 struct YamahaVoice { int index; QString key, name; };
 QVector<YamahaVoice> yamahaVoices(const VgmYamahaChip &chip);
 inline int yamahaVoiceCount(const VgmYamahaChip &chip) { return int(yamahaVoices(chip).size()); }

@@ -7,6 +7,10 @@ exact malformed-header errors are compatibility boundaries; inspection still
 reports unsupported chips separately from `requireSupportedVgm` throwing.
 Extra clock/volume tables are inspected only when Yamaha is declared, keeping
 relative offsets, instance selection and ordered volume updates unchanged.
+The ordered private chip table also owns Yamaha IDs, register-write ranges and
+base stereo capability. `yamahaRegisterCommand` supplies chip/instance/register
+bank to the Yamaha playback parser, replacing its duplicate opcode mapping.
+Waits, blocks, operand/error checks and command limits remain in the decoder.
 
 `soundconfig.cpp` derives preset identities and ordered hardware roles. Concrete
 NES, Sega and Yamaha builders keep format rules separate from the shared source

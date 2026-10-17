@@ -299,14 +299,11 @@ YamahaTrack::YamahaTrack(const QString &path, QByteArray data, int song, bool pl
             d.blocks.push_back({type == 0x82 ? 0 : 1,total,offset,data.mid(pos+8,size-8)});
             pos += size;
         } else {
-            const int primary = op >= 0xa0 && op <= 0xaf ? op-0x50 : op;
-            const int id = primary == 0x54 ? 3 : primary == 0x55 ? 6 : primary == 0x56 || primary == 0x57 ? 7 :
-                primary == 0x58 || primary == 0x59 ? 8 : primary == 0x5a ? 9 : primary == 0x5b ? 10 :
-                primary == 0x5c ? 11 : primary == 0x5e || primary == 0x5f ? 12 : -1;
-            if (id < 0) throw std::runtime_error(QString("Unsupported command 0x%1 in Yamaha VGM.").arg(op,2,16,QLatin1Char('0')).toStdString());
-            need(2); const int reg = quint8(data[pos++]) + (primary == 0x57 || primary == 0x59 || primary == 0x5f ? 256 : 0), value = quint8(data[pos++]);
+            const auto command = yamahaRegisterCommand(op);
+            if (command.chipId < 0) throw std::runtime_error(QString("Unsupported command 0x%1 in Yamaha VGM.").arg(op,2,16,QLatin1Char('0')).toStdString());
+            need(2); const int reg = quint8(data[pos++]) + command.registerBase, value = quint8(data[pos++]);
             require(d.events.size() < 2000000, "Yamaha VGM has too many register writes.");
-            d.events.push_back({d.ticks,chipIndex(id,op >= 0xa0),reg,value});
+            d.events.push_back({d.ticks,chipIndex(command.chipId,command.instance),reg,value});
         }
     }
     require(endFound, "Yamaha VGM has no end command.");
