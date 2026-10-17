@@ -1,6 +1,7 @@
 #include "window.h"
 #include <QDataStream>
 #include <QFontDatabase>
+#include <QTextLayout>
 #include <QPainter>
 #include <QSet>
 #include <algorithm>
@@ -119,7 +120,30 @@ void ScopeWindow::paintPattern(QPainter &p,int card,const QRectF &plot) {
         p.drawText(QRectF(plot.left(),plot.top()+rowHeight,plot.width(),rowHeight),Qt::AlignVCenter,
             metrics.elidedText(QString("Channels %1–%2 / %3").arg(first+1).arg(first+count).arg(data.channels),Qt::ElideRight,int(plot.width())));
     }
-    const double header=plot.top()+rowHeight*(mix&&count<data.channels?2:1);
+    double header=plot.top()+rowHeight*(mix&&count<data.channels?2:1);
+    if(mix) {
+        // These names already follow the audible cursor, including held samples.
+        // Keep channel order, but do not repeat a name shared by several voices.
+        QStringList names;
+        for(const auto &name:state_.instruments)
+            if(!name.isEmpty()&&!names.contains(name)) names.push_back(name);
+        QTextLayout text(names.join(QString::fromUtf8(" · ")),font);
+        QTextOption option; option.setWrapMode(QTextOption::WrapAtWordBoundaryOrAnywhere);
+        text.setTextOption(option); text.beginLayout();
+        double height=0;
+        while(true) {
+            auto line=text.createLine(); if(!line.isValid()) break;
+            line.setLineWidth(plot.width()); line.setPosition({0,height}); height+=line.height();
+        }
+        text.endLayout();
+        // Reserve two lines so ordinary sample changes do not move the pattern.
+        const double band=std::max(2*rowHeight,height+8);
+        if(header+band+4*rowHeight>plot.bottom()) {
+            p.drawText(QRectF(plot.left(),header,plot.width(),plot.bottom()-header),Qt::AlignCenter,"Enlarge card");return;
+        }
+        p.setPen(colors.label); text.draw(&p,{plot.left(),header+4});
+        header+=band;
+    }
     for(int c=0;c<count;++c) {
         const QRectF rect(plot.left()+gutter+c*cellWidth,header,cellWidth,rowHeight);
         p.drawText(rect,Qt::AlignCenter,metrics.elidedText(QString("Ch %1").arg(first+c+1),Qt::ElideRight,int(cellWidth)));
@@ -165,7 +189,10 @@ QVector<ScopeOverlay> ScopeWindow::musicOverlays() {
         s<<plot.size()<<devicePixelRatioF()<<state_.generation<<state_.busy<<state_.muteMask<<state_.outputMask
          <<int(viewFor(id))<<cards_[id].horizontal<<cards_[id].commands<<cards_[id].firstChannel<<cards_[id].keyboardSize<<sourceFor(id);
         if(viewFor(id)==ViewKind::PianoRoll) s<<state_.positionMs;
-        else s<<state_.pattern.order<<state_.pattern.pattern<<state_.pattern.row<<state_.pattern.bpm;
+        else {
+            s<<state_.pattern.order<<state_.pattern.pattern<<state_.pattern.row<<state_.pattern.bpm;
+            if(sourceFor(id)==ScopeTheme::FullMix) s<<state_.instruments;
+        }
         const auto &colors=theme_.colors(sourceFor(id));
         s<<colors.background<<colors.axis<<colors.label<<colors.waveform;
         for(const auto &color:theme_.tiles) s<<color.waveform;
