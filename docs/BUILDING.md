@@ -330,6 +330,8 @@ selected/full playlists, resource/roll ownership and invalid-subsong precedence.
 Instrument-history checks cover strict pruning, unchanged/equal-frame labels,
 independent returned names and reset. Actual MT-32 construction checks require
 the same user-provided ROMs as synthesis; no resources are added to Git.
+Invalid in-memory SF2/Control snapshots also check exact synth-load errors,
+snapshot release on failed initialization and subsequent successful construction.
 Hosted CI never receives user ROMs. Linux/macOS synthesis needs local validation.
 
 libxmp 4.7.3 is a static C dependency with a hash-checked mixer observation patch.

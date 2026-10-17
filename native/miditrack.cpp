@@ -93,7 +93,7 @@ struct MidiTrack::Impl {
         }
         names.remember(frame, channels);
     }
-    void reset() {
+    void createSynth() {
         synth.reset(); settings.reset(new_fluid_settings()); require(bool(settings),"Cannot create MIDI settings.");
         auto *s=settings.get();
         fluid_settings_setnum(s,"synth.sample-rate",SampleRate);
@@ -112,13 +112,20 @@ struct MidiTrack::Impl {
         fluid_settings_setint(s,"synth.dynamic-sample-loading",0);
         fluid_settings_setstr(s,"synth.midi-bank-select","gm");
         synth.reset(new_fluid_synth(s)); require(bool(synth),"Cannot create General MIDI synthesizer.");
-        auto *loader=new_fluid_defsfloader(s); require(loader,"Cannot create SoundFont loader.");
+    }
+    void loadSoundFont() {
+        auto *loader=new_fluid_defsfloader(settings.get()); require(loader,"Cannot create SoundFont loader.");
         fluid_sfloader_set_callbacks(loader,sfOpen,sfRead,sfSeek,sfTell,sfClose);
-        fluid_synth_add_sfloader(synth.get(),loader);
+        fluid_synth_add_sfloader(synth.get(),loader); // Synth owns the registered loader.
+        // Bind memory callbacks only during FluidSynth's synchronous load.
         loading=resources;
         const int id=fluid_synth_sfload(synth.get(),resources->soundFontKey.constData(),1);
         loading.reset();
         require(id>=0,"Cannot load SoundFont. Use a valid uncompressed SF2 file.");
+    }
+    void reset() {
+        createSynth();
+        loadSoundFont();
         event=0; released=false;
         names.clear(); rememberNames(0);
         if (capture) history.assign(16,{});
@@ -135,6 +142,18 @@ struct MidiTrack::Impl {
         case 0xd0: fluid_synth_channel_pressure(s,ch,a); break;
         case 0xe0: fluid_synth_pitch_bend(s,ch,a|(b<<7)); break;
         case 0xf0: fluid_synth_sysex(s,m.constData()+1,int(m.size())-2,nullptr,nullptr,nullptr,0); break;
+        }
+    }
+    void advanceEvents(qint64 frame) {
+        const auto &sequence=resources->sequence;
+        while(event<sequence.events.size() && sequence.events[event].frame<=frame) {
+            const auto &e=sequence.events[event++]; dispatch(e.message);
+            const auto status=quint8(e.message[0]);
+            if((status&0xf0)==0xc0 || status==0xf0) rememberNames(e.frame);
+        }
+        if(!released && frame>=sequence.endFrame) {
+            for(int ch=0;ch<16;++ch) { fluid_synth_cc(synth.get(),ch,64,0); fluid_synth_cc(synth.get(),ch,66,0); fluid_synth_all_notes_off(synth.get(),ch); }
+            released=true;
         }
     }
     bool chase(qint64 target,const std::function<bool()> &cancelled) {
@@ -257,15 +276,7 @@ bool MidiTrack::hasTaps() const { return impl_->capture; }
 void MidiTrack::render(short *out,int frames) {
     auto &d=*impl_; const auto &sequence=d.resources->sequence;
     while(frames>0) {
-        while(d.event<sequence.events.size() && sequence.events[d.event].frame<=frame_) {
-            const auto &e=sequence.events[d.event++]; d.dispatch(e.message);
-            const auto status=quint8(e.message[0]);
-            if((status&0xf0)==0xc0 || status==0xf0) d.rememberNames(e.frame);
-        }
-        if(!d.released && frame_>=sequence.endFrame) {
-            for(int ch=0;ch<16;++ch) { fluid_synth_cc(d.synth.get(),ch,64,0); fluid_synth_cc(d.synth.get(),ch,66,0); fluid_synth_all_notes_off(d.synth.get(),ch); }
-            d.released=true;
-        }
+        d.advanceEvents(frame_);
         int count=std::min(frames,Chunk);
         if(d.event<sequence.events.size()) count=int(std::min<qint64>(count,sequence.events[d.event].frame-frame_));
         if(!d.released) count=int(std::min<qint64>(count,sequence.endFrame-frame_));

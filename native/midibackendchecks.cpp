@@ -3,6 +3,7 @@
 #include "midimetadata.h"
 #include <QTextStream>
 #include <stdexcept>
+#include <utility>
 
 namespace {
 void require(bool ok, const char *message) { if (!ok) throw std::runtime_error(message); }
@@ -46,6 +47,18 @@ void checkNameHistory() {
     require(names.at(201) == QStringList{"E"}, "Published MIDI names share mutable storage.");
     names.clear(); require(names.at(1000).isEmpty(), "MIDI rewind retained old names.");
 }
+template<class Track, class Resources> void checkFailedSnapshot(std::shared_ptr<Resources> resources, const char *message) {
+    std::weak_ptr<Resources> retained = resources;
+    bool failed = false;
+    try { Track invalid("missing.mid", "ignored data", 0, true, false, resources); }
+    catch (const std::exception &error) {
+        if (QByteArray(error.what()) != message)
+            throw std::runtime_error((QByteArray("MIDI synth resource error changed: ") + error.what()).toStdString());
+        failed = true;
+    }
+    resources.reset();
+    require(failed && retained.expired(), "Failed MIDI initialization retained its resource snapshot.");
+}
 }
 void checkMidiSubsongErrors() {
     checkNameHistory();
@@ -63,6 +76,9 @@ void checkMidiSubsongErrors() {
 }
 void checkGmMetadata(const std::shared_ptr<const MidiResources> &original, QTextStream &log) {
     require(bool(original), "GM metadata resource snapshot missing.");
+    auto invalid = std::make_shared<MidiResources>(*original);
+    invalid->soundFont = QByteArray(32, '\0'); invalid->soundFontKey = "bitmusic-memory-invalid-backend-check.sf2";
+    checkFailedSnapshot<MidiTrack>(std::move(invalid), "Cannot load SoundFont. Use a valid uncompressed SF2 file.");
     for (bool named : {false,true}) {
         auto resources = std::make_shared<MidiResources>(*original);
         resources->sequence.title = named ? QString::fromUtf8("  Label 雪  ") : QString();
@@ -79,6 +95,8 @@ void checkGmMetadata(const std::shared_ptr<const MidiResources> &original, QText
 }
 void checkMt32Metadata(const std::shared_ptr<const Mt32Resources> &original, QTextStream &log) {
     require(bool(original), "MT-32 metadata resource snapshot missing.");
+    auto invalid = std::make_shared<Mt32Resources>(*original); invalid->control = QByteArray(32, '\0');
+    checkFailedSnapshot<Mt32Track>(std::move(invalid), "MT-32 synth cannot open this Control/PCM ROM pair.");
     for (bool named : {false,true}) {
         auto resources = std::make_shared<Mt32Resources>(*original);
         resources->sequence.title = named ? QString::fromUtf8("  Label 雪  ") : QString();

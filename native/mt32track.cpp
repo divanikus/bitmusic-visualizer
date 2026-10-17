@@ -107,7 +107,7 @@ struct Mt32Track::Impl : MT32Emu::ReportHandler {
         auto &d=*static_cast<Impl *>(ctx); const auto at=timestamp-d.captureStart;
         if(part<9 && at<Chunk) { d.input[at][2+2*part]+=left*2; d.input[at][3+2*part]+=right*2; }
     }
-    void reset() {
+    void openSynth() {
         synth.reset(); pcm.reset(); control.reset();
         control=std::make_unique<Rom>(resources->control); pcm=std::make_unique<Rom>(resources->pcm);
         require(control->image && pcm->image,"Cannot initialize MT-32 ROM images.");
@@ -117,9 +117,8 @@ struct Mt32Track::Impl : MT32Emu::ReportHandler {
         synth->setMIDIDelayMode(MT32Emu::MIDIDelayMode_IMMEDIATE);
         synth->setMIDIEventQueueSize(4096);
         if(capture) { synth->bitmusicPartSample=partSample; synth->bitmusicPartContext=this; }
-        input={}; filterHistory={}; inputAt=Chunk; cursor=0; generated=consumed=0; event=0;
-        names.clear(); rememberNames(0); resetReported=false;
-        if(capture) history.assign(9,{});
+    }
+    void prepareFilter() {
         for(int phase=0;phase<Phases;++phase) {
             double sum=0;
             for(int tap=0;tap<Taps;++tap) {
@@ -130,6 +129,13 @@ struct Mt32Track::Impl : MT32Emu::ReportHandler {
             }
             for(auto &v:filter[phase]) v=float(v/sum);
         }
+    }
+    void reset() {
+        openSynth();
+        input={}; filterHistory={}; inputAt=Chunk; cursor=0; generated=consumed=0; event=0;
+        names.clear(); rememberNames(0); resetReported=false;
+        if(capture) history.assign(9,{});
+        prepareFilter();
     }
     bool enqueue(const QByteArray &m) {
         const auto now=synth->getInternalRenderedSampleCount();
@@ -159,6 +165,13 @@ struct Mt32Track::Impl : MT32Emu::ReportHandler {
         if(changed) reset(); // Analysis must not leave later patches/routing in the playback synth.
         return VoiceMask::first(9) & ~used;
     }
+    void enqueueDueEvents() {
+        const auto &events=resources->sequence.events;
+        while(event<events.size() && events[event].frame*Rate/SampleRate<=generated) {
+            if(!enqueue(events[event].message)) break; // Drain a full queue, then retry without losing the event.
+            ++event;
+        }
+    }
     void refill(VoiceMask mute) {
         input={}; captureStart=synth->getInternalRenderedSampleCount();
         synth->bitmusicMuteMask=0;
@@ -166,10 +179,7 @@ struct Mt32Track::Impl : MT32Emu::ReportHandler {
         int done=0;
         const auto &events=resources->sequence.events;
         while(done<Chunk) {
-            while(event<events.size() && events[event].frame*Rate/SampleRate<=generated) {
-                if(!enqueue(events[event].message)) break; // Drain a full queue, then retry without losing the event.
-                ++event;
-            }
+            enqueueDueEvents();
             int n=Chunk-done;
             if(event<events.size()) n=int(std::clamp<qint64>(events[event].frame*Rate/SampleRate-generated,1,n));
             std::array<float,2*Chunk> audio{};

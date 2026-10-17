@@ -7,6 +7,15 @@ chooses the last state. GM keeps its event-position label sampling; MT-32 keeps
 its native-rendered-position sampling. Stable engine-specific voice/source lists,
 configuration hashes, resource pointers, masks and roll construction stay in the
 backends. Titles/models retain their original trimming policy.
+GM reset names synth/settings creation, synchronous in-memory SoundFont loading
+and cursor/history reset. The synth owns its registered loader; callback binding
+is cleared before reporting load failure. MT-32 reset names synth/ROM opening,
+buffer/history reset and filter preparation, preserving destruction and setup
+order. GM advances due events and end release before rendering; MT-32 retains
+native 32 kHz scheduling and queue-full drain/retry without consuming the rejected event.
+GM/MT-32 dispatch, SysEx/reset validation, chase/pedals, effect mixing and resource
+admission policies remain engine-specific. Failure checks retain exact errors
+and verify that partially constructed synthesizers release their snapshots.
 
 `yamahastream.*` owns Yamaha command events, timed sample blocks and loop/duration
 facts parsed from a validated VGM. Sample-block reads and chip lookup share the
