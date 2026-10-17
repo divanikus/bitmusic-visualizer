@@ -10,7 +10,9 @@ Selecting the current bank or MIDI engine again preserves playback and position.
 The folder button opens the resource directory; Refresh rereads the list and
 clears cached bank input for the next load, without interrupting playback.
 See [platform locations](../packaging/SOUNDFONTS.txt). No bank is downloaded or
-included at runtime. With no saved choice, the first available SF2 or SFLIST alphabetically
+included at runtime. **Browse...** in the SoundFont dropdown selects a bank or list
+from any folder, without copying it. Local selections are stored by filename;
+external selections by absolute path. With no saved choice, the first available SF2 or list alphabetically
 is selected; a missing saved bank produces an error on MIDI load.
 
 Formats 0/1 play their tracks together as one song. Format 2 lists musical
@@ -91,8 +93,8 @@ sample-cache identity includes the content hash of the loaded bytes.
 
 ## SoundFont sets (SFLIST)
 
-Place a UTF-8 `.sflist` in the SoundFonts folder and select it from the same dropdown
-as a bank; sets have a **(set)** label. Each line names an uncompressed SF2 file.
+Select an existing UTF-8 `.sflist` with **Browse...**, or place it in the SoundFonts
+folder; sets have a **(set)** label. Each line names an uncompressed SF2 file or another list.
 Relative paths start at the list's folder; absolute paths also work. For example:
 
 ```text
@@ -106,10 +108,31 @@ for matching programs; other instruments fall back to earlier banks. This suppor
 sets split into melodic and percussion banks without changing the music files.
 Blank lines, `#` comments, a UTF-8 BOM and quoted paths are accepted. Missing or
 invalid banks stop loading with an error; the player does not silently skip them.
-Advanced mappings, gain/channel rules, nested lists and `.sflist.json` are not
-supported. No bank files are bundled.
+Nested lists resolve paths relative to their own folders and expand in place.
+Repeated references to the same SF2 retain its last position.
 
-Lists are limited to 32 banks / 64 KiB of text, with up to 2 GiB per bank and
+The path-only subset of [foo_midi's JSON list format](https://github.com/stuerp/foo_midi/blob/main/docs/README.md#soundfont-lists-sflist)
+also works in `.sflist`, `.json` or `.sflist.json` files:
+
+```json
+{
+  "soundFonts": [
+    { "fileName": "MySet/Melodic-1.sf2" },
+    { "fileName": "MySet/Melodic-2.sf2" },
+    { "fileName": "MySet/Drums.sf2" }
+  ]
+}
+```
+
+Existing SF2 sets using these forms need no conversion. This does not import
+foobar2000's other playback settings. BASSMIDI-specific `gain`, `channels` and
+`patchMappings`, legacy text mapping syntax and unknown JSON fields produce an
+explicit error rather than being silently ignored. SF3, DLS and SFZ banks remain
+unsupported. JSON requires a `soundFonts` array of objects with `fileName` strings.
+No bank files are bundled, downloaded or modified.
+
+Lists are limited to 8 nesting levels, 32 unique banks / 64 KiB of combined list text,
+with up to 2 GiB per bank and
 4 GiB of total SF2 input. Source bytes and decoded samples require additional RAM;
 large sets can take several seconds to load initially. Subsequent tracks reuse
 the unchanged bank input, while their synthesizers and MIDI state remain separate.

@@ -32,10 +32,9 @@ QVector<ResourceStatus> inspectPlayerResources() {
          << inspectFile("chargen.rom", roms.filePath("c64/chargen.rom"), 4096)
          << inspectFile("ym2608_adpcm_rom.bin", roms.filePath("ymfm/ym2608_adpcm_rom.bin"), 8192);
     const auto banks = availableSoundFonts();
-    rows << ResourceStatus{"SoundFonts (*.sf2, *.sflist)", playerSoundFontsDirectory(),
+    rows << ResourceStatus{"SoundFonts (*.sf2, *.sflist, *.json)", playerSoundFontsDirectory(),
         banks.isEmpty() ? "Missing" : QString("%1 found").arg(banks.size()),
-        banks.isEmpty() ? "General MIDI needs a user-supplied SF2 bank." :
-            "Choose a bank in the player when MIDI is open. Banks are validated during playback setup.",
+        "Choose a bank or set in the MIDI row; Browse... also accepts files outside this folder. Contents are validated during playback setup.",
         !banks.isEmpty(), true};
     return rows;
 }

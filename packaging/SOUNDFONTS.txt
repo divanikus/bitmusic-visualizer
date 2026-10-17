@@ -7,6 +7,8 @@ macOS: ~/Library/Application Support/BitMusicVisualizer/soundfonts
 
 Open a .mid or .midi file. The SoundFont list appears in the main player.
 Select a bank to save the choice and restart the current MIDI from the beginning.
+Browse... in this dropdown also selects an SF2 or SFLIST/JSON set from any folder.
+Files stay in place; external selections are remembered by absolute path.
 The folder button opens the resource folder; Refresh rereads its file list.
 With no saved choice, the first bank alphabetically is used. A missing selected
 bank is reported when opening MIDI; there is no startup warning.
@@ -14,8 +16,12 @@ bank is reported when opening MIDI; there is no startup warning.
 To load several banks together, put a UTF-8 .sflist here with one SF2 path per
 line, relative to the list. Select it like a bank. Later entries override matching
 bank/program numbers; other instruments fall back to earlier entries. Blank
-lines, # comments and quoted paths are accepted. Mappings, nested lists and JSON
-are not supported. Limits: 32 banks, 2 GiB per bank, 4 GiB per set. Large sets need
+lines, # comments and quoted paths are accepted. Nested lists and foo_midi-style
+JSON (.sflist or .json) with a soundFonts array of fileName objects also work.
+Each list resolves paths relative to its own folder. BASSMIDI gain, channels and
+patchMappings rules are reported as unsupported, not silently ignored.
+Limits: 8 nesting levels, 64 KiB combined list text, 32 unique banks,
+2 GiB per bank, 4 GiB per set. Large sets need
 additional RAM and can take time to load.
 
 Only uncompressed SF2 is supported. SF3, DLS and complete GS/XG device emulation are not

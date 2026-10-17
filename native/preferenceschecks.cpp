@@ -55,8 +55,8 @@ void checkResourceMessages(QTextStream &log) {
 void checkResourceWarnings(QApplication &app, const QDir &dir, QTextStream &log) {
     PlayerWindow window; window.player().setVolume(0); window.show();
     const auto midi=dir.filePath("demo.mid");
-    const QString soundFontError="SoundFont required: place an .sf2 bank or .sflist in:\n"+
-        QDir::toNativeSeparators(playerSoundFontsDirectory())+"\nThen select it in the player's SoundFont list and reopen the MIDI.";
+    const QString soundFontError="SoundFont required: choose an SF2 bank or SFLIST/JSON set with Browse... in the player's SoundFont list.\n"
+        "You can also place it in:\n"+QDir::toNativeSeparators(playerSoundFontsDirectory());
     const QString mt32Error="MT-32 ROM required: place MT32_CONTROL.ROM and MT32_PCM.ROM in:\n"+
         QDir::toNativeSeparators(playerMt32Directory());
     auto expectWarning=[&](const QString &title,const QString &error) {
@@ -98,7 +98,7 @@ QByteArray fixture(bool pokey,bool loop) {
 void checkResourceInspection(const QDir &scratch, QTextStream &log) {
     auto rows = inspectPlayerResources();
     const QStringList names{"MT32_CONTROL.ROM", "MT32_PCM.ROM", "kernal.rom", "basic.rom",
-                            "chargen.rom", "ym2608_adpcm_rom.bin", "SoundFonts (*.sf2, *.sflist)"};
+                            "chargen.rom", "ym2608_adpcm_rom.bin", "SoundFonts (*.sf2, *.sflist, *.json)"};
     require(rows.size() == names.size(), "Resource inspection changed the catalog size.");
     for (int i = 0; i < rows.size(); ++i)
         require(rows[i].file == names[i] && rows[i].status == "Missing" && !rows[i].found && rows[i].directory == (i == 6),

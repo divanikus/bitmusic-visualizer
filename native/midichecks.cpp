@@ -26,6 +26,8 @@ void checkMidiSubsongErrors();
 void checkMidiPatternSetup(const QString &directory,QTextStream &log);
 void checkGmMetadata(const std::shared_ptr<const MidiResources> &resources, QTextStream &log);
 void checkSoundFontBankCache(const QString &directory,const QByteArray &fixture,QTextStream &log);
+void checkSoundFontLists(const QString &directory,const QByteArray &fixture,QTextStream &log);
+void checkSoundFontBrowse(const QString &directory,const QString &midi,QTextStream &log);
 
 namespace {
 void require(bool ok,const char *s) { if(!ok) throw std::runtime_error(s); }
@@ -92,6 +94,7 @@ int runMidiChecks(QApplication &app,const QStringList &args) {
         write(resources.filePath("Test.sf2"),read(QDir(directory).filePath("fixture-gm.sf2")));
         checkSoundFontBankCache(resources.path(),read(resources.filePath("Test.sf2")),log);
         selectSoundFont("Test.sf2"); require(selectedSoundFont()=="Test.sf2","SoundFont selection did not persist.");
+        checkSoundFontLists(resources.path(),read(resources.filePath("Test.sf2")),log);
         checkMidiPatternSetup(directory,log);
         // SMF 2 patterns have independent tempo, ports, titles, notes and engine hints.
         auto patterns = smf(QByteArray::fromHex("00ff03014100ff51030f424000ff21010000903c648360803c0000ff2f00"));
@@ -139,13 +142,19 @@ int runMidiChecks(QApplication &app,const QStringList &args) {
         require(layered->info().midiResources->soundFonts.size()==2 && layered->instrumentNames(layered->frame()).value(0)=="Override" &&
                 layered->instrumentNames(layered->frame()).value(1)=="Lead" && layered->instrumentNames(layered->frame()).value(9)=="Drums",
                 "SFLIST precedence or fallback across melodic/percussion banks failed.");
-        QFile::remove(resources.filePath("Base.sf2")); QFile::remove(resources.filePath("Overlay.sf2"));
         const auto layeredPcm=pcm(*layered,1024);
+        write(resources.filePath("Nested.json"),R"({"soundFonts":[{"fileName":"Base.sf2"},{"fileName":"Overlay.sf2"}]})");
+        write(resources.filePath("Nested.sflist"),"Nested.json");
+        selectSoundFont("Nested.sflist");
+        auto jsonLayered=openMusicTrack(layeredPath,0,true,true); advance(*jsonLayered,SampleRate/5);
+        require(pcm(*jsonLayered,1024)==layeredPcm && jsonLayered->instrumentNames(jsonLayered->frame()).value(0)=="Override",
+                "Nested JSON set changed instrument priority or audio compared with a text list.");
+        QFile::remove(resources.filePath("Base.sf2")); QFile::remove(resources.filePath("Overlay.sf2"));
         layered->seek(0); advance(*layered,SampleRate/5);
         require(pcm(*layered,1024)==layeredPcm,"SFLIST rewind reread deleted bank files.");
         auto layeredCopy=openMusicTrack("missing.mid",0,false,true,{}, {},layered->info().midiResources);
         advance(*layeredCopy,SampleRate/5); require(pcm(*layeredCopy,1024)==layeredPcm,"SFLIST capture did not share immutable bank snapshots.");
-        for (const QByteArray &list : {QByteArray(), QByteArray("Missing.sf2"), QByteArray("Test.sf2\nTest.sf2"),
+        for (const QByteArray &list : {QByteArray(), QByteArray("Missing.sf2"),
                 QByteArray("Other.sflist"), QByteArray("0,0|Test.sf2"), QByteArray::fromHex("fffe")}) {
             write(resources.filePath("Invalid.sflist"),list); bool rejected=false;
             try { loadSoundFontBanks("Invalid.sflist"); } catch(const std::exception &) { rejected=true; }
@@ -268,6 +277,7 @@ int runMidiChecks(QApplication &app,const QStringList &args) {
             selectSoundFont("Test.sf2");
         }
         if(!args.contains("--decoder-only")) {
+            checkSoundFontBrowse(resources.path(),midi,log);
             write(resources.filePath("Other.sf2"),read(resources.filePath("Test.sf2")));
             PlayerWindow window; window.player().setVolume(0); window.show(); window.loadFile(midi);
             spin(app,[&]{auto s=window.player().state();return s.valid&&!s.busy&&s.playing&&window.player().scopes().mask==VoiceMask::first(16);});

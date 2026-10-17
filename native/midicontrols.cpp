@@ -2,8 +2,11 @@
 #include "miditrack.h"
 #include "mt32track.h"
 #include "playercontrols.h"
+#include "soundfontlist.h"
 #include <QComboBox>
+#include <QDir>
 #include <QFile>
+#include <QFileDialog>
 #include <QFileInfo>
 #include <QHBoxLayout>
 #include <QMessageBox>
@@ -22,7 +25,7 @@ MidiControls::MidiControls(QWidget *parent) : QWidget(parent) {
     soundFont_ = new QComboBox; soundFont_->setObjectName("soundFont");
     soundFont_->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);
     soundFont_->setMinimumContentsLength(12);
-    soundFont_->setToolTip("General MIDI bank or SFLIST set. Changing it restarts the current MIDI.");
+    soundFont_->setToolTip("General MIDI bank or SFLIST/JSON set. Browse... selects a file from any folder. Changing it restarts the current MIDI.");
     row->addWidget(soundFont_, 1);
     folder_ = createPlayerIconButton(PlayerIcon::Open, "soundFontFolder", "Open SoundFonts folder"); row->addWidget(folder_);
     refresh_ = new QToolButton; refresh_->setText(QString::fromUtf8("↻"));
@@ -36,12 +39,22 @@ MidiControls::MidiControls(QWidget *parent) : QWidget(parent) {
         } catch (const std::exception &e) { QMessageBox::warning(window(), "MIDI engine", QString::fromUtf8(e.what())); }
     });
     connect(soundFont_, &QComboBox::activated, this, [this](int index) {
-        const auto name = soundFont_->itemData(index).toString();
-        if (name.isEmpty() || name == selectedSoundFont()) return;
+        auto name = soundFont_->itemData(index).toString();
+        if (soundFont_->itemData(index, Qt::UserRole + 1).toBool()) {
+            const auto selected = selectedSoundFont();
+            const auto start = QFileInfo(selected).isAbsolute() ? selected : QDir(playerSoundFontsDirectory()).filePath(selected);
+            name = QFileDialog::getOpenFileName(window(), "Select SoundFont or set", start,
+                "SoundFonts and sets (*.sf2 *.sflist *.json);;SF2 banks (*.sf2);;SoundFont lists (*.sflist *.json)");
+        }
+        if (name.isEmpty() || name == selectedSoundFont()) { refreshSoundFonts(); return; }
         try {
-            selectSoundFont(name);
-            if (!midiPath_.isEmpty() && onReloadRequested) onReloadRequested(midiPath_);
-        } catch (const std::exception &e) { QMessageBox::warning(window(), "SoundFont", QString::fromUtf8(e.what())); }
+            const bool changed = selectSoundFont(name);
+            refreshSoundFonts();
+            if (changed && !midiPath_.isEmpty() && onReloadRequested) onReloadRequested(midiPath_);
+        } catch (const std::exception &e) {
+            refreshSoundFonts();
+            QMessageBox::warning(window(), "SoundFont", QString::fromUtf8(e.what()));
+        }
     });
     connect(refresh_, &QToolButton::clicked, this, [this] {
         clearSoundFontBankCache();
@@ -60,9 +73,19 @@ void MidiControls::clearSource() { midiPath_.clear(); hide(); }
 void MidiControls::refreshSoundFonts() {
     const QSignalBlocker blocked(soundFont_); soundFont_->clear();
     const auto selected = selectedSoundFont();
-    for (const auto &name : availableSoundFonts()) soundFont_->addItem(QFileInfo(name).completeBaseName() + (name.endsWith(".sflist", Qt::CaseInsensitive) ? " (set)" : ""), name);
+    for (const auto &name : availableSoundFonts()) {
+        soundFont_->addItem(QFileInfo(name).completeBaseName() + (isSoundFontList(name) ? " (set)" : ""), name);
+        soundFont_->setItemData(soundFont_->count()-1, QDir::toNativeSeparators(
+            QFileInfo(name).isAbsolute() ? name : QDir(playerSoundFontsDirectory()).filePath(name)), Qt::ToolTipRole);
+    }
     int at = soundFont_->findData(selected);
-    if (at < 0) { soundFont_->insertItem(0, selected.isEmpty() ? "No SoundFonts found" : "Missing: " + selected, QString()); at = 0; }
+    if (at < 0) {
+        soundFont_->insertItem(0, selected.isEmpty() ? "No SoundFonts found" : "Missing: " + QFileInfo(selected).fileName(), QString());
+        soundFont_->setItemData(0, QDir::toNativeSeparators(selected), Qt::ToolTipRole); at = 0;
+    }
+    soundFont_->insertSeparator(soundFont_->count());
+    soundFont_->addItem("Browse...");
+    soundFont_->setItemData(soundFont_->count()-1, true, Qt::UserRole + 1);
     soundFont_->setCurrentIndex(at);
 }
 bool MidiControls::usingMt32(const PlayerState &state) const {

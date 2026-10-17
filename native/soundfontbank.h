@@ -10,10 +10,11 @@ struct SoundFontBank {
 QString playerSoundFontsDirectory();
 QStringList availableSoundFonts();
 QString selectedSoundFont();
-void selectSoundFont(const QString &name);
+// Accept local filenames or absolute external paths. Returns whether the choice changed.
+bool selectSoundFont(const QString &name);
 // Forget retained input bytes; existing decoder snapshots remain valid.
 void clearSoundFontBankCache();
-// Basic UTF-8 SFLIST: one SF2 path per line; paths are relative to the list.
+// UTF-8 text/JSON SFLIST, including nested lists; paths are relative to each list.
 // Later banks take priority when the same bank/program is present more than once.
 // Reuses the last set while each file's path, size and timestamps are unchanged.
 QVector<SoundFontBank> loadSoundFontBanks(const QString &name);

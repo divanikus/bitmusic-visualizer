@@ -90,6 +90,7 @@ add_library(bitmusic_core OBJECT
   native/midisequence.cpp
   native/miditrack.cpp
   native/soundfontbank.cpp
+  native/soundfontlist.cpp
   native/midimetadata.cpp
   native/musicevents.cpp
   native/midiroll.cpp

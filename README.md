@@ -134,9 +134,10 @@ Check a file with `Get-FileHash <file> -Algorithm SHA1` (PowerShell),
 
 ### General MIDI SoundFonts
 
-Put an **SF2** bank or a basic **SFLIST** set in `soundfonts/` under the data directory, then select it in
-the player's MIDI row. The folder button opens the resource directory;
-**Refresh** updates the bank list. The selected bank is remembered.
+Choose **Browse...** in the player's MIDI SoundFont dropdown to use an existing
+**SF2** bank or **SFLIST/JSON** set from any folder. Alternatively, put it in
+`soundfonts/` under the data directory. The folder button opens that directory;
+**Refresh** updates the list. The selection is remembered; bank files are not copied.
 Any supported SF2 bank can be used, so there is no single recommended checksum.
 SF3 and DLS are not supported. [MIDI setup and limits](docs/MIDI.md).
 

@@ -1,12 +1,11 @@
 #include "soundfontbank.h"
+#include "soundfontlist.h"
 #include "appsettings.h"
 #include "resourceerror.h"
 #include <QCryptographicHash>
 #include <QDateTime>
 #include <QFile>
 #include <QFileInfo>
-#include <QSet>
-#include <QStringDecoder>
 #include <QTimeZone>
 #include <algorithm>
 #include <mutex>
@@ -15,7 +14,13 @@
 namespace {
 void require(bool ok, const QString &message) { if (!ok) throw std::runtime_error(message.toStdString()); }
 bool isBank(const QString &name) { return name.endsWith(".sf2", Qt::CaseInsensitive); }
-bool isList(const QString &name) { return name.endsWith(".sflist", Qt::CaseInsensitive); }
+QString resourcePath(const QString &name) {
+    return QFileInfo(name).isAbsolute() ? name : QDir(playerSoundFontsDirectory()).filePath(name);
+}
+QString savedSelection() {
+    QSettings s(playerSettingsPath(),playerSettingsFormat()); s.setFallbacksEnabled(false);
+    return s.value("MIDI/SoundFont").toString();
+}
 struct BankStamp {
     QString path;
     qint64 size;
@@ -36,37 +41,6 @@ struct BankCache {
     QVector<CachedBank> banks; // Only the most recently loaded set, not every bank encountered.
 };
 BankCache &bankCache() { static BankCache cache; return cache; }
-QStringList bankPaths(const QString &path) {
-    if (isBank(path)) return {path};
-    require(isList(path), "Select an SF2 bank or a basic SFLIST file.");
-    QFile file(path);
-    require(file.open(QIODevice::ReadOnly), "Cannot open SoundFont list: " + QFileInfo(path).fileName());
-    require(file.size() <= 65536, "SoundFont list exceeds 64 KiB.");
-    const auto bytes = file.read(65537);
-    require(file.error() == QFile::NoError && bytes.size() <= 65536 && file.atEnd(), "Cannot read SoundFont list (maximum 64 KiB).");
-    QStringDecoder decoder(QStringDecoder::Utf8);
-    const QString text = decoder(bytes);
-    require(!decoder.hasError(), "SoundFont list must be UTF-8 text.");
-    QStringList paths; QSet<QString> seen;
-    const QDir folder(QFileInfo(path).absolutePath());
-    for (auto line : text.split('\n')) {
-        line = line.trimmed();
-        if (line.isEmpty() || line.startsWith('#')) continue;
-        if (line.startsWith('"') && line.endsWith('"')) line = line.mid(1, line.size()-2);
-        require(line.size() <= 4096 && !line.contains(QChar(0)) && !line.contains('|') && isBank(line),
-            "Basic SFLIST supports only SF2 paths, one per line. Nested lists, mappings and JSON are not supported.");
-        // Accept Windows-authored relative lists on Unix too.
-        line.replace('\\', '/');
-        const auto resolved = QDir::cleanPath(folder.absoluteFilePath(line));
-        const auto identity = QFileInfo(resolved).canonicalFilePath();
-        require(!identity.isEmpty(), "SoundFont list bank is missing: " + line);
-        require(!seen.contains(identity), "Duplicate bank in SoundFont list: " + line);
-        seen.insert(identity); paths << resolved;
-        require(paths.size() <= 32, "SoundFont list exceeds 32 banks.");
-    }
-    require(!paths.isEmpty(), "SoundFont list contains no banks.");
-    return paths;
-}
 }
 QString playerSoundFontsDirectory() {
     const auto test=QCoreApplication::instance()->property("soundFontsDirectoryForTests").toString();
@@ -76,20 +50,31 @@ QString playerSoundFontsDirectory() {
 QStringList availableSoundFonts() {
     QStringList names;
     for (const auto &name:QDir(playerSoundFontsDirectory()).entryList(QDir::Files,QDir::Name))
-        if (isBank(name) || isList(name)) names << name;
+        if (isBank(name) || isSoundFontList(name)) names << name;
+    const auto saved = savedSelection();
+    if (QFileInfo(saved).isAbsolute() && QFileInfo(saved).isFile() && (isBank(saved) || isSoundFontList(saved)))
+        names << saved;
     return names;
 }
 QString selectedSoundFont() {
-    QSettings s(playerSettingsPath(),playerSettingsFormat()); s.setFallbacksEnabled(false);
-    const auto name=s.value("MIDI/SoundFont").toString();
-    if (!name.isEmpty() && QFileInfo(name).fileName()==name && !name.contains('/') && !name.contains('\\')) return name;
+    const auto name=savedSelection();
+    if (!name.isEmpty() && (QFileInfo(name).isAbsolute() ||
+            (QFileInfo(name).fileName()==name && !name.contains('/') && !name.contains('\\')))) return name;
     return availableSoundFonts().value(0);
 }
-void selectSoundFont(const QString &name) {
-    require(availableSoundFonts().contains(name),"Selected SoundFont is not available.");
+bool selectSoundFont(const QString &name) {
+    require(!name.isEmpty(),"Selected SoundFont is not available.");
+    const QFileInfo info(resourcePath(name));
+    // Validate lists before saving a new choice; no large sample data is read here.
+    soundFontPaths(info.absoluteFilePath());
+    const auto local = QFileInfo(playerSoundFontsDirectory()).canonicalFilePath();
+    const auto path = info.canonicalFilePath();
+    const auto stored = !local.isEmpty() && QFileInfo(path).absolutePath() == local ? QFileInfo(path).fileName() : path;
+    const bool changed = QFileInfo(resourcePath(selectedSoundFont())).canonicalFilePath() != path;
     QSettings s(playerSettingsPath(),playerSettingsFormat()); s.setFallbacksEnabled(false);
-    s.setValue("MIDI/SoundFont",name); s.sync();
+    s.setValue("MIDI/SoundFont",stored); s.sync();
     require(s.status()==QSettings::NoError,"Could not save the selected SoundFont.");
+    return changed;
 }
 void clearSoundFontBankCache() {
     auto &cache=bankCache();
@@ -98,11 +83,13 @@ void clearSoundFontBankCache() {
     cache.banks.clear();
 }
 QVector<SoundFontBank> loadSoundFontBanks(const QString &name) {
-    const auto path = QDir(playerSoundFontsDirectory()).filePath(name);
+    const auto path = resourcePath(name);
     if (name.isEmpty() || !QFileInfo::exists(path))
-        throw std::runtime_error(resourceRequiredMessage(RequiredResource::SoundFont, "place an .sf2 bank or .sflist in:\n" +
-            QDir::toNativeSeparators(playerSoundFontsDirectory())+"\nThen select it in the player's SoundFont list and reopen the MIDI.").toStdString());
-    const auto paths = bankPaths(path);
+        throw std::runtime_error(resourceRequiredMessage(RequiredResource::SoundFont,
+            "choose an SF2 bank or SFLIST/JSON set with Browse... in the player's SoundFont list.\n"
+            "You can also place it in:\n" + QDir::toNativeSeparators(playerSoundFontsDirectory()) +
+            (name.isEmpty() ? QString() : "\nMissing selection: " + name)).toStdString());
+    const auto paths = soundFontPaths(path);
     qint64 total = 0;
     for (const auto &bank : paths) {
         const auto size = QFileInfo(bank).size();

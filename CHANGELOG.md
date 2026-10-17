@@ -15,9 +15,10 @@ not published GitHub releases. Unreleased lists changes made after the latest ta
   switches all cards together and shows when their settings differ.
 - MIDI format 2 playback: musical patterns appear as separate playlist tracks;
   note-free setup tracks supply tempo and settings without extra playlist entries.
-- Basic SFLIST sets for General MIDI: load several SF2 banks together, with later
-  banks taking priority for matching instruments. Unchanged banks are reused
-  between tracks to avoid repeated long loads.
+- SFLIST sets for General MIDI, including foo_midi-style JSON and nested lists.
+  Use Browse in the SoundFont dropdown to connect existing SF2 sets without copying
+  them. Later banks override matching instruments; unchanged banks load faster
+  on subsequent tracks. BASSMIDI mapping, gain and channel rules are not supported.
 
 ### Changed
 
