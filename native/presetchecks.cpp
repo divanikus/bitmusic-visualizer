@@ -17,6 +17,8 @@
 #include <QTimer>
 #include <stdexcept>
 
+void checkSoundConfigurations(QApplication &app, const QString &directory, QTextStream &log);
+
 namespace {
 void require(bool ok, const char *message) { if (!ok) throw std::runtime_error(message); }
 void pump(QApplication &app, int ms = 40) { QEventLoop loop(&app); QTimer::singleShot(ms, &loop, &QEventLoop::quit); loop.exec(); }
@@ -46,6 +48,7 @@ void save(ScopeWindow &scope, const QString &name) {
 }
 
 void checkPresets(QApplication &app, const QString &directory, QTextStream &log) {
+    checkSoundConfigurations(app, directory, log);
     // A private root within the self-test root also isolates this suite from other checks.
     QTemporaryDir storage(QDir(directory).absoluteFilePath("preset-checks-XXXXXX")); require(storage.isValid(), "Cannot create preset test root.");
     const auto oldThemes = app.property("themesDirectoryForTests"), oldSettings = app.property("settingsFileForTests");

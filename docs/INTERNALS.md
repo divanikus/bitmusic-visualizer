@@ -1,5 +1,14 @@
 # Native code responsibilities
 
+`soundconfig.cpp` derives preset identities and ordered hardware roles. Each
+VGM identification parses the header once, retaining Yamaha-before-POKEY-before-
+Sega precedence. Yamaha roles/identity use inspected chips; Sega identity keeps
+the original raw clock/version fields, including legacy/variant fallbacks.
+This identification does not add playback-support validation. Fixed ID/name/role
+checks cover recognized and opaque layouts; their hash inputs are compatibility
+data, independent of titles, filenames, container compression and display labels
+for verified roles. Unknown layouts retain voice-label-based opaque roles.
+
 `musicfile.cpp` owns bounded content-based file loading/gzip decoding and the
 concrete decoder factory. One GME signature predicate serves file admission and
 factory routing; routing retains its existing additional four-byte NESM probe.

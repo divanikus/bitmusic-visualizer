@@ -146,6 +146,13 @@ missing/corrupt defaults, Keep grid and live NSF/VGZ application without transpo
 or mute changes. It saves editor screenshots and isolates settings and presets.
 It also runs in the complete native suite.
 
+`--self-test test-output --configuration-only` checks fixed sound-configuration
+IDs, names and ordered source roles captured before refactoring. Cases include
+NES expansions/NSFE, opaque UTF-8 layouts, legacy/variant Sega VGM, POKEY and all
+supported Yamaha types, dual/mixed/variant chips, extra clocks/gains and exact
+malformed-header errors. These pure checks also run in preset/full suites;
+they do not open audio or use user presets/settings.
+
 `--self-test test-output --layout-only` checks card spans and editor tab navigation,
 selection/capture retention, adaptive card-list/help sizing, bounded sidebar/toolbar
 geometry and reachable card controls at normal and minimum sizes. It saves screenshots

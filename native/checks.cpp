@@ -50,6 +50,7 @@ void checkFrameRates(QApplication &app, const QString &directory, QTextStream &l
 void checkLayoutSpans(QApplication &app, const QString &directory, QTextStream &log);
 void checkShortcuts(QApplication &app, const QString &directory, QTextStream &log);
 void checkPresets(QApplication &app, const QString &directory, QTextStream &log);
+void checkSoundConfigurations(QApplication &app, const QString &directory, QTextStream &log);
 void checkEngineCommands(QApplication &app, const QString &directory, QTextStream &log);
 void checkScopeWorker(QApplication &app, const QString &directory, QTextStream &log);
 void checkCaptureControls(QApplication &app, const QString &directory, QTextStream &log);
@@ -729,6 +730,7 @@ int runChecks(QApplication &app, const QStringList &arguments) {
     try {
         if (arguments.contains("--capture-only")) { checkCaptureControls(app, directory, log); return 0; }
         if (arguments.contains("--loading-only")) { checkMusicLoading(app, directory, log); return 0; }
+        if (arguments.contains("--configuration-only")) { checkSoundConfigurations(app, directory, log); return 0; }
         if (arguments.contains("--scope-worker-only")) { checkScopeWorker(app, directory, log); return 0; }
         if (arguments.contains("--engine-only")) { checkEngineCommands(app, directory, log); return 0; }
         if (arguments.contains("--presets-only")) { checkPresets(app, directory, log); return 0; }
