@@ -611,37 +611,13 @@ QVector<ScopeLane> ScopeWindow::waveLanes() {
             if (muted || !state_.outputMask || (stereo && !(state_.outputMask & (1u << side)))) lane.color.setAlpha(115);
             if (kind == ViewKind::Spectrum) {
                 const auto &bins = side ? spectrum->right : spectrum->left;
-                const double top = plot.top()+plot.height()*side/(stereo ? 2 : 1);
-                const double bottom = top+plot.height()/(stereo ? 2 : 1)-(cards_[card].spectrumGrid ? 16 : 2);
-                if (bottom-top <= 5) continue;
-                const double height = std::max(1., bottom-top-5);
-                // Logarithmic frequency axis, 20 Hz to 20 kHz. Bucket maxima
-                // preserve narrow peaks on small cards instead of skipping FFT bins.
+                const auto bounds = scopeSpectrumBounds(plot, stereo, side, cards_[card].spectrumGrid);
+                if (bounds.bottom - bounds.top <= 5) continue;
                 if (cards_[card].spectrumBars) {
-                    lane.bars = scopeSpectrumBars(bins, QRectF(plot.left(), top+5, plot.width(), height));
-                    lane.clip = QRectF(plot.left(), top, plot.width(), bottom-top);
-                    lanes.push_back(std::move(lane)); continue;
-                }
-                const int points = std::clamp(int(plot.width()), 32, 512);
-                for (int j = 0; j < points; ++j) {
-                    const double low = 20*std::pow(1000., double(j)/points);
-                    const double high = 20*std::pow(1000., double(j+1)/points);
-                    const int first = std::clamp(int(std::floor(low*2048/SampleRate)), 1, int(bins.size())-1);
-                    const int last = std::clamp(int(std::ceil(high*2048/SampleRate)), first, int(bins.size())-1);
-                    float db = -80; for (int bin = first; bin <= last; ++bin) db = std::max(db, bins[bin]);
-                    lane.points.push_back({plot.left()+plot.width()*j/(points-1), bottom-height*(db+80)/80});
-                }
-            } else {
-                const float scale = float(plot.height() * (stereo ? .21 : .44)) / wave->peak;
-                const int points = std::max(2, std::min(2048, int(plot.width()*2)));
-                const auto &row = side ? right : left;
-                const double middle = stereo ? plot.top()+plot.height()*(.25+.5*side) : plot.center().y();
-                lane.points.reserve(points);
-                for (int j = 0; j < points; ++j) {
-                    const float index = wave->start + float(j)*2047/(points-1);
-                    lane.points.push_back({plot.left()+plot.width()*j/(points-1), middle-ScopeWave::sample(row, index)*scale});
-                }
-            }
+                    lane.bars = scopeSpectrumBars(bins, QRectF(plot.left(), bounds.top + 5, plot.width(), bounds.height));
+                    lane.clip = QRectF(plot.left(), bounds.top, plot.width(), bounds.bottom - bounds.top);
+                } else lane.points = scopeSpectrumLine(bins, plot, bounds);
+            } else lane.points = scopeWavePoints(side ? right : left, *wave, plot, stereo, side);
             lanes.push_back(std::move(lane));
         }
     }

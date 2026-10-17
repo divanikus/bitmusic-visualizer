@@ -99,6 +99,37 @@ void checkAnalysisCache(QTextStream &log) {
             "Full invalidation retained source analysis.");
     log << "Source analysis cache: duplicate reuse, source/mix isolation, sequence/stereo/generation invalidation, pitch cadence/rewind and scoped resets PASS\n";
 }
+void checkPlotGeometry(QTextStream &log) {
+    const QRectF plot(12, 8, 400, 120);
+    ScopeWave wave;
+    QVector<float> pcm(ScopeFrames);
+    for (int i = 0; i < pcm.size(); ++i) pcm[i] = float(i - 2048);
+    const auto copy = pcm;
+    const auto mono = scopeWavePoints(pcm, wave, plot, false, 0);
+    const auto left = scopeWavePoints(pcm, wave, plot, true, 0);
+    const auto right = scopeWavePoints(pcm, wave, plot, true, 1);
+    require(mono.size() == 800 && mono.first().x() == plot.left() && mono.last().x() == plot.right() &&
+            std::abs(mono.first().y() - (plot.center().y() + 1024 * (float(plot.height() * .44) / wave.peak))) < 1e-5,
+            "Waveform plot changed its sample window, point density or amplitude.");
+    require(left.size() == right.size() && std::abs(right.first().y() - left.first().y() - plot.height() * .5) < 1e-5 && pcm == copy,
+            "Stereo waveform lanes lost their shared trigger or changed PCM.");
+    require(scopeWavePoints(pcm, wave, {0, 0, 2000, 100}, false, 0).size() == 2048,
+            "Waveform geometry exceeded its existing point bound.");
+    const auto bounds = scopeSpectrumBounds(plot, false, 0);
+    const auto noGrid = scopeSpectrumBounds(plot, false, 0, false);
+    const auto upper = scopeSpectrumBounds(plot, true, 0), lower = scopeSpectrumBounds(plot, true, 1);
+    require(bounds.top == plot.top() && bounds.bottom == plot.bottom() - 16 && noGrid.bottom == bounds.bottom + 14 &&
+            lower.top - upper.top == plot.height() * .5, "Spectrum lane/grid margins changed.");
+    QVector<float> bins(1025, -20);
+    const auto line = scopeSpectrumLine(bins, plot, bounds);
+    const double y = bounds.bottom - bounds.height * .75;
+    require(line.size() == 400 && line.first() == QPointF(plot.left(), y) && line.last() == QPointF(plot.right(), y),
+            "Spectrum line changed its endpoints or dBFS height.");
+    const auto bars = scopeSpectrumBars(bins, {plot.left(), bounds.top + 5, plot.width(), bounds.height});
+    require(!bars.isEmpty() && std::abs(bars.first().top() - y) < 1e-8,
+            "Spectrum lines and bars use different peak/height mappings.");
+    log << "Plot geometry: waveform sample window/density/stereo, immutable PCM, spectrum lane margins and line/bar mapping PASS\n";
+}
 void checkSpectrum(QTextStream& log) {
     QVector<float> pcm(ScopeFrames);
     for (int i = 0; i < pcm.size(); ++i) pcm[i] = 16384*std::sin(2*3.141592653589793*20*i/2048);
@@ -262,6 +293,7 @@ void checkNotes(const QString& directory, QTextStream& log) {
 void checkViews(QApplication& app, const QString& directory, QTextStream& log) {
     checkGbAyNotes(app, directory, log);
     checkAnalysisCache(log);
+    checkPlotGeometry(log);
     checkSpectrum(log); checkSpectrumControls(app, directory, log); checkPitch(log); checkNotes(directory, log);
     checkPsgNotes(app, directory, log);
     PlayerWindow player; player.player().setVolume(0); player.show(); player.loadFile(QDir(directory).filePath("demo.nsf"));

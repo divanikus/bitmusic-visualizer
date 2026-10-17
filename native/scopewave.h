@@ -1,5 +1,6 @@
 #pragma once
 #include <QVector>
+#include <QRectF>
 #include <array>
 
 // Peak of captured PCM on a fixed -60..0 dBFS display scale; no autoscaling.
@@ -29,3 +30,7 @@ private:
     bool referenceValid_ = false;
     std::array<float, 64> reference_{};
 };
+
+// Shared CPU/GPU plot geometry; does not advance waveform analysis/history.
+QVector<QPointF> scopeWavePoints(const QVector<float> &samples, const ScopeWave &wave,
+                                const QRectF &plot, bool stereo, int side);

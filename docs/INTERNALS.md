@@ -12,9 +12,15 @@ and CPU/GPU presentation. It does not own playback or decode music in painting.
 pitch caches per source, including Full mix. Generation, position, output sequence
 and stereo display identify snapshots. Waveforms preserve history within a
 stream; spectra update for a changed key; pitch keeps its existing ~30 Hz cadence
-and bypasses the throttle on rewind/generation changes. File/layout/visibility
+and bypasses the throttle on rewind/generation changes. File/card-reset/preset/visibility
 resets clear all analysis; wave controls/stereo reset waves only. Painting and
 source snapshot selection remain in the window; PCM is never modified.
+
+Waveform points and spectrum line/bar geometry are pure helpers beside the
+presentation algorithms in `scopewave.*` and `spectrum.*`. Spectrum axes and
+traces share lane bounds; line/bar styles share logarithmic FFT-band peak
+selection. Building geometry does not advance analysis or alter PCM. Both CPU
+and GPU consume the resulting lanes with the existing point limits and margins.
 
 `ScopeCards` owns session card state: stable IDs, source/view options, visibility,
 cell spans and active order. Removing a card removes its ID from the active order;

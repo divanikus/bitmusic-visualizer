@@ -5,6 +5,17 @@
 #include <algorithm>
 namespace {
 constexpr double Pi = 3.14159265358979323846;
+// Both spectrum styles preserve the peak of each logarithmic frequency band.
+float bandPeak(const QVector<float> &bins, int band, int count) {
+    const double low = 20 * std::pow(1000., double(band) / count);
+    const double high = 20 * std::pow(1000., double(band + 1) / count);
+    const int first = std::clamp(int(std::floor(low * 2048 / 44100)), 1, int(bins.size()) - 1);
+    const int last = std::clamp(int(std::ceil(high * 2048 / 44100)), first, int(bins.size()) - 1);
+    float db = -80;
+    for (int bin = first; bin <= last; ++bin) db = std::max(db, bins[bin]);
+    return db;
+}
+
 template<size_t Size> void fft(std::array<std::complex<double>, Size>& data, bool inverse = false) {
     constexpr int N = int(Size);
     for (int i = 1, j = 0; i < N; ++i) {
@@ -46,17 +57,30 @@ QVector<float> scopeSpectrum(const QVector<float>& pcm) {
     return result;
 }
 
+ScopeSpectrumBounds scopeSpectrumBounds(const QRectF &plot, bool stereo, int side, bool grid) {
+    const double top = plot.top() + plot.height() * side / (stereo ? 2 : 1);
+    const double bottom = top + plot.height() / (stereo ? 2 : 1) - (grid ? 16 : 2);
+    return {top, bottom, std::max(1., bottom - top - 5)};
+}
+QVector<QPointF> scopeSpectrumLine(const QVector<float> &bins, const QRectF &plot, ScopeSpectrumBounds bounds) {
+    QVector<QPointF> result;
+    if (bins.size() < 2 || plot.width() < 2 || bounds.bottom - bounds.top <= 5) return result;
+    const int points = std::clamp(int(plot.width()), 32, 512);
+    result.reserve(points);
+    for (int j = 0; j < points; ++j) {
+        const float db = bandPeak(bins, j, points);
+        result.push_back({plot.left() + plot.width() * j / (points - 1), bounds.bottom - bounds.height * (db + 80) / 80});
+    }
+    return result;
+}
+
 QVector<QRectF> scopeSpectrumBars(const QVector<float>& bins, const QRectF& area) {
     QVector<QRectF> bars;
     if (bins.size() < 2 || area.width() < 2 || area.height() <= 0) return bars;
     const int count = std::clamp(int(area.width()/7), 1, 96);
     const double step = area.width()/count, gap = std::min(2., step*.25);
     for (int i = 0; i < count; ++i) {
-        const double low = 20*std::pow(1000., double(i)/count);
-        const double high = 20*std::pow(1000., double(i+1)/count);
-        const int first = std::clamp(int(std::floor(low*2048/44100)), 1, int(bins.size())-1);
-        const int last = std::clamp(int(std::ceil(high*2048/44100)), first, int(bins.size())-1);
-        float db = -80; for (int bin = first; bin <= last; ++bin) db = std::max(db, bins[bin]);
+        const float db = bandPeak(bins, i, count);
         const double height = area.height()*std::clamp((db+80)/80., 0., 1.);
         if (height > .01) bars.push_back({area.left()+step*i+gap/2, area.bottom()-height, step-gap, height});
     }

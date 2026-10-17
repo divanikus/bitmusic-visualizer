@@ -13,6 +13,20 @@ float ScopeWave::sample(const QVector<float> &row, float index) {
     const int next = std::min(i + 1, int(row.size()) - 1);
     return row[i] + (row[next] - row[i]) * (index - i);
 }
+QVector<QPointF> scopeWavePoints(const QVector<float> &samples, const ScopeWave &wave,
+                                const QRectF &plot, bool stereo, int side) {
+    QVector<QPointF> result;
+    if (samples.isEmpty()) return result;
+    const float scale = float(plot.height() * (stereo ? .21 : .44)) / wave.peak;
+    const int points = std::max(2, std::min(2048, int(plot.width() * 2)));
+    const double middle = stereo ? plot.top() + plot.height() * (.25 + .5 * side) : plot.center().y();
+    result.reserve(points);
+    for (int j = 0; j < points; ++j) {
+        const float index = wave.start + float(j) * 2047 / (points - 1);
+        result.push_back({plot.left() + plot.width() * j / (points - 1), middle - ScopeWave::sample(samples, index) * scale});
+    }
+    return result;
+}
 void ScopeWave::update(const QVector<float> &left, const QVector<float> &right, int ms, const WaveOptions &options) {
     if (left.size() != 4096 || right.size() != 4096) return;
     const bool reset = previousMs_ < 0 || ms < previousMs_ || ms - previousMs_ > 500;

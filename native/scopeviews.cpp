@@ -97,8 +97,8 @@ void ScopeWindow::paintSpectrumAxes(QPainter &p, int card, const QRectF &plot, b
     const auto colors = theme_.colors(sourceFor(card));
     p.save(); p.setClipRect(plot, Qt::IntersectClip); p.setFont(QFont("Segoe UI", 7));
     for (int side = 0; side < (stereo ? 2 : 1); ++side) {
-        const double top = plot.top()+plot.height()*side/(stereo ? 2 : 1);
-        const double bottom = top+plot.height()/(stereo ? 2 : 1)-16;
+        const auto bounds = scopeSpectrumBounds(plot, stereo, side);
+        const double top = bounds.top, bottom = bounds.bottom;
         if (bottom-top < 12) continue;
         p.setPen(colors.axis);
         for (int level = 0; level <= 2; ++level) {
