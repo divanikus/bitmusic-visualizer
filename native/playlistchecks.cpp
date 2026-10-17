@@ -1,4 +1,5 @@
 #include "playlist.h"
+#include "playlistview.h"
 #include "playerwindow.h"
 #include <QApplication>
 #include <QDir>
@@ -12,6 +13,7 @@
 #include <QTemporaryDir>
 #include <QTextStream>
 #include <QToolButton>
+#include <algorithm>
 #include <stdexcept>
 
 void checkPlaybackBoundaries(QApplication &,const QDir &,QTextStream &);
@@ -37,6 +39,33 @@ void clickTrack(QApplication &app,QListWidget *list,int row,bool header,
     app.processEvents();
 }
 void write(const QString &path,const QByteArray &data) {QFile f(path);require(f.open(QIODevice::WriteOnly) && f.write(data)==data.size(),"Fixture write failed.");}
+void checkPlaylistView(QTextStream &log) {
+    PlaylistView view;
+    QVector<PlaylistEntry> entries{{11,"first.nsfe","A",{},0,2,2000},
+                                 {22,"first.nsfe","B",{},1,2,3000},
+                                 {33,"other.vgm","C",{},0,1,-1}};
+    view.rebuild(entries);view.decorate(entries);
+    view.setCurrentRow(0);view.item(2)->setSelected(true);
+    view.presentPlayback(22,true);
+    const QSet<quint64> selected{11,33};
+    require(view.selectedIds()==selected && !view.item(1)->isSelected() &&
+            view.item(1)->data(PlaylistView::PlayingRole).toBool(),"Playback marking changed playlist selection.");
+    int selectionChanges=0;
+    QObject::connect(&view,&QListWidget::itemSelectionChanged,[&]{++selectionChanges;});
+    std::rotate(entries.begin(),entries.begin()+2,entries.end());
+    view.rebuild(entries);view.decorate(entries);view.presentPlayback(22,false);
+    require(view.entryIds()==QVector<quint64>{33,11,22} && view.selectedIds()==selected &&
+            view.currentItem()->data(PlaylistView::IdRole).toULongLong()==11 && selectionChanges==0,
+            "Rebuilding playlist rows lost stable selection or emitted user selection changes.");
+    require(view.item(2)->data(PlaylistView::CurrentRole).toBool() &&
+            !view.item(2)->data(PlaylistView::PlayingRole).toBool(),"Paused entry lost its current marker.");
+    view.presentPlayback(0,true);
+    for(int i=0;i<view.count();++i)
+        require(!view.item(i)->data(PlaylistView::CurrentRole).toBool() &&
+                !view.item(i)->data(PlaylistView::PlayingRole).toBool(),"Clearing playback left a stale playlist marker.");
+    require(view.selectedIds()==selected,"Clearing playback changed playlist selection.");
+    log<<"Playlist view stable selection, row order and independent playback markers PASS\n";log.flush();
+}
 }
 int runPlaylistChecks(QApplication &app,const QStringList &args) {
     QTextStream log(stdout);
@@ -92,6 +121,7 @@ int runPlaylistChecks(QApplication &app,const QStringList &args) {
         checkPlaybackBoundaries(app,dir,log);
         if(args.contains("--decoder-only"))return 0;
 
+        checkPlaylistView(log);
         PlayerWindow window;window.player().setVolume(0);window.show();
         auto &player=window.player();auto list=window.findChild<QListWidget*>("songs");
         window.loadFile(named);

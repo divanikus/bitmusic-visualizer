@@ -8,7 +8,7 @@
 class QLabel;
 class QPushButton;
 class QToolButton;
-class QListWidget;
+class PlaylistView;
 class QTabWidget;
 class QComboBox;
 class QGridLayout;
@@ -63,7 +63,7 @@ private:
     QPushButton *play_, *stop_, *previous_, *next_, *repeat_, *showScopes_;
     QToolButton *leftOutput_, *rightOutput_;
     Timeline *timeline_;
-    QListWidget *songs_;
+    PlaylistView *songs_;
     QTabWidget *tabs_;
     QWidget *midiControls_;
     QComboBox *soundFont_, *midiEngine_;

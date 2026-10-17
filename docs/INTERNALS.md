@@ -5,6 +5,14 @@ because the player owns that window; scope code has no dependency on the player
 or playlist UI. `timeline.h` contains the transport slider and time label helper.
 Implementation files include the header they use, without an umbrella window header.
 
+`PlaylistView` owns playlist painting, source-group hit regions, selection, drag
+and drop, and row presentation. Named data roles retain their existing numeric
+values. Rebuilds preserve selection by entry ID; the playing entry is independent
+of the selected row. `PlayerWindow` coordinates import and playback, while
+`Playlist` owns entry identities, ordering, removal and shuffle history, and
+`PlaylistLoader` reads metadata asynchronously. The view never changes the queue
+or calls the audio engine.
+
 `ScopeWindow` coordinates transport snapshots, capture requests, layout gestures
 and CPU/GPU presentation. It does not own playback or decode music in painting.
 

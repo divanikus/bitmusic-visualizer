@@ -85,6 +85,7 @@ add_library(bitmusic_core OBJECT
   native/scopepreset.cpp
   native/scopepresets.cpp
   native/playlist.cpp
+  native/playlistview.cpp
   native/playerplaylist.cpp
   native/playersettings.cpp
 )

@@ -1,4 +1,5 @@
 #include "playerwindow.h"
+#include "playlistview.h"
 #include "shortcuts.h"
 #include "appsettings.h"
 #include "playersettings.h"
@@ -428,13 +429,7 @@ void PlayerWindow::refreshControls() {
     findChild<QPushButton *>("soundFontFolder")->setToolTip(mt32?"Open MT-32 ROM folder":"Open SoundFonts folder");
     total_->setToolTip(s.durationLimited?"Playback limit for a track without duration":(s.info.durationMs<0 && s.playbackEndMs>=0)?"End or loop boundary reported by the decoder":(s.info.midiResources || s.info.mt32Resources) ? "MIDI sequence duration plus 2 seconds for release and effects" : s.info.configuration.family=="tracker" ? "Duration calculated from module patterns" : s.info.durationMs > 0 ? QString::fromUtf8("Duration from file") : QString::fromUtf8("No known end; playback continues until stopped"));
     timeline_->setToolTip(s.playbackEndMs > 0 ? QString::fromUtf8("Seek") : QString::fromUtf8("Seek: range expands during playback"));
-    for (int i = 0; i < songs_->count(); ++i) {
-        auto item = songs_->item(i);
-        const bool current=s.valid && item->data(Qt::UserRole+4).toULongLong()==playlist_.current;
-        if (item->data(Qt::UserRole + 1).toBool()!=current) item->setData(Qt::UserRole+1,current);
-        const bool playing = current && !s.busy && s.playing;
-        if (item->data(Qt::UserRole + 2).toBool() != playing) item->setData(Qt::UserRole + 2, playing);
-    }
+    songs_->presentPlayback(s.valid ? playlist_.current : 0, !s.busy && s.playing);
     for (int i = 0; i < channels_->count(); ++i) {
         auto button = static_cast<ChannelButton *>(channels_->itemAt(i)->widget()); QSignalBlocker block(button);
         const auto instrument = s.instruments.value(i);
