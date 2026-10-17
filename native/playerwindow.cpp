@@ -128,6 +128,7 @@ PlayerWindow::PlayerWindow() {
     timer->start(); refresh();
 }
 PlayerWindow::~PlayerWindow() {
+    // scopes_ is a top-level value member; detach callbacks capturing this before teardown.
     scopes_.onSoloRequested = {};
     scopes_.onVisibilityChanged = {}; scopes_.onChannelsChanged = {}; scopes_.onOutputChanged = {};
     scopes_.onRefreshRequested = {}; scopes_.onFrameRateChanged = {}; player_.shutdown();

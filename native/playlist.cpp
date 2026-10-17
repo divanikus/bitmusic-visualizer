@@ -155,6 +155,7 @@ void writePlaylistFile(const QString &path,const QVector<PlaylistEntry> &entries
 
 PlaylistLoader::PlaylistLoader() {start(QThread::LowPriority);}
 PlaylistLoader::~PlaylistLoader() {
+    // run() uses member queues: cancel and join before those members are destroyed.
     {std::lock_guard lock(mutex_);closing_=true;++revision_;requests_.clear();} wake_.notify_all();wait();
 }
 quint64 PlaylistLoader::cancel() {

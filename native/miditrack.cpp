@@ -77,6 +77,7 @@ void selectSoundFont(const QString &name) {
     require(s.status()==QSettings::NoError,"Could not save the selected SoundFont.");
 }
 struct MidiTrack::Impl {
+    // Reverse declaration order releases synth before settings and the resource snapshot.
     std::shared_ptr<const MidiResources> resources;
     std::unique_ptr<fluid_settings_t,decltype(&delete_fluid_settings)> settings{nullptr,delete_fluid_settings};
     std::unique_ptr<fluid_synth_t,decltype(&delete_fluid_synth)> synth{nullptr,delete_fluid_synth};

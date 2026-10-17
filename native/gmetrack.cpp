@@ -117,6 +117,7 @@ TrackBoundary GmeTrack::boundary() const {
 }
 GmeTrack::~GmeTrack() { release(); }
 void GmeTrack::release() {
+    // Owned C handles: destroy the emulator before its capture state, also on constructor failure.
     if (emu_) gme_delete(emu_);
     emu_ = nullptr;
     bm_taps_delete(taps_); taps_ = nullptr;

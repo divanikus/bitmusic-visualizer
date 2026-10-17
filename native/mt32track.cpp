@@ -17,6 +17,7 @@ constexpr double Pi=3.14159265358979323846;
 using Sample=std::array<float,20>; // Master L/R, then nine dry stereo parts.
 void require(bool ok,const char *message) { if(!ok) throw std::runtime_error(message); }
 struct Rom {
+    // ArrayFile borrows the bytes; Impl keeps their snapshot alive beyond this wrapper.
     MT32Emu::ArrayFile file;
     const MT32Emu::ROMImage *image;
     explicit Rom(const QByteArray &bytes):file(reinterpret_cast<const MT32Emu::Bit8u *>(bytes.constData()),size_t(bytes.size())),image(MT32Emu::ROMImage::makeROMImage(&file)) {}

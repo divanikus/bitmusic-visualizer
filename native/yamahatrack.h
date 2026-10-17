@@ -12,7 +12,7 @@ public:
     bool seek(qint64 frame, const std::function<bool()> &cancelled = [] { return false; }) override;
     void render(short *out, int frames) override;
     void mute(VoiceMask mask) override { muteMask_ = mask; }
-    void dry() override {} // Chip mix includes its complete synthesis, with no added effects.
+    void dry() override {} // No added effects to disable.
     bool hasTaps() const override;
     bool readTap(int channel, QVector<float> &left, QVector<float> &right) const override;
     QVector<float> notePitches(int) const override { return {-1}; }

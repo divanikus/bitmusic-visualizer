@@ -54,7 +54,8 @@ struct SongInfo {
 struct TrackInfo {
     std::shared_ptr<const NoteRoll> noteRoll;
     std::shared_ptr<const TrackerPatterns> patterns;
-    std::shared_ptr<const SidRoms> sidRoms; // Same ROM bytes in audio and scopes, including cold seeks.
+    // Immutable snapshots shared by independent audio/scope decoders, including cold seeks.
+    std::shared_ptr<const SidRoms> sidRoms;
     std::shared_ptr<const YamahaRoms> yamahaRoms;
     std::shared_ptr<const MidiResources> midiResources;
     std::shared_ptr<const Mt32Resources> mt32Resources;

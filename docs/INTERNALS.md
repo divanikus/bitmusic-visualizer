@@ -1,5 +1,28 @@
 # Native code responsibilities
 
+## Resource lifetime
+
+Prefer value members, Qt parents and the existing scoped C handles. Do not wrap
+parent-owned widgets in another owner. The top-level `ScopeWindow` is a value
+member of `PlayerWindow`; its callbacks are detached before member teardown.
+`PlayerTransport` and the page/control widgets use the window's Qt parent tree.
+`PlaylistLoader` cancels and joins before its member queues are destroyed.
+
+Audio and scope workers own separate decoder instances. `TrackInfo` shares
+immutable resource snapshots, keeping the same bytes available for capture and
+cold seeks after files or resource preferences change. GME release destroys the
+emulator before tap/note handles, including construction failure. GM declaration
+order destroys the synth before settings/resources; the synth owns its loader,
+and each open SoundFont cursor retains a shared snapshot until close. MT-32
+destroys the synth before ROM wrappers; a wrapper frees its ROM image before its
+borrowed-byte `ArrayFile`, while the resource snapshot still exists.
+
+Scene-graph child nodes and textures have different owners. `SceneRoot` and its
+overlay nodes explicitly release textures on replacement/destruction. Keep that
+cleanup on the existing scene-graph path, including allocation failures.
+
+## Decoder and presentation boundaries
+
 `midimetadata.*` shares MIDI title fallback, the existing sample-rounded two-second
 release-tail duration and bounded instrument-name history. Unchanged names still
 prune, the state preceding the strict cutoff is retained, and equal-frame lookup

@@ -23,6 +23,7 @@ struct Trace {
     QVector<ScopeLane> lanes;
 };
 struct SceneRoot : QSGNode {
+    // Child nodes follow the scene graph; textures are explicitly freed on replacement/destruction.
     struct OverlayNode : QSGSimpleTextureNode { quint64 key=0; ~OverlayNode() override {delete texture();} };
     QSGNode *overlays = new QSGNode;
     QSGSimpleTextureNode *chrome = new QSGSimpleTextureNode;
