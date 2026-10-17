@@ -6,7 +6,7 @@ Version 0.6.0 is the first public GitHub release. Earlier entries describe
 pre-public development milestones; their dates mark implementation checkpoints,
 not published GitHub releases. Unreleased lists changes made after the latest tag.
 
-## Unreleased — 0.11.0
+## [0.11.0](https://github.com/divanikus/bitmusic-visualizer/releases/tag/v0.11.0) — 2026-10-18
 
 ### Added
 
@@ -18,9 +18,9 @@ not published GitHub releases. Unreleased lists changes made after the latest ta
 - Card settings from each card's pencil: view, its options and colors in one dialog.
 - Independent Levels for each card, saved in layout presets; the toolbar still
   switches all cards together and shows when their settings differ.
-- MIDI format 2 playback: musical patterns appear as separate playlist tracks;
+- Experimental MIDI format 2 playback: musical patterns appear as separate playlist tracks;
   note-free setup tracks supply tempo and settings without extra playlist entries.
-- SFLIST sets for General MIDI, including foo_midi-style JSON and nested lists.
+- Experimental SFLIST sets for General MIDI, including foo_midi-style JSON and nested lists.
   Use Browse in the SoundFont dropdown to connect existing SF2 sets without copying
   them. Later banks override matching instruments; unchanged banks load faster
   on subsequent tracks. BASSMIDI mapping, gain and channel rules are not supported.

@@ -69,7 +69,7 @@ as `mod.song` work too. [Tracker details and limits](docs/TRACKERS.md).
 Voice cards show signals before shared processing; **Full mix** includes effects,
 volume and mutes. Tracks with no known end play until stopped, unless you enable
 a limit in **Settings → Playback**. MIDI tracks
-in formats 0/1 play together; format 2 lists musical patterns as subsongs and
+in formats 0/1 play together; experimental format 2 support lists musical patterns as subsongs and
 uses note-free tracks as setup. [Format details and limits](#documentation).
 
 ## Settings
@@ -139,7 +139,8 @@ Choose **Browse...** in the player's MIDI SoundFont dropdown to use an existing
 `soundfonts/` under the data directory. The folder button opens that directory;
 **Refresh** updates the list. The selection is remembered; bank files are not copied.
 Any supported SF2 bank can be used, so there is no single recommended checksum.
-SF3 and DLS are not supported. [MIDI setup and limits](docs/MIDI.md).
+SFLIST/JSON support is experimental. SF3 and DLS are not supported.
+[MIDI setup and limits](docs/MIDI.md).
 
 ## Visualization controls
 

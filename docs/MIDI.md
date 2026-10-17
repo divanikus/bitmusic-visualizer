@@ -15,7 +15,8 @@ from any folder, without copying it. Local selections are stored by filename;
 external selections by absolute path. With no saved choice, the first available SF2 or list alphabetically
 is selected; a missing saved bank produces an error on MIDI load.
 
-Formats 0/1 play their tracks together as one song. Format 2 lists musical
+Formats 0/1 play their tracks together as one song. **Format 2 support is experimental.**
+Format 2 lists musical
 patterns as separate subsongs, with their own titles and channel usage. Missing
 titles use Pattern 1, Pattern 2, etc. Tracks without positive-velocity Note On
 events are treated as setup: they stay out of the playlist, while their final
@@ -92,6 +93,8 @@ use **Refresh** before reopening the MIDI to force a fresh read. SoundFont
 sample-cache identity includes the content hash of the loaded bytes.
 
 ## SoundFont sets (SFLIST)
+
+**SFLIST/JSON support is experimental.** The supported subset and limits are described below.
 
 Select an existing UTF-8 `.sflist` with **Browse...**, or place it in the SoundFonts
 folder; sets have a **(set)** label. Each line names an uncompressed SF2 file or another list.

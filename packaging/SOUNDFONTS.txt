@@ -13,6 +13,7 @@ The folder button opens the resource folder; Refresh rereads its file list.
 With no saved choice, the first bank alphabetically is used. A missing selected
 bank is reported when opening MIDI; there is no startup warning.
 
+SFLIST/JSON support is experimental.
 To load several banks together, put a UTF-8 .sflist here with one SF2 path per
 line, relative to the list. Select it like a bank. Later entries override matching
 bank/program numbers; other instruments fall back to earlier entries. Blank
