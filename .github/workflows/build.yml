@@ -73,7 +73,9 @@ jobs:
         if: always()
         with:
           name: windows-checks
-          path: test-output/**/*.txt
+          path: |
+            test-output/**/*.txt
+            build/portable-checks/bitmusic_checks.exe
           if-no-files-found: ignore
 
   unix:

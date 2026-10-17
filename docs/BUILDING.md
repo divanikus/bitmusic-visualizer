@@ -40,7 +40,7 @@ The shared standard-library license collector avoids Windows Server tar stalls.
 ./launch.cmd
 ./package-native.ps1
 python -c "from fixtures import make_fixtures; make_fixtures('test-output')"
-./test-portable.ps1 -Archive dist/BitMusicVisualizer-0.9.2-windows-x64.zip
+./test-portable.ps1 -Archive dist/BitMusicVisualizer-0.10.0-windows-x64.zip
 ```
 
 Portable tests use a real output device at zero volume, isolate preferences and
@@ -151,7 +151,7 @@ cmake -S . -B build/native -G Ninja -DCMAKE_BUILD_TYPE=Release \
   -DCMAKE_PREFIX_PATH="$QT_ROOT_DIR" -DBITMUSIC_SHARED_GME=ON
 cmake --build build/native --parallel 3
 python3 packaging/package-unix.py --qt-root "$QT_ROOT_DIR"
-python3 packaging/test-unix.py dist/BitMusicVisualizer-0.9.2-linux-x64.AppImage
+python3 packaging/test-unix.py dist/BitMusicVisualizer-0.10.0-linux-x64.AppImage
 # On Apple Silicon use the generated -macos-arm64.zip instead.
 ```
 
@@ -173,8 +173,8 @@ Packaging does not use mutable continuous downloads. The statically linked
 runtime needs no separately installed libfuse2. For hosts without FUSE access:
 
 ```sh
-chmod +x BitMusicVisualizer-0.9.2-linux-x64.AppImage
-./BitMusicVisualizer-0.9.2-linux-x64.AppImage --appimage-extract-and-run
+chmod +x BitMusicVisualizer-0.10.0-linux-x64.AppImage
+./BitMusicVisualizer-0.10.0-linux-x64.AppImage --appimage-extract-and-run
 ```
 
 `--appimage-extract` exposes the bundle as `squashfs-root/`, including all sources
@@ -243,7 +243,7 @@ Before publishing a release:
    clean source commit. Run full Windows tests and Unix desktop listening checks.
 2. Inspect tracked files, commit author metadata and artifacts for private data.
    Never add personal music, preferences or logs to a release.
-3. Create the version tag at that commit (currently `v0.9.2`) and a draft release
+3. Create the version tag at that commit (currently `v0.10.0`) and a draft release
    using RELEASE-NOTES.md.
 4. Attach tested archives and their `.sha256` files. Mark any platform's incomplete
    runtime validation explicitly, or defer its asset. Publish after review.
@@ -269,3 +269,6 @@ TIATracker 1.3 supplies a static TIA sound core, with a GPL-2.0-or-later replay
 adapter. No SDL or extra runtime library is needed. Use `--ttt-checks <fixtures>`
 for the focused checks; add `--decoder-only` on headless systems.
 See [TIATracker support and limits](TIATRACKER.md).
+
+The Windows CI checks artifact includes the matching developer runner, separately
+from the release ZIP, for testing the downloaded package on a real desktop.
