@@ -49,6 +49,9 @@ Portable tests use a real output device at zero volume, isolate preferences and
 SDK paths, and verify playback, seeks, loops, scopes, themes, geometry, taps and
 GPU output. They need an interactive desktop/audio device. Hosted Windows CI
 runs decoder/tap checks; it is not a substitute for the full workstation suite.
+Regenerate the authored fixtures before testing a new revision. The Windows
+script copies the SMF 2 setup/pattern cases as well as the basic playback fixtures
+into its isolated test directory.
 
 All bare check flags in this guide are arguments to `bitmusic_checks`.
 

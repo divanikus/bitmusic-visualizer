@@ -45,6 +45,8 @@ $fixtureRoot = Join-Path $checkRoot 'test fixtures'
 New-Item -ItemType Directory -Path $fixtureRoot -Force | Out-Null
 foreach ($fixture in @('demo.nsf','demo.vgm','demo.vgz','demo.spc','named.nsfe','intro-loop.vgm',
     'demo.mid','fixture-gm.sf2','long-seek.mid','fractional-end.mid',
+    'setup-patterns.mid','setup-only.mid','setup-reference.mid','setup-mt32.mid',
+    'setup-port-conflict.mid','setup-unaddressed.mid','setup-smpte.mid','setup-late-notes.mid',
     'demo.mod','soundtracker.mod','multichannel.mod','sequences.mod',
     'demo.ttt','ntsc.ttt','finite.ttt','local-speed.ttt')) {
     Copy-Item -LiteralPath (Join-Path "$PSScriptRoot/test-output" $fixture) -Destination $fixtureRoot
