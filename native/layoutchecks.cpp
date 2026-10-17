@@ -79,6 +79,27 @@ void checkCardCapture() {
     require(cards.viewFor(69) == ScopeView::Keyboard && cards.viewFor(ScopeCards::FullMix) == ScopeView::Keyboard,
             "Set all views missed a high source or Full mix.");
 }
+void checkAutomaticVisibility() {
+    ScopeCards cards; cards.reset(3, false, VoiceMask::first(3));
+    cards[1].kind = ScopeView::Spectrum; cards[1].levels = true; cards[1].span = {2, 1};
+    const int extra = cards.add({1, ScopeView::Keyboard}, 1);
+    cards.hideEmpty(VoiceMask::first(3));
+    cards.setHidden(0, true); // A manual hide must outlive automatic usage changes.
+    cards.remove(2);
+    const auto order = cards.order();
+    require(cards.hideEmpty({}) && cards[0].hidden && !cards[1].hidden && !cards[extra].hidden &&
+            cards[ScopeCards::FullMix].hidden && cards.order() == order && !cards.order().contains(2),
+            "Changing subsong retained automatic hides or restored manual/removed cards.");
+    require(cards[1].kind == ScopeView::Spectrum && cards[1].levels && cards[1].span == QSize(2, 1),
+            "Automatic visibility reset card settings.");
+    cards.hideEmpty(VoiceMask::bit(1));
+    cards.toggleSourceVisibility(1); cards.toggleSourceVisibility(1);
+    require(!cards.hideEmpty({}) && cards[1].hidden && cards[extra].hidden,
+            "Source visibility shortcut did not replace automatic hiding for duplicates.");
+    cards.showAll();
+    require(!cards.hideEmpty({}) && !cards[0].hidden && !cards[ScopeCards::FullMix].hidden,
+            "Show all left stale automatic visibility state.");
+}
 void checkCardState() {
     ScopeCards cards;
     cards.reset(3, false, VoiceMask::bit(1));
@@ -156,6 +177,7 @@ void checkPacking() {
 void checkLayoutSpans(QApplication &app, const QString &directory, QTextStream &log) {
     checkCardCapture(); log << "Capture policy: duplicate source union, high masks, event-only cards, Levels and overflow PASS\n";
     checkInspector(); log << "Card inspector: selection synchronization without edits, independent view/music callbacks PASS\n";
+    checkAutomaticVisibility(); log << "Automatic visibility: subsong changes preserve manual hides, duplicates, removed cards and settings PASS\n";
     checkCardState(); log << "Card state: stable IDs, duplicates/removal, visibility, preset compatibility, preview isolation and capacity PASS\n";
     checkPacking(); log << "Span packing: all 128 grid sizes, bounds, no overlap, hidden/refill and hole filling PASS\n"; log.flush();
     ScopeWindow scope; scope.resize(1100, 760); scope.show();

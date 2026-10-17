@@ -25,7 +25,10 @@ This changes visualization only, not audio mutes. Reset uses the same defaults.
 The automatic grid fits the enabled cards; **Keep grid** and saved preset grids
 retain their dimensions. Empty cards are also unchecked when a file's default
 preset loads, without rewriting it. Manually selecting a preset restores its
-saved visibility, and playback/seeking never overrides your edits.
+saved visibility. Selecting another pattern rechecks automatic hiding: channels
+with notes reappear, while manual hides, removed cards and view settings stay.
+An automatic grid follows the new usage; user-sized and preset grids stay fixed.
+Playback and seeking within the same pattern never re-hide manually restored cards.
 Some files contain a whole soundtrack as one continuous sequence. Leading rests
 and the declared endpoint are kept; tracks are not guessed to be separate songs.
 Several notes and instruments can share a channel. These are musical parts,

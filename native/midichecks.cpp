@@ -379,6 +379,36 @@ int runMidiChecks(QApplication &app,const QStringList &args) {
             spin(app,[&]{return !player.state().busy && player.state().info.song==1;});
             require(player.state().error.isEmpty() && player.state().scopeError.isEmpty(),"MIDI pattern navigation failed.");
             log << "SMF 2 live: playlist expansion, Previous/Next and SoundFont reload keep the selected subsong PASS\n";
+            // A genuine silent pattern (nonzero duration), followed by three used channels.
+            auto intro = smf(QByteArray::fromHex("8360ff2f00")); intro[9]=2; intro[11]=2;
+            intro += sparse.mid(14);
+            const auto introPath=resources.filePath("silent-intro.mid"); write(introPath,intro);
+            scope.resetLayout(); window.loadFile(introPath);
+            spin(app,[&]{return !player.state().busy && player.state().info.path==introPath;});
+            window.refresh();
+            require(scope.visibleChannels().isEmpty() && rows->value()==1 && columns->value()==1,
+                    "Silent first pattern did not hide its empty channels.");
+            player.seek(2400,true);
+            spin(app,[&]{return !player.state().busy && player.state().info.song==1 && player.scopes().mask==sparseUsed;});
+            window.refresh(); checkSparse();
+            require(scope.visibleChannels()==QVector<int>({0,9,15}) && rows->value()==3 && columns->value()==1 && !player.state().muteMask,
+                    "Automatic pattern advance retained empty cards/grid or muted audio.");
+            rows->setValue(3); columns->setValue(2);
+            list->item(0)->setCheckState(Qt::Unchecked); scope.cycleSourceView(9);
+            window.findChild<QPushButton *>("previous")->click();
+            spin(app,[&]{return !player.state().busy && player.state().info.song==0;}); window.refresh();
+            require(scope.visibleChannels().isEmpty(),"Silent pattern retained sounding cards.");
+            window.findChild<QPushButton *>("next")->click();
+            spin(app,[&]{return !player.state().busy && player.state().info.song==1;}); window.refresh();
+            require(scope.visibleChannels()==QVector<int>({9,15}) && rows->value()==3 && columns->value()==2,
+                    "Pattern switch discarded manual visibility or grid dimensions.");
+            list->setCurrentRow(9);
+            require(scope.findChild<QComboBox *>("cardView")->currentData().toInt()==int(ScopeView::Spectrum),
+                    "Pattern switch discarded the card view.");
+            list->item(1)->setCheckState(Qt::Checked); player.seek(0,false);
+            spin(app,[&]{return !player.state().busy && !player.state().playing;}); window.refresh();
+            require(list->item(1)->checkState()==Qt::Checked,"Same-pattern seek hid a manually enabled empty card.");
+            log << "SMF 2 visibility: empty first pattern, automatic advance, capture, automatic/manual grids, manual hides and seek PASS\n";
             window.close(); log<<"MIDI live: controls, paused seek, Solo, repeat, hide/resume, zero audio errors PASS\n";
         }
         return 0;

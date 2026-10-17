@@ -155,7 +155,7 @@ void ScopeWindow::mousePressEvent(QMouseEvent *event) {
                 channelList_->setCurrentRow(cards_.order().indexOf(channel)); update(); event->accept(); return;
             }
             if (event->position().y() < card.top()+28) {
-                if (event->position().x() > card.right()-28) { cards_[channel].hidden = true; layoutChanged(); }
+                if (event->position().x() > card.right()-28) { cards_.setHidden(channel, true); layoutChanged(); }
                 else {
                     cancelDrag(); setFocus(); pressedChannel_ = channel; dragStart_ = dragPosition_ = event->position(); dragCard_ = card;
                     channelList_->setCurrentRow(cards_.order().indexOf(channel));
@@ -223,8 +223,10 @@ void ScopeWindow::mouseReleaseEvent(QMouseEvent *event) {
     if (event->button() == Qt::LeftButton && resizeChannel_ >= 0) {
         previewGesture(event->position());
         const auto from = panelPositions();
-        if (previewValid_ && cellsRect(QRect(0, 0, columns_->value(), rows_->value())).contains(event->position()))
+        if (previewValid_ && cellsRect(QRect(0, 0, columns_->value(), rows_->value())).contains(event->position())) {
+            if (cards_[resizeChannel_].span != resizeSpan_) automaticGrid_ = false;
             cards_[resizeChannel_].span = resizeSpan_;
+        }
         layoutChanged(); animateLayout(from); event->accept(); return;
     }
     if (event->button() == Qt::LeftButton && pressedColor_ >= 0) {

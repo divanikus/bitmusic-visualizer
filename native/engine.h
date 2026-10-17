@@ -67,7 +67,7 @@ struct TrackInfo {
     int songs = 0, song = 0, durationMs = -1;
     bool stereoOutput = false;
     VoiceMask tonalMask = 0; // Sources with chip pitch metadata (possibly several tones).
-    VoiceMask emptyVoices = 0; // Proven to contain no notes; initially hide their cards, never mute audio.
+    VoiceMask emptyVoices = 0; // Proven to contain no notes in this song; hide their cards, never mute audio.
 };
 
 struct TrackBoundary {

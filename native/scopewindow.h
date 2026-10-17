@@ -196,6 +196,7 @@ private:
     QDialog *colorDialog_ = nullptr;
     quint64 colorRevision_ = 0, cardRevision_ = 0;
     bool newFile_ = true, dragging_ = false;
+    bool automaticGrid_ = false;
     int pressedChannel_ = -1, dropSlot_ = -1;
     int pressedSolo_ = -1;
     bool soloMoved_ = false;

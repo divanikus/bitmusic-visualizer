@@ -25,6 +25,7 @@ struct ScopeCard {
     bool hidden = false;
     QSize span{1, 1};
     bool levels = false;
+    bool autoHidden = false; // Runtime provenance; never saved in a preset.
 };
 
 struct ScopeCaptureRequest {
@@ -51,6 +52,7 @@ public:
     Qt::CheckState levelsState(bool fallback) const;
     int add(const ScopeCard &card, int after);
     void remove(int id);
+    void setHidden(int id, bool hidden);
     void showAll();
     bool hideEmpty(VoiceMask empty);
     void toggleSourceVisibility(int source);

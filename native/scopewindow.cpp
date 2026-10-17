@@ -288,8 +288,8 @@ ScopeWindow::ScopeWindow() {
         cancelDrag();
         editor_->setVisible(editing); channelPanel_->setVisible(editing); updateEditorGeometry(); update();
     });
-    connect(rows_, &QSpinBox::valueChanged, this, [this] { layoutChanged(); });
-    connect(columns_, &QSpinBox::valueChanged, this, [this] { layoutChanged(); });
+    connect(rows_, &QSpinBox::valueChanged, this, [this] { automaticGrid_ = false; layoutChanged(); });
+    connect(columns_, &QSpinBox::valueChanged, this, [this] { automaticGrid_ = false; layoutChanged(); });
     connect(numbers_, &QCheckBox::toggled, this, [this] { presetEdited(); update(); });
     connect(names_, &QCheckBox::toggled, this, [this] { presetEdited(); update(); });
     connect(stereo_, &QCheckBox::toggled, this, [this] { presetEdited(); analysis_.clearWaves(); update(); });
@@ -298,7 +298,7 @@ ScopeWindow::ScopeWindow() {
     connect(showAll, &QPushButton::clicked, this, [this] { cards_.showAll(); layoutChanged(); });
     connect(channelList_, &QListWidget::itemChanged, this, [this](QListWidgetItem *item) {
         const int channel = item->data(Qt::UserRole).toInt();
-        if (channel >= 0 && channel < cards_.size()) { cards_[channel].hidden = item->checkState() != Qt::Checked; layoutChanged(); }
+        if (channel >= 0 && channel < cards_.size()) { cards_.setHidden(channel, item->checkState() != Qt::Checked); layoutChanged(); }
     });
     connect(channelList_->model(), &QAbstractItemModel::rowsMoved, this, [this] {
         QVector<int> order;
@@ -341,6 +341,7 @@ void ScopeWindow::present(const PlayerState &state, const ScopeFrame &frame, con
     // Always align channel indices with new metadata, even in that intermediate state.
     const bool reset = state.valid && ((!state.busy && newFile_) || state.info.path != state_.info.path ||
         state.info.voices != state_.info.voices || state.info.configuration.id != state_.info.configuration.id);
+    const bool usageChanged = state.valid && (state.info.song != state_.info.song || state.info.emptyVoices != state_.info.emptyVoices);
     state_ = state;
     if (reset) {
         newFile_ = false;
@@ -349,6 +350,13 @@ void ScopeWindow::present(const PlayerState &state, const ScopeFrame &frame, con
             resetChannels(!keepGrid_->isChecked()); refreshPresets();
         } else if (hideEmptyChannels()) {
             rebuildList(); layoutChanged(); updateViewEditor();
+        }
+    } else if (usageChanged) {
+        ++cardRevision_;
+        if (colorDialog_) colorDialog_->reject();
+        if (hideEmptyChannels()) {
+            if (automaticGrid_ && !keepGrid_->isChecked()) resetGrid();
+            layoutChanged(); updateViewEditor();
         }
     }
     frame_ = frame;
@@ -376,6 +384,7 @@ void ScopeWindow::resetLayout() {
     update();
 }
 void ScopeWindow::resetGrid() {
+    automaticGrid_ = true;
     QSignalBlocker blockRows(rows_), blockColumns(columns_);
     const int count = int(std::count_if(cards_.order().begin(), cards_.order().end(), [this](int id) { return !cards_[id].hidden; }));
     // Large configurations must leave room for the plot below each heading.
@@ -390,6 +399,7 @@ void ScopeWindow::resetChannels(bool grid) {
     cards_.reset(int(state_.info.voices.size()), waveOptions_.output, state_.info.emptyVoices, waveOptions_.meters);
     analysis_.clear();
     cancelDrag();
+    automaticGrid_ = grid;
     if (grid) resetGrid();
     rebuildList(); layoutChanged(); updateViewEditor();
 }

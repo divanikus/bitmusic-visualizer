@@ -41,22 +41,32 @@ int ScopeCards::add(const ScopeCard &card, int after) {
 }
 void ScopeCards::remove(int id) {
     if (id < 0 || id >= size()) return;
-    order_.removeAll(id); cards_[id].hidden = true;
+    order_.removeAll(id); setHidden(id, true);
+}
+void ScopeCards::setHidden(int id, bool hidden) {
+    auto &card = cards_[id];
+    card.hidden = hidden; card.autoHidden = false;
 }
 void ScopeCards::showAll() {
-    for (auto &card : cards_) card.hidden = false;
+    for (int id : order_) setHidden(id, false);
 }
 bool ScopeCards::hideEmpty(VoiceMask empty) {
     bool changed = false;
-    for (int id : order_) if (!cards_[id].hidden && empty.test(cards_[id].source)) {
-        cards_[id].hidden = true; changed = true;
+    for (int id : order_) {
+        auto &card = cards_[id];
+        const bool wasHidden = card.hidden;
+        // Re-evaluate automatic hiding for this subsong; retain manual/preset hides.
+        if (card.autoHidden) card.hidden = false;
+        card.autoHidden = !card.hidden && empty.test(card.source);
+        if (card.autoHidden) card.hidden = true;
+        changed |= card.hidden != wasHidden;
     }
     return changed;
 }
 void ScopeCards::toggleSourceVisibility(int source) {
     bool hide = false;
     for (int id : order_) if (cards_[id].source == source && !cards_[id].hidden) hide = true;
-    for (int id : order_) if (cards_[id].source == source) cards_[id].hidden = hide;
+    for (int id : order_) if (cards_[id].source == source) setHidden(id, hide);
 }
 bool ScopeCards::cycleSourceView(int source, ScopeViewSupport support) {
     int first = order_.contains(source) ? source : -1;
