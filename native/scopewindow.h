@@ -109,13 +109,18 @@ private:
     int cardInDirection(int current, int key) const;
     void moveSelectedCard(int key);
     bool cardSelectionActive_ = false;
-    struct ClickSelection {
+    void cancelCardClick();
+    void commitCardClick();
+    struct CardClick {
         int id;
-        bool active;
         quint64 revision;
+        QPointF position;
+        int interval;
+        bool released = false;
         QElapsedTimer time;
     };
-    std::optional<ClickSelection> selectionBeforeClick_;
+    std::optional<CardClick> pendingCardClick_;
+    QTimer *cardClickTimer_ = nullptr;
     QLabel *cardSelectionHint_ = nullptr;
     void updateViewEditor();
     void updateLevelsControl();

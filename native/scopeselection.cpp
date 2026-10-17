@@ -4,12 +4,13 @@
 #include <QLabel>
 #include <QListWidget>
 #include <QSpinBox>
+#include <QTimer>
 #include <algorithm>
 #include <limits>
 #include <tuple>
 
 void ScopeWindow::selectCard(int id) {
-    selectionBeforeClick_.reset();
+    cancelCardClick();
     const int row = cards_.order().indexOf(id);
     if (row < 0) return;
     cardSelectionActive_ = true;
@@ -18,9 +19,21 @@ void ScopeWindow::selectCard(int id) {
     updateCardSelection();
 }
 void ScopeWindow::clearCardSelection() {
-    selectionBeforeClick_.reset();
+    cancelCardClick();
     cardSelectionActive_ = false;
     updateCardSelection();
+}
+void ScopeWindow::cancelCardClick() {
+    pendingCardClick_.reset();
+    if (cardClickTimer_) cardClickTimer_->stop();
+}
+void ScopeWindow::commitCardClick() {
+    if (!pendingCardClick_ || !pendingCardClick_->released) return;
+    const auto click = *pendingCardClick_;
+    cancelCardClick();
+    if (click.revision != cardRevision_ || !renderingVisible()) return;
+    if (click.id >= 0 && gridLayout_.contains(click.id)) selectCard(click.id);
+    else if (click.id < 0) clearCardSelection();
 }
 void ScopeWindow::updateCardSelection() {
     const int id = selectedCardId();
@@ -131,8 +144,11 @@ bool ScopeWindow::handleCardShortcut(QKeyEvent *event, QWidget *target) {
     if ((target != this && !inList(target)) || (focus && focus != this && !inList(focus))) return false;
     const auto action = decodeCardShortcut(*event);
     if (action == CardAction::None) return false;
+    // A click followed by a keyboard command is unambiguously a single click.
+    const bool pendingSelection = pendingCardClick_ && pendingCardClick_->released && pendingCardClick_->id >= 0;
+    if (event->type() == QEvent::KeyPress) commitCardClick();
     const bool grid = action == CardAction::GridColumns || action == CardAction::GridRows;
-    if ((action == CardAction::Resize || action == CardAction::Move) && !cardSelectionActive_) return false;
+    if ((action == CardAction::Resize || action == CardAction::Move) && !cardSelectionActive_ && !pendingSelection) return false;
     if (action == CardAction::Navigate && inList(focus)) {
         // Native list navigation/scrolling, even at an edge where the row stays the same.
         if (event->type() == QEvent::KeyPress && state_.valid && !state_.busy && !newFile_) selectCard(selectedCardId());
@@ -140,7 +156,7 @@ bool ScopeWindow::handleCardShortcut(QKeyEvent *event, QWidget *target) {
     }
     if (cardGestureActive()) return false;
     const bool repeatable = grid || action == CardAction::Navigate || action == CardAction::Resize || action == CardAction::Move;
-    if (!repeatable && !cardSelectionActive_) return false;
+    if (!repeatable && !cardSelectionActive_ && !pendingSelection) return false;
     event->accept();
     if (event->type() == QEvent::ShortcutOverride || (event->isAutoRepeat() && !repeatable)) return true;
     if (grid) {
@@ -154,11 +170,12 @@ bool ScopeWindow::handleCardShortcut(QKeyEvent *event, QWidget *target) {
 bool ScopeWindow::handleEscapeShortcut(QKeyEvent *event) {
     if (event->key() != Qt::Key_Escape || (event->modifiers() & ~Qt::KeypadModifier) != Qt::NoModifier)
         return false;
-    if (!cardGestureActive() && !cardSelectionActive_ && !presentationFullscreen()) return false;
+    if (!pendingCardClick_ && !cardGestureActive() && !cardSelectionActive_ && !presentationFullscreen()) return false;
     event->accept();
     if (event->type() == QEvent::ShortcutOverride || event->isAutoRepeat()) return true;
     // One action per press, from the most local interaction to the window mode.
-    if (cardGestureActive()) {
+    if (pendingCardClick_) cancelCardClick();
+    else if (cardGestureActive()) {
         const auto from = panelPositions(); cancelDrag(); animateLayout(from); update();
     } else if (cardSelectionActive_) clearCardSelection();
     else toggleFullscreen();

@@ -310,9 +310,12 @@ reading UI state; `executeCardAction` applies admitted commands. Only navigation
 moving, resizing and grid counters repeat. `handleEscapeShortcut` shares one path
 between the player filter and standalone scope window: cancel a gesture, clear
 selection, or exit fullscreen, in that order, one action per press without repeat.
-Double-click fullscreen restores the selection from before its first press;
-ordinary single clicks remain immediate. The short-lived snapshot is invalidated
-by selection changes and checked against the card revision and double-click interval.
+Outside edit mode, a single click waits for the system double-click interval
+before selecting. A double click cancels the pending selection and only toggles
+fullscreen. Mouse movement, Escape, selection/layout/file changes, hide, resize,
+focus loss and fullscreen transitions cancel pending clicks. Keyboard card commands
+can commit a released single click immediately. Editor selection and Shift-click
+Solo remain immediate; no global double-click setting is overridden.
 Grid shortcuts require no selection and set the existing row/column spin boxes;
 their signals retain layout, capture, span-clamping and preset behavior.
 Card settings entry points, inspector callbacks and hit regions use settings

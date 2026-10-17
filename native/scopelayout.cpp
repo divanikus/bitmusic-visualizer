@@ -6,6 +6,7 @@
 #include <QMouseEvent>
 #include <QPushButton>
 #include <QSpinBox>
+#include <QStyleHints>
 #include <QTimer>
 #include <algorithm>
 
@@ -146,7 +147,7 @@ QRectF ScopeWindow::gestureTarget() const {
     return dropSlot_ >= 0 ? cardRect(dropSlot_) : QRectF();
 }
 void ScopeWindow::mousePressEvent(QMouseEvent *event) {
-    selectionBeforeClick_.reset();
+    commitCardClick(); cancelCardClick();
     if (event->button() == Qt::LeftButton && event->modifiers() == Qt::ShiftModifier) {
         const int card = panelAt(event->position());
         if (card >= 0) {
@@ -156,12 +157,17 @@ void ScopeWindow::mousePressEvent(QMouseEvent *event) {
         }
     }
     if (event->button() == Qt::LeftButton && event->modifiers() == Qt::NoModifier) {
-        ClickSelection before{selectedCardId(), cardSelectionActive_, cardRevision_, {}};
-        before.time.start();
         const int id = panelAt(event->position());
-        if (id >= 0) { setFocus(); selectCard(id); }
+        setFocus();
+        if (!edit_->isChecked()) {
+            // Resolve single vs double click before changing the selection.
+            pendingCardClick_ = CardClick{id, cardRevision_, event->globalPosition(),
+                std::max(1, QApplication::doubleClickInterval())};
+            pendingCardClick_->time.start();
+            event->accept(); return;
+        }
+        if (id >= 0) selectCard(id);
         else clearCardSelection();
-        if (!edit_->isChecked()) selectionBeforeClick_ = before;
     }
     if (edit_->isChecked() && event->button() == Qt::LeftButton) {
         const int channel = panelAt(event->position());
@@ -195,20 +201,20 @@ void ScopeWindow::mousePressEvent(QMouseEvent *event) {
 }
 void ScopeWindow::mouseDoubleClickEvent(QMouseEvent *event) {
     if (event->button() == Qt::LeftButton && event->modifiers() == Qt::NoModifier && !edit_->isChecked()) {
-        // Qt delivers the first press/release before the double-click event.
-        // Keep single clicks immediate, but undo their selection for fullscreen.
-        const auto before = selectionBeforeClick_;
-        selectionBeforeClick_.reset();
-        if (before && before->revision == cardRevision_ && before->time.elapsed() <= QApplication::doubleClickInterval()) {
-            channelList_->setCurrentRow(cards_.order().indexOf(before->id));
-            cardSelectionActive_ = before->active && selectedCardId() >= 0;
-            updateViewEditor(); updateCardSelection();
+        if (pendingCardClick_ && pendingCardClick_->released && pendingCardClick_->revision == cardRevision_ &&
+            pendingCardClick_->time.elapsed() < pendingCardClick_->interval &&
+            pendingCardClick_->id == panelAt(event->position()) &&
+            (pendingCardClick_->position-event->globalPosition()).manhattanLength() <= QApplication::styleHints()->mouseDoubleClickDistance()) {
+            cancelCardClick(); toggleFullscreen(); event->accept(); return;
         }
-        toggleFullscreen(); event->accept(); return;
+        // Ignore orphaned or stale double-click events after a cancelled click.
+        mousePressEvent(event); return;
     }
     FrameWindow::mouseDoubleClickEvent(event);
 }
 void ScopeWindow::mouseMoveEvent(QMouseEvent *event) {
+    if (pendingCardClick_ && !pendingCardClick_->released &&
+        (pendingCardClick_->position-event->globalPosition()).manhattanLength() >= QApplication::startDragDistance()) cancelCardClick();
     if (presentationFullscreen() && event->position().y() < 48) revealFullscreenExit();
     if (pressedSolo_ >= 0) {
         if ((event->position()-dragStart_).manhattanLength() >= QApplication::startDragDistance()) soloMoved_ = true;
@@ -247,6 +253,17 @@ void ScopeWindow::mouseMoveEvent(QMouseEvent *event) {
     FrameWindow::mouseMoveEvent(event);
 }
 void ScopeWindow::mouseReleaseEvent(QMouseEvent *event) {
+    if (event->button() == Qt::LeftButton && pendingCardClick_) {
+        if (event->modifiers() != Qt::NoModifier || pendingCardClick_->id != panelAt(event->position()) ||
+            (pendingCardClick_->position-event->globalPosition()).manhattanLength() >= QApplication::startDragDistance()) cancelCardClick();
+        else {
+            pendingCardClick_->released = true;
+            const auto remaining = pendingCardClick_->interval-pendingCardClick_->time.elapsed();
+            if (remaining <= 0) commitCardClick();
+            else cardClickTimer_->start(int(remaining));
+        }
+        event->accept(); return;
+    }
     if (event->button() == Qt::LeftButton && pressedSolo_ >= 0) {
         const int source = sourceFor(pressedSolo_);
         const bool activate = !soloMoved_ && event->modifiers() == Qt::ShiftModifier &&

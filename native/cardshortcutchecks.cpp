@@ -53,22 +53,25 @@ void checkSelectionGestures(QApplication &app, PlayerWindow &window, QTextStream
     auto list=scope.findChild<QListWidget *>("scopeChannelList");
     auto view=scope.findChild<QComboBox *>("cardView");
     scope.activateWindow(); pump(app); scope.setFocus();
+    const int clickWait=QApplication::doubleClickInterval()+40;
     const auto selected=[&] { return list->currentItem()->data(Qt::UserRole).toInt(); };
     const auto click=[&](int id, bool twice=false) {
+        const int previous=selected();
         const auto point=scope.panelRect(id).center();
         require(!scope.panelRect(id).isEmpty(),"Gesture test card is not visible.");
         // Native double-click order includes a completed first click.
         mouse(scope,QEvent::MouseButtonPress,point); mouse(scope,QEvent::MouseButtonRelease,point);
+        require(selected()==previous,"First click changed selection before double-click resolution.");
         if (twice) {
             pump(app);
             mouse(scope,QEvent::MouseButtonDblClick,point); mouse(scope,QEvent::MouseButtonRelease,point);
         }
-        pump(app); scope.setFocus();
+        pump(app,clickWait); scope.setFocus();
     };
     click(1,true); require(scope.presentationFullscreen(),"Double-click did not enter fullscreen.");
     key(scope,Qt::Key_V); require(view->currentData().toInt()==0,"Double-click activated a card selection.");
     key(scope,Qt::Key_Escape); require(!scope.presentationFullscreen(),"Unselected fullscreen needed two Esc presses.");
-    click(0); key(scope,Qt::Key_V); require(view->currentData().toInt()==1,"Single-click selection was delayed or lost.");
+    click(0); key(scope,Qt::Key_V); require(view->currentData().toInt()==1,"Single-click selection was lost.");
     click(1,true);
     require(scope.presentationFullscreen() && selected()==0 && view->currentData().toInt()==1,"Double-click changed the previous selection.");
     key(scope,Qt::Key_V); require(view->currentData().toInt()==2,"Double-click cleared the previous selection.");
@@ -90,8 +93,35 @@ void checkSelectionGestures(QApplication &app, PlayerWindow &window, QTextStream
     require(scope.presentationFullscreen(),"Esc on a fullscreen button skipped selection clearing.");
     scope.setFocus(); key(scope,Qt::Key_V); require(view->currentData().toInt()==3,"Button-focused Esc retained selection.");
     key(scope,Qt::Key_Escape); require(!scope.presentationFullscreen(),"Esc after button-focused clearing did not exit.");
+    click(1); const auto point=scope.panelRect(1).center();
+    mouse(scope,QEvent::MouseButtonDblClick,point); mouse(scope,QEvent::MouseButtonRelease,point);
+    pump(app,clickWait);
+    require(!scope.presentationFullscreen() && selected()==1,"Late double-click event toggled fullscreen.");
+    // Queued clicks must not reselect after Escape/reset/fullscreen or a drag.
+    const auto queueClick=[&] {
+        const auto p=scope.panelRect(2).center();
+        mouse(scope,QEvent::MouseButtonPress,p); mouse(scope,QEvent::MouseButtonRelease,p);
+    };
+    queueClick(); key(scope,Qt::Key_Escape); pump(app,clickWait);
+    require(selected()==1 && !scope.presentationFullscreen(),"Escape did not cancel the pending single click.");
+    queueClick(); key(scope,Qt::Key_F11); pump(app,clickWait);
+    require(scope.presentationFullscreen() && selected()==1,"Pending click changed selection after fullscreen.");
+    key(scope,Qt::Key_F11);
+    const auto drag=scope.panelRect(2).center();
+    mouse(scope,QEvent::MouseButtonPress,drag);
+    mouse(scope,QEvent::MouseMove,drag+QPointF(40,0)); mouse(scope,QEvent::MouseButtonRelease,drag+QPointF(40,0));
+    pump(app,clickWait); require(selected()==1,"Dragging committed a single-click selection.");
+    queueClick(); scope.resetLayout(); pump(app,clickWait); key(scope,Qt::Key_V);
+    require(view->currentData().toInt()==0,"Reset retained a pending click.");
+    queueClick(); key(scope,Qt::Key_V); pump(app,clickWait);
+    require(selected()==2 && view->currentData().toInt()==1,"Click followed immediately by V lost its selection or command.");
+    const auto held=scope.panelRect(1).center();
+    mouse(scope,QEvent::MouseButtonPress,held); pump(app,clickWait);
+    require(selected()==2,"Holding the mouse selected a card before release.");
+    mouse(scope,QEvent::MouseButtonRelease,held);
+    require(selected()==1,"Long single click did not select on release.");
     scope.resetLayout();
-    log << "Selection gestures: complete double-click sequence, previous/no selection, immediate single click, fullscreen entry/exit, Esc priority/override/repeat/button focus PASS\n";
+    log << "Selection gestures: deferred single click, no first-click selection, early/late double clicks, lifecycle/drag cancellation, previous/no selection, fullscreen entry/exit, Esc priority/override/repeat/button focus PASS\n";
     log.flush();
 }
 void checkGridShortcuts(QApplication &app, PlayerWindow &window, QTextStream &log) {
@@ -293,6 +323,7 @@ void checkSelectedCardShortcuts(QApplication &app, const QString &directory, QTe
         if (scope.panelRect(id).isEmpty()) std::fprintf(stderr,"Invisible card ID: %d\n",id);
         require(!scope.panelRect(id).isEmpty(),"Selected test card not visible.");
         mouse(scope,QEvent::MouseButtonPress,point); mouse(scope,QEvent::MouseButtonRelease,point);
+        pump(app,QApplication::doubleClickInterval()+40);
         require(selected()==id,"Click selected the wrong card.");
     };
     edit->setChecked(false); focus(); key(scope,Qt::Key_Escape); key(scope,Qt::Key_V);
