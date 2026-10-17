@@ -97,10 +97,24 @@ void PlayerWindow::chooseMusic(bool replace) {
     if(replace && paths.size()==1 && !isPlaylistFile(paths.front())) loadFile(paths.front());
     else addFiles(paths,replace);
 }
+void PlayerWindow::loadFile(const QString &path, int song) {
+    if(isPlaylistFile(path)) {addFiles({path},true);return;}
+    playlistLoader_.cancel();playlist_.clear();replacingPlaylist_=false;playlistPath_.clear();playlistMessage_.clear();rebuildPlaylist();
+    pendingSingle_=PendingSingleFile{path};
+    if(player_.state().valid && player_.state().info.path==path) scopes_.beginFile();
+    startSource(path,song);
+}
+void PlayerWindow::playSong(int song) {
+    if(song<0 || song>=playlist_.entries.size())return;
+    if(replacingPlaylist_) {playlistLoader_.cancel();replacingPlaylist_=false;}
+    pendingSingle_.reset();playlist_.activate(song);
+    const auto entry=playlist_.entries[song]; startSource(entry.path,entry.song);
+    songs_->setCurrentRow(song); songs_->scrollToItem(songs_->item(song));
+}
 void PlayerWindow::addFiles(const QStringList &paths,bool replace) {
     if(paths.isEmpty())return;
     if(replace) {
-        playlistLoader_.cancel();replacingPlaylist_=true;pendingSingle_=false;
+        playlistLoader_.cancel();replacingPlaylist_=true;pendingSingle_.reset();
         playlistPath_=paths.size()==1 && isPlaylistFile(paths.front())?paths.front():QString();
     }
     playlistMessage_.clear();playlistLoader_.add(paths);
@@ -110,7 +124,7 @@ void PlayerWindow::savePlaylist(const QString &path) {
     QTimer::singleShot(2500,this,[this]{if(playlistMessage_=="Playlist saved")playlistMessage_.clear();});
 }
 void PlayerWindow::clearPlaylist() {
-    playlistLoader_.cancel();playlist_.clear();pendingSingle_=replacingPlaylist_=false;playlistPath_.clear();playlistMessage_.clear();
+    playlistLoader_.cancel();playlist_.clear();pendingSingle_.reset();replacingPlaylist_=false;playlistPath_.clear();playlistMessage_.clear();
     player_.unload();shownPath_.clear();shownSong_=-1;midiPath_.clear();midiControls_->hide();rebuildPlaylist();
 }
 void PlayerWindow::removePlaylistSelection() {
@@ -137,39 +151,69 @@ void PlayerWindow::stepPlaylist(bool forward) {
     if(at>=0)playSong(at);
 }
 void PlayerWindow::pollPlaylist() {
-    for(auto &result:playlistLoader_.takeResults()) {
-        if(!result.error.isEmpty()) {playlistMessage_=result.error;replacingPlaylist_=false;continue;}
-        const bool start=replacingPlaylist_ || (playlist_.entries.isEmpty() && !pendingSingle_);
-        if(replacingPlaylist_) {playlist_.clear();replacingPlaylist_=false;}
-        try {playlist_.append(std::move(result.entries));}
-        catch(const std::exception &e) {playlistMessage_=QString::fromUtf8(e.what());continue;}
-        rebuildPlaylist();
-        if(start && !playlist_.entries.isEmpty())playSong(0);
-        else if(start)player_.unload();
-    }
-    auto s=player_.state();
-    if(pendingSingle_ && !s.busy && s.generation==pendingSingleGeneration_) {
-        pendingSingle_=false;
-        if(s.valid && s.error.isEmpty() && s.info.path==pendingSinglePath_) {
-            QVector<PlaylistEntry> entries;
-            for(int i=0;i<s.info.playlist.size();++i) {const auto &song=s.info.playlist[i];entries.push_back({0,s.info.path,song.title,{},i,s.info.songs,song.durationMs});}
-            // Appends may have completed while this single file was opening.
-            auto appended=std::move(playlist_.entries);playlist_.clear();
-            try {playlist_.append(std::move(entries));playlist_.append(std::move(appended));}
-            catch(const std::exception &e) {playlistMessage_=QString::fromUtf8(e.what());}
-            playlist_.activate(s.info.song);rebuildPlaylist();songs_->setCurrentRow(s.info.song);
-        }
-    }
-    const int at=playlist_.currentRow();
-    if(at>=0 && !s.busy) {
-        auto &entry=playlist_.entries[at];
-        if(s.valid && s.error.isEmpty() && entry.path==s.info.path && entry.song==s.info.song) {
-            if(entry.durationMs!=s.info.durationMs || !entry.error.isEmpty()) {entry.durationMs=s.info.durationMs;entry.error.clear();decoratePlaylist();}
-        } else if(!s.error.isEmpty() && entry.error!=s.error) {entry.error=s.error;decoratePlaylist();}
-    }
+    applyPlaylistImports();
+    // Import may start a source. Read its state only after applying all results.
+    const auto state = player_.state();
+    expandSingleFile(state);
+    updatePlaylistMetadata(state);
     // finished is generation-scoped and cleared synchronously by every user command.
-    if(s.finished && !s.busy && s.generation!=completedGeneration_) {
-        completedGeneration_=s.generation;stepPlaylist(true);
+    if (state.finished && !state.busy && state.generation != completedGeneration_) {
+        completedGeneration_ = state.generation;
+        stepPlaylist(true);
     }
-    playlistStatus_->setText(playlistLoader_.busy()?"Reading tracks…":QString());
+    playlistStatus_->setText(playlistLoader_.busy() ? "Reading tracks…" : QString());
+}
+void PlayerWindow::applyPlaylistImports() {
+    for (auto &result : playlistLoader_.takeResults()) {
+        if (!result.error.isEmpty()) {
+            playlistMessage_ = result.error;
+            replacingPlaylist_ = false;
+            continue;
+        }
+        const bool start = replacingPlaylist_ || (playlist_.entries.isEmpty() && !pendingSingle_);
+        if (replacingPlaylist_) {
+            playlist_.clear();
+            replacingPlaylist_ = false;
+        }
+        try { playlist_.append(std::move(result.entries)); }
+        catch (const std::exception &e) { playlistMessage_ = QString::fromUtf8(e.what()); continue; }
+        rebuildPlaylist();
+        if (start && !playlist_.entries.isEmpty()) playSong(0);
+        else if (start) player_.unload();
+    }
+}
+void PlayerWindow::expandSingleFile(const PlayerState &state) {
+    if (!pendingSingle_ || state.busy || state.generation != pendingSingle_->generation) return;
+    const auto path = pendingSingle_->path;
+    pendingSingle_.reset();
+    if (!state.valid || !state.error.isEmpty() || state.info.path != path) return;
+
+    QVector<PlaylistEntry> entries;
+    for (int i = 0; i < state.info.playlist.size(); ++i) {
+        const auto &song = state.info.playlist[i];
+        entries.push_back({0, state.info.path, song.title, {}, i, state.info.songs, song.durationMs});
+    }
+    // Appends may have completed while this single file was opening.
+    auto appended = std::move(playlist_.entries);
+    playlist_.clear();
+    try { playlist_.append(std::move(entries)); playlist_.append(std::move(appended)); }
+    catch (const std::exception &e) { playlistMessage_ = QString::fromUtf8(e.what()); }
+    playlist_.activate(state.info.song);
+    rebuildPlaylist();
+    songs_->setCurrentRow(state.info.song);
+}
+void PlayerWindow::updatePlaylistMetadata(const PlayerState &state) {
+    const int at = playlist_.currentRow();
+    if (at < 0 || state.busy) return;
+    auto &entry = playlist_.entries[at];
+    if (state.valid && state.error.isEmpty() && entry.path == state.info.path && entry.song == state.info.song) {
+        if (entry.durationMs != state.info.durationMs || !entry.error.isEmpty()) {
+            entry.durationMs = state.info.durationMs;
+            entry.error.clear();
+            decoratePlaylist();
+        }
+    } else if (!state.error.isEmpty() && entry.error != state.error) {
+        entry.error = state.error;
+        decoratePlaylist();
+    }
 }

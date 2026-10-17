@@ -307,20 +307,13 @@ void PlayerWindow::setScopesVisible(bool visible) {
         scopes_.show(); scopes_.raise();
     } else scopes_.hide();
 }
-void PlayerWindow::loadFile(const QString &path, int song) {
-    if(isPlaylistFile(path)) {addFiles({path},true);return;}
-    playlistLoader_.cancel();playlist_.clear();replacingPlaylist_=false;playlistPath_.clear();playlistMessage_.clear();rebuildPlaylist();
-    pendingSingle_=true;pendingSinglePath_=path;
-    if(player_.state().valid && player_.state().info.path==path) scopes_.beginFile();
-    startSource(path,song);pendingSingleGeneration_=player_.state().generation;
-}
 void PlayerWindow::startSource(const QString &path,int song) {
     QFile input(path); const bool midi=input.open(QIODevice::ReadOnly) && input.read(4)=="MThd";
     midiPath_=midi?path:QString(); midiControls_->setVisible(midi);
     if(midi) refreshSoundFonts();
     const auto before=player_.state();
     player_.load(path, song);
-    if(pendingSingle_ && path==pendingSinglePath_) pendingSingleGeneration_=player_.state().generation;
+    if(pendingSingle_ && path==pendingSingle_->path) pendingSingle_->generation=player_.state().generation;
     if(!before.valid || before.info.path!=path) scopes_.beginFile();
     // Open with the first file, then respect the user's visibility choice across tracks/files.
     if (!openedOnce_) { openedOnce_ = true; setScopesVisible(true); }
@@ -332,13 +325,6 @@ void PlayerWindow::refreshSoundFonts() {
     int at=soundFont_->findData(selected);
     if(at<0) { soundFont_->insertItem(0,selected.isEmpty()?"No SoundFonts found":"Missing: "+selected,QString()); at=0; }
     soundFont_->setCurrentIndex(at);
-}
-void PlayerWindow::playSong(int song) {
-    if(song<0 || song>=playlist_.entries.size())return;
-    if(replacingPlaylist_) {playlistLoader_.cancel();replacingPlaylist_=false;}
-    pendingSingle_=false;playlist_.activate(song);
-    const auto entry=playlist_.entries[song]; startSource(entry.path,entry.song);
-    songs_->setCurrentRow(song); songs_->scrollToItem(songs_->item(song));
 }
 void PlayerWindow::closeEvent(QCloseEvent *event) {
     if(auto dialog=findChild<QDialog *>("playerSettings"))dialog->close();

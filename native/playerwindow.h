@@ -4,6 +4,7 @@
 #include "chrome.h"
 #include "scopewindow.h"
 #include "timeline.h"
+#include <optional>
 
 class QLabel;
 class QPushButton;
@@ -42,6 +43,9 @@ private:
     void refreshSoundFonts();
     void setupPlaylistUi();
     void pollPlaylist();
+    void applyPlaylistImports();
+    void expandSingleFile(const PlayerState &state);
+    void updatePlaylistMetadata(const PlayerState &state);
     void rebuildPlaylist();
     void decoratePlaylist();
     void removePlaylistSelection();
@@ -52,9 +56,14 @@ private:
     Playlist playlist_;
     PlaylistLoader playlistLoader_;
     PlaylistRepeat playlistRepeat_ = PlaylistRepeat::Off;
-    bool pendingSingle_ = false, replacingPlaylist_ = false;
-    QString pendingSinglePath_, playlistPath_, playlistMessage_;
-    quint64 pendingSingleGeneration_ = 0, completedGeneration_ = 0;
+    struct PendingSingleFile {
+        QString path;
+        quint64 generation = 0;
+    };
+    std::optional<PendingSingleFile> pendingSingle_;
+    bool replacingPlaylist_ = false;
+    QString playlistPath_, playlistMessage_;
+    quint64 completedGeneration_ = 0;
     QPushButton *shuffle_ = nullptr;
     QLabel *playlistStatus_ = nullptr;
     NativePlayer player_;

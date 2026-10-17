@@ -214,6 +214,19 @@ int runPlaylistChecks(QApplication &app,const QStringList &args) {
         clickTrack(app,list,7,true);window.findChild<QToolButton*>("removeTracks")->click();
         require(window.playlist().entries.size()==7 && player.state().info.path==sameName,"Group removal deleted the wrong entries.");
         log<<"Header/first-song hit regions, Ctrl/Shift selection, double-click, source boundaries and group removal PASS\n";log.flush();
+        window.loadFile(named,1);window.addFiles({loop});
+        spin(app,[&]{return !player.state().busy && window.playlist().entries.size()==4;},"Append during single-file expansion failed.");
+        require(window.playlist().entries[0].path==named && window.playlist().entries[3].path==loop &&
+                player.state().info.song==1 && window.playlist().currentRow()==1,
+                "Concurrent import changed single-file order or selected subsong.");
+        window.refresh();window.addFiles({m3u},true);window.findChild<QPushButton*>("next")->click();
+        spin(app,[&]{return !player.state().busy && player.state().info.song==2;},"User navigation did not cancel pending playlist replacement.");
+        require(window.playlist().entries.size()==4 && window.playlist().entries[3].path==loop,
+                "Pending replacement overrode newer navigation.");
+        window.loadFile(named,2);window.loadFile(loop);
+        spin(app,[&]{return !player.state().busy && player.state().info.path==loop && window.playlist().entries.size()==1;},"Superseding a pending single file failed.");
+        require(window.playlist().entries[0].path==loop,"Stale single-file expansion changed the new queue.");
+        log<<"Single-file append ordering, superseded loads and navigation over pending replacement PASS\n";log.flush();
         window.setPlaylistShuffle(true);window.setPlaylistRepeat(PlaylistRepeat::All);window.close();
         {PlayerWindow restored;require(restored.playlist().shuffle,"Shuffle preference was not saved.");require(restored.findChild<QPushButton*>("repeat")->toolTip().contains("Playlist"),"Repeat preference was not saved.");}
         checkPlayerSettings(app,dir,log);

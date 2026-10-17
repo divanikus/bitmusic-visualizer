@@ -13,6 +13,13 @@ of the selected row. `PlayerWindow` coordinates import and playback, while
 `PlaylistLoader` reads metadata asynchronously. The view never changes the queue
 or calls the audio engine.
 
+Playlist polling applies loader results before reading the audio state, then
+expands a pending single file and updates entry metadata before handling natural
+completion. A pending single file carries its path and generation together;
+new file/navigation/replacement actions discard it at the existing cancellation
+points. Completed appends stay after the expanded subsongs. Keep this order and
+the generation-scoped completion check so an old EOF cannot override user Next.
+
 `ScopeWindow` coordinates transport snapshots, capture requests, layout gestures
 and CPU/GPU presentation. It does not own playback or decode music in painting.
 
