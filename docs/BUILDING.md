@@ -87,6 +87,8 @@ only private copies of authored fixtures while the audio decoder remains loaded.
 visibility resets, independent chip/output capture, paused token invalidation,
 busy/paused seeks and unload. A private 20 ms NSFE copy checks unload inside the
 pause tolerance; unloading must never freeze Full mix history. These checks also
+cover wide/asymmetric channel rows, generation-only and token-only history resets,
+stable-identity appends and a block larger than the history capacity. They also
 run in the transport and full suites.
 
 For a focused frame-rate check after generating fixtures, run

@@ -26,11 +26,19 @@ early unload could leave Full mix history attached to an empty player.
 readers. Visibility changes clear the whole channel snapshot; mask edits call
 `ScopeFrame::retainChannels` to intersect readiness and clear hidden mono/L/R
 rows together. Retention preserves metadata, row counts and the original channel
-iteration bounds even with shorter/longer physical-side arrays. Equal controls
-return before revision/reset/wake work. Keep the request mutex and snapshot mutex
+iteration bounds even with shorter/longer physical-side arrays. Equal enabled/mask
+values return before revision/reset/wake work. Keep the request mutex and snapshot mutex
 as separate phases, with the revision update before snapshot invalidation and
 notification after it. FPS only reschedules waiting; chip/output capture remain
 independent at this API boundary.
+
+`outputhistory.h` shares enabled-bit and frame-identity predicates among the
+callback, pause retention and output reader. Matching compares generation/token
+only; the existing enabled/busy gates and live-before-frozen priority stay with
+their callers. Token arithmetic, atomics/memory ordering, packed PCM storage,
+three-attempt sequence validation and padding remain unchanged. Reading history
+still precedes the state lock and its token/busy recheck; freezing still requires
+the existing pause proximity check and excludes load/unload.
 
 The private `ScopeWorker` in `enginescopes.cpp` owns the shared capture decoder,
 fallback per-voice decoders/history, resource identity and preparation pool.

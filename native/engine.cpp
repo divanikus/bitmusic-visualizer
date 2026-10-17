@@ -295,7 +295,7 @@ void NativePlayer::submit(Command command) {
     if (!command.load && !command.unload && !command.playing && state_.playing &&
         std::abs(command.ms - int(playedFrame_.load() * 1000 / SampleRate)) <= 30) {
         auto captured = outputHistory_->read();
-        if (captured.generation == generation_ && captured.token == outputToken_ && (captured.token & 1))
+        if (outputFrameMatches(captured, generation_, outputToken_) && outputCaptureEnabled(captured.token))
             pausedOutput_ = std::move(captured);
     }
     enabled_.store(false);

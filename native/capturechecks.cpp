@@ -1,4 +1,5 @@
 #include "engine.h"
+#include "outputhistory.h"
 #include <QApplication>
 #include <QDir>
 #include <QElapsedTimer>
@@ -12,6 +13,37 @@
 
 namespace {
 void require(bool ok, const char *message) { if (!ok) throw std::runtime_error(message); }
+void checkOutputIdentity() {
+    require(!outputCaptureEnabled(0) && !outputCaptureEnabled(2) && outputCaptureEnabled(1) && outputCaptureEnabled(7),
+            "Output capture enabled bit changed.");
+    OutputFrame frame;
+    frame.generation = 9; frame.token = 3;
+    require(outputFrameMatches(frame, 9, 3) && !outputFrameMatches(frame, 8, 3) && !outputFrameMatches(frame, 9, 5),
+            "Output frame identity ignored generation/token or added a sequence requirement.");
+    OutputHistory history;
+    const std::array<short, 4> pcm{100, -100, 200, -200};
+    history.push(pcm.data(), 2, 9, 3, 10);
+    history.push(pcm.data(), 1, 10, 3, 20); // Only the generation changes.
+    frame = history.read();
+    require(outputFrameMatches(frame, 10, 3) && frame.left[ScopeFrames - 2] == 0 && frame.left.back() == 100 &&
+            frame.right.back() == -100, "Generation-only output change did not reset/pad history.");
+    history.push(pcm.data() + 2, 1, 10, 5, 30); // Only the token changes.
+    frame = history.read();
+    require(outputFrameMatches(frame, 10, 5) && frame.left[ScopeFrames - 2] == 0 && frame.left.back() == 200,
+            "Token-only output change did not reset history.");
+    history.push(pcm.data(), 1, 10, 5, 40);
+    frame = history.read();
+    require(frame.left[ScopeFrames - 2] == 200 && frame.left.back() == 100, "Stable output identity lost history.");
+    const int count = 2 * ScopeFrames + 17;
+    QVector<short> large(count * 2);
+    for (int i = 0; i < count; ++i) { large[i * 2] = short(i); large[i * 2 + 1] = short(-i); }
+    history.push(large.data(), count, 11, 7, 50);
+    frame = history.read();
+    require(frame.sequence && outputFrameMatches(frame, 11, 7), "Oversized output block lost its identity.");
+    for (int i = 0; i < ScopeFrames; ++i)
+        require(frame.left[i] == count - ScopeFrames + i && frame.right[i] == -(count - ScopeFrames + i),
+                "Oversized output block did not retain the latest stereo window.");
+}
 void checkChannelFiltering() {
     ScopeFrame frame;
     frame.generation = 9; frame.positionMs = 250;
@@ -163,6 +195,7 @@ void checkEarlyUnload(QApplication &app, const QString &directory, QTextStream &
 }
 
 void checkCaptureControls(QApplication &app, const QString &directory, QTextStream &log) {
+    checkOutputIdentity();
     checkChannelFiltering();
     const auto path = QDir(directory).filePath("demo.nsf");
     checkControlChanges(app, path);

@@ -1,6 +1,11 @@
 #pragma once
 #include "engine.h"
 
+constexpr bool outputCaptureEnabled(quint64 token) { return (token & 1) != 0; }
+inline bool outputFrameMatches(const OutputFrame &frame, quint64 generation, quint64 token) {
+    return frame.generation == generation && frame.token == token;
+}
+
 // Single callback writer, GUI readers. Atomic sample pairs avoid data races even
 // if a callback overwrites the history while a reader copies it. The sequence
 // validates a complete snapshot; the writer never waits for the reader.

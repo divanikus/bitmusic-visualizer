@@ -41,15 +41,15 @@ void NativePlayer::setScopeMask(VoiceMask mask) {
 ScopeFrame NativePlayer::scopes() const { std::lock_guard lock(scopeMutex_); return scope_; }
 void NativePlayer::setOutputScopesEnabled(bool enabled) {
     const auto token = outputToken_.load();
-    if (bool(token & 1) != enabled) outputToken_ = ((token + 2) & ~quint64(1)) | quint64(enabled);
+    if (outputCaptureEnabled(token) != enabled) outputToken_ = ((token + 2) & ~quint64(1)) | quint64(enabled);
 }
 OutputFrame NativePlayer::outputScopes() const {
     const auto token = outputToken_.load();
-    if (!(token & 1)) return {};
+    if (!outputCaptureEnabled(token)) return {};
     auto result = outputHistory_->read();
     std::lock_guard lock(stateMutex_);
     if (token != outputToken_ || state_.busy) return {};
-    if (result.generation == generation_ && result.token == token) return result;
-    if (pausedOutput_.generation == generation_ && pausedOutput_.token == token) return pausedOutput_;
+    if (outputFrameMatches(result, generation_, token)) return result;
+    if (outputFrameMatches(pausedOutput_, generation_, token)) return pausedOutput_;
     return {};
 }

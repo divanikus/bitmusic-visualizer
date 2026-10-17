@@ -101,7 +101,7 @@ private:
                             player->outputMask_.load(std::memory_order_relaxed));
             player->playedFrame_.fetch_add(copied / 2);
             const auto captureToken = player->outputToken_.load(std::memory_order_relaxed);
-            if (captureToken & 1)
+            if (outputCaptureEnabled(captureToken))
                 player->outputHistory_->push(output.data(), size_t(output.size()) / 2, callbackGeneration, captureToken,
                                              int(player->playedFrame_.load() * 1000 / SampleRate));
             if (copied < static_cast<size_t>(output.size()) &&
