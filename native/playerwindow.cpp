@@ -1,16 +1,13 @@
 #include "playerwindow.h"
 #include "playercontrols.h"
 #include "playerchannels.h"
+#include "midicontrols.h"
 #include "playlistview.h"
-#include "shortcuts.h"
 #include "appsettings.h"
 #include "playersettings.h"
 #include <QDialog>
-#include "miditrack.h"
-#include "mt32track.h"
 #include <QDesktopServices>
-#include <QComboBox>
-#include <QFile>
+#include <QDir>
 #include <QApplication>
 #include <QCloseEvent>
 #include <QDragEnterEvent>
@@ -25,7 +22,7 @@
 #include <QSettings>
 #include <QTabWidget>
 #include <QTimer>
-#include <QToolButton>
+#include <QUrl>
 #include <QVBoxLayout>
 #include <algorithm>
 
@@ -91,40 +88,13 @@ PlayerWindow::PlayerWindow() {
     channels_->onSoloRequested = [this](int source) { player_.toggleSolo(source); refresh(); };
     channels_->onAllAudibleChanged = [this](bool audible) { player_.setMuteMask(audible ? VoiceMask{} : ~VoiceMask{}); };
     tabs_->addTab(channels_, QString::fromUtf8("Channels")); root->addWidget(tabs_, 1);
-    midiControls_=new QWidget; midiControls_->setObjectName("midiControls");
-    auto midiRow=new QHBoxLayout(midiControls_); midiRow->setContentsMargins(0,0,0,0);
-    midiEngine_=new QComboBox; midiEngine_->setObjectName("midiEngine");
-    midiEngine_->addItem("Auto","auto"); midiEngine_->addItem("General MIDI","gm"); midiEngine_->addItem("MT-32","mt32");
-    midiEngine_->setCurrentIndex(midiEngine_->findData(selectedMidiEngine()));
-    midiEngine_->setToolTip("MIDI engine. Auto recognizes MT-32 SysEx; select MT-32 manually for arrangements without it. Changing the engine restarts playback.");
-    midiRow->addWidget(midiEngine_);
-    connect(midiEngine_,&QComboBox::activated,this,[this](int index) {
-        if(index<0 || midiEngine_->itemData(index).toString()==selectedMidiEngine()) return;
-        try { selectMidiEngine(midiEngine_->itemData(index).toString()); if(!midiPath_.isEmpty()) startSource(midiPath_, 0); }
-        catch(const std::exception &e) { QMessageBox::warning(this,"MIDI engine",QString::fromUtf8(e.what())); }
-    });
-    soundFont_=new QComboBox; soundFont_->setObjectName("soundFont");
-    soundFont_->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);
-    soundFont_->setMinimumContentsLength(12);
-    soundFont_->setToolTip("General MIDI bank. Changing it restarts the current MIDI.");
-    midiRow->addWidget(soundFont_,1);
-    auto bankFolder=createPlayerIconButton(PlayerIcon::Open,"soundFontFolder","Open SoundFonts folder"); midiRow->addWidget(bankFolder);
-    auto bankRefresh=new QToolButton; bankRefresh->setText(QString::fromUtf8("↻"));
-    bankRefresh->setObjectName("refreshSoundFonts"); bankRefresh->setToolTip("Refresh SoundFont list"); midiRow->addWidget(bankRefresh);
-    root->addWidget(midiControls_); midiControls_->hide();
-    connect(bankFolder,&QPushButton::clicked,this,[this] {
-        const auto s=player_.state();
-        const bool mt32=midiEngine_->currentData()=="mt32" || (midiEngine_->currentData()=="auto" && ((s.valid && s.info.mt32Resources) || s.error.contains("MT-32")));
-        const auto dir=mt32?playerMt32Directory():playerSoundFontsDirectory();
+    midiControls_ = new MidiControls;
+    midiControls_->onReloadRequested = [this](const QString &path) { startSource(path, 0); };
+    midiControls_->onFolderRequested = [this] {
+        const auto dir = midiControls_->resourceDirectory(player_.state());
         QDir().mkpath(dir); QDesktopServices::openUrl(QUrl::fromLocalFile(dir));
-    });
-    connect(bankRefresh,&QToolButton::clicked,this,[this] { refreshSoundFonts(); });
-    connect(soundFont_,&QComboBox::activated,this,[this](int index) {
-        const auto name=soundFont_->itemData(index).toString();
-        if(name.isEmpty() || name==selectedSoundFont()) return;
-        try { selectSoundFont(name); if(!midiPath_.isEmpty()) startSource(midiPath_, 0); }
-        catch(const std::exception &e) { QMessageBox::warning(this,"SoundFont",QString::fromUtf8(e.what())); }
-    });
+    };
+    root->addWidget(midiControls_);
     status_ = new QLabel; status_->setObjectName("status"); status_->setWordWrap(true); status_->hide(); root->addWidget(status_);
     connect(open, &QPushButton::clicked, this, [this] { chooseMusic(true); });
     connect(showScopes_, &QPushButton::clicked, this, [this] { setScopesVisible(!scopes_.renderingVisible()); });
@@ -168,23 +138,13 @@ void PlayerWindow::setScopesVisible(bool visible) {
     } else scopes_.hide();
 }
 void PlayerWindow::startSource(const QString &path,int song) {
-    QFile input(path); const bool midi=input.open(QIODevice::ReadOnly) && input.read(4)=="MThd";
-    midiPath_=midi?path:QString(); midiControls_->setVisible(midi);
-    if(midi) refreshSoundFonts();
+    midiControls_->prepareSource(path);
     const auto before=player_.state();
     player_.load(path, song);
     if(pendingSingle_ && path==pendingSingle_->path) pendingSingle_->generation=player_.state().generation;
     if(!before.valid || before.info.path!=path) scopes_.beginFile();
     // Open with the first file, then respect the user's visibility choice across tracks/files.
     if (!openedOnce_) { openedOnce_ = true; setScopesVisible(true); }
-}
-void PlayerWindow::refreshSoundFonts() {
-    const QSignalBlocker blocked(soundFont_); soundFont_->clear();
-    const auto selected=selectedSoundFont();
-    for(const auto &name:availableSoundFonts()) soundFont_->addItem(QFileInfo(name).completeBaseName(),name);
-    int at=soundFont_->findData(selected);
-    if(at<0) { soundFont_->insertItem(0,selected.isEmpty()?"No SoundFonts found":"Missing: "+selected,QString()); at=0; }
-    soundFont_->setCurrentIndex(at);
 }
 void PlayerWindow::closeEvent(QCloseEvent *event) {
     if(auto dialog=findChild<QDialog *>("playerSettings"))dialog->close();
@@ -237,10 +197,7 @@ void PlayerWindow::refreshControls() {
     if (!s.valid && !s.busy && playlist_.entries.isEmpty()) {title_->setText("Open music");title_->setToolTip({});subtitle_->clear();}
     transport_->present(s, playlist_, playlistRepeat_);
     songs_->setEnabled(true);
-    const bool mt32=midiEngine_->currentData()=="mt32" || (midiEngine_->currentData()=="auto" && ((s.valid && s.info.mt32Resources) || s.error.contains("MT-32")));
-    soundFont_->setVisible(!mt32);
-    findChild<QToolButton *>("refreshSoundFonts")->setVisible(!mt32);
-    findChild<QPushButton *>("soundFontFolder")->setToolTip(mt32?"Open MT-32 ROM folder":"Open SoundFonts folder");
+    midiControls_->present(s);
     songs_->presentPlayback(s.valid ? playlist_.current : 0, !s.busy && s.playing);
     channels_->present(s);
     const auto message = !s.error.isEmpty() ? s.error : !s.scopeError.isEmpty() ? s.scopeError : s.busy ? QString::fromUtf8("Loading…") : playlistMessage_;

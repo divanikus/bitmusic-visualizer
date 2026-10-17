@@ -1,4 +1,5 @@
 #include "playerwindow.h"
+#include "midicontrols.h"
 #include "playersettings.h"
 #include "appsettings.h"
 #include "renderersettings.h"
@@ -129,7 +130,7 @@ void PlayerWindow::showSettings() {
             item->setData(0,Qt::UserRole+2,row.file.startsWith("SoundFonts"));item->setToolTip(0,row.path);item->setToolTip(1,row.detail);
             item->setForeground(1,QColor(row.found?"#a2e5d5":"#c2abb0"));
         }
-        files->setCurrentItem(files->topLevelItem(std::clamp(selected,0,int(rows.size())-1)));refreshSoundFonts();
+        files->setCurrentItem(files->topLevelItem(std::clamp(selected,0,int(rows.size())-1)));midiControls_->refreshSoundFonts();
     };
     connect(files,&QTreeWidget::currentItemChanged,dialog,[path,detail](QTreeWidgetItem *item) {
         path->setText(item?QDir::toNativeSeparators(item->data(0,Qt::UserRole).toString()):QString());path->setCursorPosition(0);

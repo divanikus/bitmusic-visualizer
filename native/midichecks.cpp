@@ -191,9 +191,10 @@ int runMidiChecks(QApplication &app,const QStringList &args) {
                 const auto engine=window.findChild<QComboBox*>("midiEngine");
                 require(engine!=nullptr,"MIDI engine selector missing.");
                 QMetaObject::invokeMethod(engine,"activated",Qt::DirectConnection,Q_ARG(int,engine->currentIndex()));
+                window.findChild<QToolButton*>("refreshSoundFonts")->click();
                 const auto after=player.state();
                 require(after.generation==before.generation&&!after.busy&&after.playing==before.playing&&
-                    (before.playing||after.positionMs==before.positionMs),"Reselecting the current MIDI option restarted playback.");
+                    (before.playing||after.positionMs==before.positionMs),"Reselecting the current MIDI option or refreshing banks restarted playback.");
             };
             reselect();
             player.seek(800,false); spin(app,[&]{auto s=player.state();return !s.busy&&!s.playing&&s.positionMs==800&&player.scopes().positionMs==800;});

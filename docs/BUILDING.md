@@ -107,6 +107,8 @@ protection, transport and reset. Solo checks cover Shift-click, Ctrl+Shift+1–9
 switching/restoring mutes, manual overrides and transport/file changes. It also checks
 the visualizer help button and F1 guide in both windows, saving screenshots with isolated
 preferences and silent playback. It is included in the complete native suite.
+Channel-control checks additionally cover high source IDs, snapshot feedback
+suppression and instrument-label changes without rebuilding buttons.
 
 `--self-test test-output --presets-only` checks preset serialization/validation,
 hardware identities, same-platform transfer, default assignment/removal/restart,
@@ -266,6 +268,9 @@ runtime DLL is needed. ROMs are not build dependencies and are excluded from
 packaging. `--mt32-checks <output>` without `--roms` runs resource/selection tests
 and explicitly skips synthesis; `--roms <directory>` enables real ROM validation,
 part isolation and transport checks. See [MT-32](MT32.md) for commands and limits.
+Without `--decoder-only`, resource-row checks also cover Auto/manual engine
+presentation and folder selection, missing saved banks, refresh/reselection
+guards and source clearing. These checks require no ROMs or SoundFont.
 Hosted CI never receives user ROMs. Linux/macOS synthesis needs local validation.
 
 libxmp 4.7.3 is a static C dependency with a hash-checked mixer observation patch.

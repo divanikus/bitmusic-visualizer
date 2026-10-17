@@ -7,11 +7,10 @@
 
 class QLabel;
 class QPushButton;
-class QToolButton;
 class PlaylistView;
 class PlayerTransport;
 class QTabWidget;
-class QComboBox;
+class MidiControls;
 class PlayerChannels;
 
 class PlayerWindow : public FrameWindow {
@@ -40,7 +39,6 @@ private:
     void setScopesVisible(bool visible);
     void playSong(int song);
     void setupShortcuts();
-    void refreshSoundFonts();
     void setupPlaylistUi();
     void pollPlaylist();
     void applyPlaylistImports();
@@ -72,9 +70,7 @@ private:
     PlayerTransport *transport_;
     PlaylistView *songs_;
     QTabWidget *tabs_;
-    QWidget *midiControls_;
-    QComboBox *soundFont_, *midiEngine_;
-    QString midiPath_;
+    MidiControls *midiControls_;
     PlayerChannels *channels_;
     QString shownPath_;
     int shownSong_ = -1;

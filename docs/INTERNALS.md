@@ -36,6 +36,15 @@ reports mute, Solo and all-channel requests; PlayerWindow applies them to the
 current engine state. Source masks and saved card/theme/preset identities stay
 independent of channel labels.
 
+`MidiControls` owns the MIDI resource row, current MIDI source path, bank list,
+selection guards and saved bank/engine choices through the existing resource
+helpers. It reports successful option changes to the window, which reloads the
+same MIDI from zero. Reselecting the saved option and refreshing banks do not
+reload playback. One engine-presentation rule selects both the visible controls
+and resource directory, retaining Auto's valid MT-32 snapshot/error fallback.
+Folder requests use a fresh player snapshot in the window. Settings refreshes
+the same bank list; actual resource validation/snapshots remain in the backends.
+
 `ScopeWindow` coordinates transport snapshots, capture requests, layout gestures
 and CPU/GPU presentation. It does not own playback or decode music in painting.
 

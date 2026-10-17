@@ -1,4 +1,5 @@
 #include "playerwindow.h"
+#include "midicontrols.h"
 #include "playlistview.h"
 #include <QFileDialog>
 #include <QFileInfo>
@@ -125,7 +126,7 @@ void PlayerWindow::savePlaylist(const QString &path) {
 }
 void PlayerWindow::clearPlaylist() {
     playlistLoader_.cancel();playlist_.clear();pendingSingle_.reset();replacingPlaylist_=false;playlistPath_.clear();playlistMessage_.clear();
-    player_.unload();shownPath_.clear();shownSong_=-1;midiPath_.clear();midiControls_->hide();rebuildPlaylist();
+    player_.unload();shownPath_.clear();shownSong_=-1;midiControls_->clearSource();rebuildPlaylist();
 }
 void PlayerWindow::removePlaylistSelection() {
     const auto ids = songs_->selectedIds();

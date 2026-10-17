@@ -1,5 +1,8 @@
 #include "mt32track.h"
 #include "playerwindow.h"
+#include "midicontrols.h"
+#include "miditrack.h"
+#include "appsettings.h"
 #include <QApplication>
 #include <QComboBox>
 #include <QElapsedTimer>
@@ -9,6 +12,8 @@
 #include <QTextStream>
 #include <QThread>
 #include <QPushButton>
+#include <QSettings>
+#include <QToolButton>
 #include <QDir>
 #include <QtEndian>
 #include <algorithm>
@@ -42,6 +47,57 @@ void spin(QApplication &app,const std::function<bool()> &ready,int timeout=8000)
     QElapsedTimer time; time.start();
     while(!ready()&&time.elapsed()<timeout) { app.processEvents(); QThread::msleep(5); }
     require(ready(),"MT-32 live state timed out.");
+}
+void checkResourceControls(const QString &midi, QTextStream &log) {
+    selectMidiEngine("auto");
+    QWidget parent; MidiControls controls(&parent);
+    int reloads = 0; QString requestedPath;
+    controls.onReloadRequested = [&](const QString &path) { ++reloads; requestedPath = path; };
+    controls.prepareSource(midi);
+    auto engine = controls.findChild<QComboBox *>("midiEngine");
+    auto bank = controls.findChild<QComboBox *>("soundFont");
+    auto refresh = controls.findChild<QToolButton *>("refreshSoundFonts");
+    auto folder = controls.findChild<QPushButton *>("soundFontFolder");
+    require(!controls.isHidden() && bank->currentText() == "No SoundFonts found" && bank->currentData().toString().isEmpty(),
+        "MIDI resource row lost its empty-bank placeholder.");
+    auto checkMode = [&](const PlayerState &state, bool mt32) {
+        controls.present(state);
+        require(bank->isHidden() == mt32 && refresh->isHidden() == mt32 &&
+            folder->toolTip() == (mt32 ? "Open MT-32 ROM folder" : "Open SoundFonts folder") &&
+            controls.resourceDirectory(state) == (mt32 ? playerMt32Directory() : playerSoundFontsDirectory()),
+            "MIDI controls and resource folder disagree on the active engine.");
+    };
+    PlayerState state; checkMode(state, false);
+    state.error = "MT-32 ROM required: missing";
+    require(controls.resourceDirectory(state) == playerMt32Directory(), "Folder selection reused an old UI snapshot.");
+    checkMode(state, true);
+    state.error.clear(); state.info.mt32Resources = std::make_shared<Mt32Resources>();
+    checkMode(state, false); // An invalid snapshot cannot identify the loaded engine.
+    state.valid = true; checkMode(state, true);
+    engine->setCurrentIndex(engine->findData("gm")); checkMode(state, false);
+    state = PlayerState{};
+    engine->setCurrentIndex(engine->findData("mt32")); checkMode(state, true);
+    require(reloads == 0 && selectedMidiEngine() == "auto", "Presentation changed MIDI preferences or requested a reload.");
+    QMetaObject::invokeMethod(engine, "activated", Qt::DirectConnection, Q_ARG(int, engine->currentIndex()));
+    require(reloads == 1 && requestedPath == midi && selectedMidiEngine() == "mt32", "Changed engine did not request the current MIDI once.");
+    QMetaObject::invokeMethod(engine, "activated", Qt::DirectConnection, Q_ARG(int, engine->currentIndex()));
+    controls.refreshSoundFonts();
+    require(reloads == 1, "Reselecting the engine or refreshing banks requested a reload.");
+    {
+        QSettings settings(playerSettingsPath(), playerSettingsFormat()); settings.setFallbacksEnabled(false);
+        settings.setValue("MIDI/SoundFont", "Missing.sf2"); settings.sync();
+        controls.refreshSoundFonts();
+        require(bank->currentText() == "Missing: Missing.sf2" && bank->currentData().toString().isEmpty() &&
+            selectedSoundFont() == "Missing.sf2" && reloads == 1, "Missing saved bank silently changed preference or reloaded MIDI.");
+        settings.remove("MIDI/SoundFont"); settings.sync();
+    }
+    controls.clearSource();
+    engine->setCurrentIndex(engine->findData("gm"));
+    QMetaObject::invokeMethod(engine, "activated", Qt::DirectConnection, Q_ARG(int, engine->currentIndex()));
+    require(controls.isHidden() && reloads == 1, "Cleared MIDI source was reloaded after an option change.");
+    controls.prepareSource(midi + ".missing");
+    require(controls.isHidden(), "Non-MIDI source showed the MIDI resource row.");
+    log << "MIDI resource controls: Auto/manual folders, snapshot freshness, missing banks, selection guards and source lifecycle PASS\n"; log.flush();
 }
 }
 int runMt32Checks(QApplication &app,const QStringList &args) {
@@ -77,6 +133,7 @@ int runMt32Checks(QApplication &app,const QStringList &args) {
         write(QDir(playerMt32Directory()).filePath("MT32_PCM.ROM"),QByteArray(524288,0));
         require(rejects(fixture(),"not recognized"),"Unrecognized ROM contents accepted.");
         log<<"MT-32 content-only selection, persistence and ROM checks PASS\n"; log.flush();
+        if(!args.contains("--decoder-only"))checkResourceControls(midi,log);
         const int rom=args.indexOf("--roms");
         if(rom<0 || rom+1>=args.size()) { log<<"Synthesis checks SKIPPED (no user-supplied ROMs).\n"; return 0; }
         for(const auto *name:{"MT32_CONTROL.ROM","MT32_PCM.ROM"})
