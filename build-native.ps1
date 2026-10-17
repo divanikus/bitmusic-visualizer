@@ -26,3 +26,5 @@ if ($Deploy) {
     Copy-Item -LiteralPath "$PSScriptRoot/THIRD-PARTY.md" -Destination "$licenseRoot/THIRD-PARTY.md"
 }
 Write-Output "Built: $buildRoot/bitmusic_visualizer.exe"
+
+Write-Output "Developer checks (when enabled): $buildRoot/bitmusic_checks.exe"

@@ -18,7 +18,7 @@ def bundle(destination):
     if git('ls-files', '--others', '--exclude-standard', '-z').strip(b'\0'):
         raise RuntimeError('Stage or remove untracked release inputs before packaging.')
     paths = [p.decode('utf-8') for p in git('ls-files', '-z').split(b'\0') if p]
-    required = {'CMakeLists.txt', 'native/sidtrack.cpp', 'native/sid-taps/patches.json',
+    required = {'CMakeLists.txt', 'native/checkmain.cpp', 'native/sidtrack.cpp', 'native/sid-taps/patches.json',
                 'cmake/Sid.cmake', 'cmake/PatchSid.cmake', 'COPYING', 'LICENSE',
                 'native/pokeytrack.cpp', 'native/vgm.cpp', 'native/gme-taps/pokey.cpp',
                 'native/gme-taps/pokey.h', 'cmake/PatchGme.cmake',

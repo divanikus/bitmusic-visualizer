@@ -57,7 +57,7 @@ Pattern instead shows events, retaining muted columns in a dimmed state.
 Generate the original fixtures with `fixtures.py`, then run:
 
 ```sh
-bitmusic_visualizer --tracker-checks test-output --decoder-only
+bitmusic_checks --tracker-checks test-output --decoder-only
 ```
 
 Omit `--decoder-only` to exercise Windows audio, live scopes, seek, repeat and

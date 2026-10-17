@@ -36,7 +36,7 @@ def main():
     if output.exists():
         raise RuntimeError(f'Refusing to overwrite {output}')
     build = ROOT / 'build/portable-release'
-    cmake_args = ['-DCMAKE_BUILD_TYPE=Release', '-DBITMUSIC_SHARED_GME=ON',
+    cmake_args = ['-DCMAKE_BUILD_TYPE=Release', '-DBITMUSIC_SHARED_GME=ON', '-DBITMUSIC_BUILD_TESTS=ON',
                   f'-DCMAKE_PREFIX_PATH={qt}', '-DCMAKE_INSTALL_LIBDIR=lib']
     if system == 'Darwin':
         cmake_args += ['-DCMAKE_OSX_ARCHITECTURES=arm64', '-DCMAKE_OSX_DEPLOYMENT_TARGET=13.0']
@@ -45,22 +45,36 @@ def main():
     parent = Path(tempfile.mkdtemp(prefix='package-', dir=ROOT / 'build'))
     stage = parent / 'BitMusicVisualizer'
     run('cmake', '--install', build, '--component', 'Runtime', '--prefix', stage, '--strip')
+    # Temporarily stage the companion to relocate its libraries with the app.
+    # It is removed before signing the app, hashing files or creating the archive.
+    run('cmake', '--install', build, '--component', 'CheckRunner', '--prefix', stage, '--strip')
+    check_output = ROOT / 'build/portable-checks/bitmusic_checks'
+    check_output.parent.mkdir(parents=True, exist_ok=True)
+
     if system == 'Darwin':
         app = stage / 'bitmusic_visualizer.app'
         plugins = app / 'Contents/PlugIns/platforms'
         plugins.mkdir(parents=True)
-        plugin_args = []
+        check_runner = app / "Contents/MacOS/bitmusic_checks"
+        plugin_args = [f"-executable={check_runner}"]
         for name in ('libqcocoa.dylib', 'libqoffscreen.dylib'):
             plugin = plugins / name
             shutil.copy2(qt / 'plugins/platforms' / name, plugin)
             plugin_args.append(f'-executable={plugin}')
         run(qt / 'bin/macdeployqt', app, '-always-overwrite', '-no-plugins',
             f'-libpath={build / "_deps/gme-build/gme"}', *plugin_args)
+        run('codesign', '--force', '--sign', '-', check_runner)
+        shutil.copy2(check_runner, check_output)
+        check_runner.unlink()
         app.rename(stage / 'BitMusicVisualizer.app')
         app = stage / 'BitMusicVisualizer.app'
         # ARM64 requires code signatures. Ad-hoc signing is local and uses no identity.
         run('codesign', '--force', '--deep', '--sign', '-', app)
         run('codesign', '--verify', '--deep', '--strict', app)
+    else:
+        check_runner = stage / 'bin/bitmusic_checks'
+        shutil.copy2(check_runner, check_output)
+        check_runner.unlink()
     run(sys.executable, ROOT / 'packaging/collect-licenses.py', stage, '--qt-root', qt)
     if system == 'Linux':
         appimage_tool, appimage_runtime = appimage.prepare(stage)

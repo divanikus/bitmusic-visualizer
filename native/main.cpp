@@ -4,6 +4,7 @@
 #include "renderersettings.h"
 #include "romfiles.h"
 #include <QApplication>
+#include <QCommandLineParser>
 #include <QFile>
 #include <QIcon>
 #include <QMessageBox>
@@ -12,17 +13,6 @@
 #include <QTimer>
 #include <cstring>
 #include <cstdio>
-
-int runChecks(QApplication &app, const QStringList &arguments);
-int runTapChecks(QApplication &app, const QStringList &arguments);
-int runGpuChecks(QApplication &app, const QStringList &arguments);
-int runGpuSoak(QApplication &app, const QStringList &arguments);
-int runMidiChecks(QApplication &app, const QStringList &arguments);
-int runMt32Checks(QApplication &app, const QStringList &arguments);
-int runTrackerChecks(QApplication &app, const QStringList &arguments);
-int runPlaylistChecks(QApplication &app, const QStringList &arguments);
-int runTttChecks(QApplication &app, const QStringList &arguments);
-int runMusicViewChecks(QApplication &app, const QStringList &arguments);
 
 int main(int argc, char **argv) {
     for (int i = 1; i < argc; ++i)
@@ -34,22 +24,17 @@ int main(int argc, char **argv) {
     app.setPalette(playerPalette());
     app.setWindowIcon(QIcon(":/assets/player.png"));
     const auto arguments = app.arguments();
-    // Test runners isolate settings themselves; never inherit a user's saved
-    // renderer when exercising the explicitly selected test backend.
-    const bool testing = arguments.contains("--tap-checks") || arguments.contains("--gpu-checks") ||
-        arguments.contains("--gpu-soak") || arguments.contains("--self-test") || arguments.contains("--midi-checks") || arguments.contains("--mt32-checks") || arguments.contains("--tracker-checks") || arguments.contains("--music-view-checks");
-    if (!testing && !arguments.contains("--ttt-checks") && !arguments.contains("--playlist-checks")) configureScopeRenderer();
-    DiagnosticLog diagnostics(arguments.contains("--diagnostics"));
-    if (arguments.contains("--tap-checks")) return runTapChecks(app, arguments);
-    if (arguments.contains("--midi-checks")) return runMidiChecks(app, arguments);
-    if (arguments.contains("--mt32-checks")) return runMt32Checks(app, arguments);
-    if (arguments.contains("--tracker-checks")) return runTrackerChecks(app, arguments);
-    if (arguments.contains("--playlist-checks")) return runPlaylistChecks(app, arguments);
-    if (arguments.contains("--ttt-checks")) return runTttChecks(app, arguments);
-    if (arguments.contains("--music-view-checks")) return runMusicViewChecks(app, arguments);
-    if (arguments.contains("--gpu-checks")) return runGpuChecks(app, arguments);
-    if (arguments.contains("--gpu-soak")) return runGpuSoak(app, arguments);
-    if (arguments.contains("--self-test")) return runChecks(app, arguments);
+    QCommandLineParser parser;
+    parser.setApplicationDescription("Retro music player with channel visualizations.");
+    parser.addHelpOption();parser.addVersionOption();
+    parser.addOption({"diagnostics","Write a local diagnostic log."});
+    parser.addOption({"software-scopes","Use CPU visualization rendering."});
+    parser.addPositionalArgument("files","Music files or playlists to open.","[files...]");
+    if(!parser.parse(arguments)) {std::fprintf(stderr,"%s\n",qPrintable(parser.errorText()));return 2;}
+    if(parser.isSet("help")) {std::printf("%s",qPrintable(parser.helpText()));return 0;}
+    if(parser.isSet("version")) {std::printf("%s %s\n",qPrintable(app.applicationName()),qPrintable(app.applicationVersion()));return 0;}
+    configureScopeRenderer();
+    DiagnosticLog diagnostics(parser.isSet("diagnostics"));
     QDir().mkpath(QDir(playerRomsDirectory()).filePath("c64"));
     QDir().mkpath(QDir(playerRomsDirectory()).filePath("ymfm"));
     QDir().mkpath(QDir(playerRomsDirectory()).filePath("mt32"));
@@ -84,7 +69,7 @@ int main(int argc, char **argv) {
         });
         timer->start();
     }
-    auto files = arguments.mid(1); files.removeAll("--diagnostics"); files.removeAll("--software-scopes");
+    const auto files = parser.positionalArguments();
     if (files.size()==1) window.loadFile(files.front());
     else if(!files.isEmpty()) window.addFiles(files,true);
     return app.exec();

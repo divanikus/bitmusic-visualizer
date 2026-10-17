@@ -6,6 +6,28 @@ older distribution Qt packages will not build this application. Python 3.12+ is
 used by packaging/check scripts and by the original test-tune generator.
 Python is not an application runtime dependency.
 
+## Player and check runner
+
+The default build produces two executables from the same player objects:
+
+- `bitmusic_visualizer` is the user application; it contains no automated suites.
+- `bitmusic_checks` is the developer runner for every check command below.
+  Add `.exe` on Windows. It needs the same Qt/library deployment as the player.
+
+Use `-DBITMUSIC_BUILD_TESTS=OFF` to configure a player-only build, or build just
+`--target bitmusic_visualizer`. The player keeps `--diagnostics` and
+`--software-scopes`, and supports `--help` / `--version`. It rejects check flags.
+
+Packaging builds a matching runner in `build/portable-checks/` but **does not
+include it in ZIPs or AppImages**. Portable tests first audit the unmodified
+package, then inject this companion into the temporary extracted copy to test
+its shipped libraries. The real player is separately smoke-tested with `--version`.
+Use `test-portable.ps1 -ChecksExecutable <path>` or `test-unix.py --checks <path>`
+when the matching runner is elsewhere; do not mix runners and unrelated releases.
+The Unix companion is installed/relocated (and ad-hoc signed on macOS) before
+being removed from staging. `Runtime` installs only the player; the separate
+`CheckRunner` component is for packaging validation.
+
 ## Windows
 
 Install the Qt MinGW 64-bit kit and its GCC 13.1 toolchain. Defaults below match
@@ -26,6 +48,8 @@ SDK paths, and verify playback, seeks, loops, scopes, themes, geometry, taps and
 GPU output. They need an interactive desktop/audio device. Hosted Windows CI
 runs decoder/tap checks; it is not a substitute for the full workstation suite.
 
+All bare check flags in this guide are arguments to `bitmusic_checks`.
+
 `--playlist-checks test-output` checks queue identities/reordering, M3U8 subsongs,
 Unicode/relative paths, shuffle history, background metadata cancellation and
 live transport across files, repeats, edits, unknown durations and saved modes.
@@ -41,7 +65,7 @@ continuity, compact-player, layout and shutdown checks without unrelated backend
 and presentation suites. The normal self-test still includes all of them.
 
 For a focused frame-rate check after generating fixtures, run
-`build/native/bitmusic_visualizer --self-test test-output --fps-only`.
+`build/native/bitmusic_checks --self-test test-output --fps-only`.
 It uses temporary settings and silent playback, exercises 30/60/120 FPS with
 NSF/VGZ/SPC, and reports refresh requests and fresh snapshots per second. These
 counts are not monitor-presented FPS. Add `--software-scopes` to check CPU drawing.
@@ -166,7 +190,7 @@ needed after downloading. Test real playback and GPU/Retina behavior on a Mac.
 
 `test-unix.py` extracts to a new path, checks the complete SHA256 manifest, rejects
 music/settings and escaping symlinks, audits dynamic dependencies and runs the
-decoder/tap suite without needing an audio device. On Linux it also executes the
+separate decoder/tap runner without needing an audio device. On Linux it also executes the
 actual relocated AppImage with `--appimage-extract-and-run`, verifies the runtime
 header/SquashFS payload and pinned runtime-library sources. This is **not** a physical
 audio/GPU/desktop test. Both Unix platforms need that manual validation before

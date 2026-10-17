@@ -98,7 +98,7 @@ included in release packaging. No GLib, external audio driver or additional
 runtime DLL is required by this configuration.
 
 Generate original fixtures with `fixtures.make_fixtures`, then run
-`bitmusic_visualizer --midi-checks <fixture-directory> --decoder-only`.
+`bitmusic_checks --midi-checks <fixture-directory> --decoder-only`.
 Omit `--decoder-only` for the muted live player check; `--soundfont <path>` adds
 a read-only smoke check of a local bank through a temporary copy. These fixtures
 contain an authored sine SoundFont, short multichannel MIDI, an endpoint between

@@ -39,24 +39,29 @@ jobs:
           python -c "from fixtures import make_fixtures; make_fixtures('test-output')"
           $archive = (Get-ChildItem dist/*-windows-x64.zip).FullName
           Expand-Archive -LiteralPath $archive -DestinationPath 'test-output/relocated package'
+          $player = 'test-output/relocated package/BitMusicVisualizer'
+          if (Test-Path "$player/bitmusic_checks.exe") { throw 'Check runner leaked into the release archive.' }
+          Copy-Item 'build/portable-checks/bitmusic_checks.exe' "$player/bitmusic_checks.exe"
           $env:QT_QPA_PLATFORM = 'offscreen'
           $env:BITMUSIC_SOFTWARE_SCOPES = '1'
           $env:QT_PLUGIN_PATH = ''
           $env:QT_QPA_PLATFORM_PLUGIN_PATH = ''
           $env:PATH = "$env:SystemRoot/System32;$env:SystemRoot"
-          $process = Start-Process 'test-output/relocated package/BitMusicVisualizer/bitmusic_visualizer.exe' -ArgumentList '--tap-checks test-output --decoder-only' -PassThru -Wait -WindowStyle Hidden
+          $process = Start-Process "$player/bitmusic_visualizer.exe" -ArgumentList '--version' -PassThru -Wait -WindowStyle Hidden
+          if ($process.ExitCode -ne 0) { throw 'Packaged player startup failed.' }
+          $process = Start-Process 'test-output/relocated package/BitMusicVisualizer/bitmusic_checks.exe' -ArgumentList '--tap-checks test-output --decoder-only' -PassThru -Wait -WindowStyle Hidden
           if ($process.ExitCode -ne 0) { throw 'Decoder checks failed.' }
-          $process = Start-Process 'test-output/relocated package/BitMusicVisualizer/bitmusic_visualizer.exe' -ArgumentList '--midi-checks test-output --decoder-only' -PassThru -Wait -WindowStyle Hidden
+          $process = Start-Process 'test-output/relocated package/BitMusicVisualizer/bitmusic_checks.exe' -ArgumentList '--midi-checks test-output --decoder-only' -PassThru -Wait -WindowStyle Hidden
           if ($process.ExitCode -ne 0) { throw 'MIDI decoder checks failed.' }
-          $process = Start-Process 'test-output/relocated package/BitMusicVisualizer/bitmusic_visualizer.exe' -ArgumentList '--mt32-checks test-output --decoder-only' -PassThru -Wait -WindowStyle Hidden
+          $process = Start-Process 'test-output/relocated package/BitMusicVisualizer/bitmusic_checks.exe' -ArgumentList '--mt32-checks test-output --decoder-only' -PassThru -Wait -WindowStyle Hidden
           if ($process.ExitCode -ne 0) { throw 'MT-32 resource checks failed.' }
-          $process = Start-Process 'test-output/relocated package/BitMusicVisualizer/bitmusic_visualizer.exe' -ArgumentList '--tracker-checks test-output --decoder-only' -PassThru -Wait -WindowStyle Hidden
+          $process = Start-Process 'test-output/relocated package/BitMusicVisualizer/bitmusic_checks.exe' -ArgumentList '--tracker-checks test-output --decoder-only' -PassThru -Wait -WindowStyle Hidden
           if ($process.ExitCode -ne 0) { throw 'Tracker decoder checks failed.' }
-          $process = Start-Process 'test-output/relocated package/BitMusicVisualizer/bitmusic_visualizer.exe' -ArgumentList '--ttt-checks test-output --decoder-only' -PassThru -Wait -WindowStyle Hidden
+          $process = Start-Process 'test-output/relocated package/BitMusicVisualizer/bitmusic_checks.exe' -ArgumentList '--ttt-checks test-output --decoder-only' -PassThru -Wait -WindowStyle Hidden
           if ($process.ExitCode -ne 0) { throw 'TIA decoder checks failed.' }
-          $process = Start-Process 'test-output/relocated package/BitMusicVisualizer/bitmusic_visualizer.exe' -ArgumentList '--playlist-checks test-output --decoder-only' -PassThru -Wait -WindowStyle Hidden
+          $process = Start-Process 'test-output/relocated package/BitMusicVisualizer/bitmusic_checks.exe' -ArgumentList '--playlist-checks test-output --decoder-only' -PassThru -Wait -WindowStyle Hidden
           if ($process.ExitCode -ne 0) { throw 'Playlist checks failed.' }
-          $process = Start-Process 'test-output/relocated package/BitMusicVisualizer/bitmusic_visualizer.exe' -ArgumentList '--music-view-checks test-output --decoder-only' -PassThru -Wait -WindowStyle Hidden
+          $process = Start-Process 'test-output/relocated package/BitMusicVisualizer/bitmusic_checks.exe' -ArgumentList '--music-view-checks test-output --decoder-only' -PassThru -Wait -WindowStyle Hidden
           if ($process.ExitCode -ne 0) { throw 'Music event checks failed.' }
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:

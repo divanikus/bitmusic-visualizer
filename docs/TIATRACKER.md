@@ -35,8 +35,8 @@ Projects without a loop repeat from the beginning.
 Generate original fixtures with `fixtures.py`, then run:
 
 ```sh
-bitmusic_visualizer --ttt-checks test-output --decoder-only
-bitmusic_visualizer --ttt-checks test-output --software-scopes
+bitmusic_checks --ttt-checks test-output --decoder-only
+bitmusic_checks --ttt-checks test-output --software-scopes
 ```
 
 Omit `--software-scopes` for the configured GPU default in the test process.

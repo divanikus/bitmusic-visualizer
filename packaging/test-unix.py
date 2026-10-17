@@ -8,6 +8,7 @@ import subprocess
 import sys
 import tempfile
 import json
+import shutil
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
@@ -17,6 +18,8 @@ from fixtures import make_fixtures
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('archive', type=Path)
+    parser.add_argument('--checks', type=Path, default=ROOT / 'build/portable-checks/bitmusic_checks',
+                        help='Matching separate check runner from package-unix.py')
     args = parser.parse_args()
     output = ROOT / 'test-output'
     output.mkdir(exist_ok=True)
@@ -26,7 +29,6 @@ def main():
         stage = test / 'BitMusicVisualizer'
     else:
         # Exercise the actual runtime from a relocated path containing spaces.
-        import shutil
         image = test / args.archive.name
         shutil.copy2(args.archive, image)
         image.chmod(0o755)
@@ -39,7 +41,7 @@ def main():
     for path in stage.rglob('*'):
         if path.is_symlink() and not path.resolve().is_relative_to(stage.resolve()):
             raise RuntimeError(f'Escaping bundle symlink: {path}')
-        if path.suffix.lower() in forbidden or path.name == 'BitMusicVisualizer.ini':
+        if path.suffix.lower() in forbidden or path.name in ('BitMusicVisualizer.ini', 'bitmusic_checks'):
             raise RuntimeError(f'Unwanted package content: {path}')
     listed = set()
     for line in (stage / 'SHA256SUMS.txt').read_text().splitlines():
@@ -132,16 +134,27 @@ def main():
                             dependency_errors.append('Library loaded outside relocated package: ' + line)
         if dependency_errors:
             raise RuntimeError('\n'.join(dependency_errors))
-    subprocess.run([str(executable), '--tap-checks', str(fixtures), '--decoder-only'], env=env, check=True, timeout=120)
-    subprocess.run([str(executable), '--midi-checks', str(fixtures), '--decoder-only'], env=env, check=True, timeout=120)
-    subprocess.run([str(executable), '--mt32-checks', str(fixtures), '--decoder-only'], env=env, check=True, timeout=120)
-    subprocess.run([str(executable), '--tracker-checks', str(fixtures), '--decoder-only'], env=env, check=True, timeout=120)
-    subprocess.run([str(executable), '--ttt-checks', str(fixtures), '--decoder-only'], env=env, check=True, timeout=120)
-    subprocess.run([str(executable), '--playlist-checks', str(fixtures), '--decoder-only'], env=env, check=True, timeout=120)
-    subprocess.run([str(executable), '--music-view-checks', str(fixtures), '--decoder-only'], env=env, check=True, timeout=120)
+    # Validate the real user entry point before adding the developer companion.
+    subprocess.run([str(executable), '--version'], env=env, check=True, timeout=30)
+    check_runner = (app / 'Contents/MacOS/bitmusic_checks' if platform.system() == 'Darwin'
+                    else stage / 'bin/bitmusic_checks')
+    shutil.copy2(args.checks.resolve(), check_runner)
+    check_runner.chmod(0o755)
+    check_env = dict(env)
+    if platform.system() == 'Darwin':
+        check_env['QT_PLUGIN_PATH'] = str(app / 'Contents/PlugIns')
+    else:
+        check_env['LD_LIBRARY_PATH'] = str(stage / 'lib')
+        check_env['QT_PLUGIN_PATH'] = str(stage / 'plugins')
+    subprocess.run([str(check_runner), '--tap-checks', str(fixtures), '--decoder-only'], env=check_env, check=True, timeout=120)
+    subprocess.run([str(check_runner), '--midi-checks', str(fixtures), '--decoder-only'], env=check_env, check=True, timeout=120)
+    subprocess.run([str(check_runner), '--mt32-checks', str(fixtures), '--decoder-only'], env=check_env, check=True, timeout=120)
+    subprocess.run([str(check_runner), '--tracker-checks', str(fixtures), '--decoder-only'], env=check_env, check=True, timeout=120)
+    subprocess.run([str(check_runner), '--ttt-checks', str(fixtures), '--decoder-only'], env=check_env, check=True, timeout=120)
+    subprocess.run([str(check_runner), '--playlist-checks', str(fixtures), '--decoder-only'], env=check_env, check=True, timeout=120)
+    subprocess.run([str(check_runner), '--music-view-checks', str(fixtures), '--decoder-only'], env=check_env, check=True, timeout=120)
     if platform.system() == 'Linux':
-        subprocess.run([str(image.resolve()), '--appimage-extract-and-run', '--tap-checks',
-                        str(fixtures.resolve()), '--decoder-only'], env=env, check=True, timeout=180)
+        subprocess.run([str(image.resolve()), '--appimage-extract-and-run', '--version'], env=env, check=True, timeout=180)
         print('Type-2 AppImage runtime and extract-and-run without FUSE PASS.')
     print((fixtures / 'tap-checks.txt').read_text())
     print('Relocated package, manifest, dependency and decoder checks PASS.')

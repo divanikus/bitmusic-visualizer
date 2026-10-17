@@ -1,6 +1,7 @@
 param(
     [Parameter(Mandatory=$true)][string]$Archive,
-    [string[]]$MusicPaths = @()
+    [string[]]$MusicPaths = @(),
+    [string]$ChecksExecutable = ""
 )
 $ErrorActionPreference = 'Stop'
 $Archive = (Resolve-Path -LiteralPath $Archive).Path
@@ -30,14 +31,22 @@ foreach ($line in Get-Content -LiteralPath "$playerRoot/SHA256SUMS.txt") {
 if (Get-ChildItem -LiteralPath $playerRoot -Recurse -File | Where-Object { $_.Extension -in '.m3u','.m3u8','.nsf','.nsfe','.vgm','.vgz','.spc','.sid','.gbs','.ay','.mdx','.obj','.pdb','.rom','.sf2','.sf3','.mid','.midi','.syx','.mod','.m15','.xm','.s3m','.it','.med','.mmd0','.mmd1','.mmd2','.mmd3','.umx','.dbm','.digi','.emod' }) {
     throw 'The runtime package includes music or development output.'
 }
+if (Test-Path -LiteralPath (Join-Path $playerRoot 'bitmusic_checks.exe')) { throw 'The user archive includes the developer check runner.' }
 if (Test-Path -LiteralPath (Join-Path $playerRoot 'BitMusicVisualizer.ini')) {
     throw 'The runtime package includes personal settings.'
 }
+# Audit the archive first, then inject a matching runner into this temporary copy.
+$playerExecutable = $executable
+if (!$ChecksExecutable) { $ChecksExecutable = Join-Path $PSScriptRoot 'build/portable-checks/bitmusic_checks.exe' }
+$ChecksExecutable = (Resolve-Path -LiteralPath $ChecksExecutable).Path
+$executable = Join-Path $playerRoot 'bitmusic_checks.exe'
+Copy-Item -LiteralPath $ChecksExecutable -Destination $executable
 $fixtureRoot = Join-Path $checkRoot 'test fixtures'
 New-Item -ItemType Directory -Path $fixtureRoot -Force | Out-Null
 foreach ($fixture in @('demo.nsf','demo.vgm','demo.vgz','demo.spc','named.nsfe','intro-loop.vgm',
     'demo.mid','fixture-gm.sf2','long-seek.mid','fractional-end.mid',
-    'demo.mod','soundtracker.mod','multichannel.mod','sequences.mod')) {
+    'demo.mod','soundtracker.mod','multichannel.mod','sequences.mod',
+    'demo.ttt','ntsc.ttt','finite.ttt','local-speed.ttt')) {
     Copy-Item -LiteralPath (Join-Path "$PSScriptRoot/test-output" $fixture) -Destination $fixtureRoot
 }
 $savedEnvironment = @{}
@@ -48,6 +57,9 @@ try {
     # Keep Windows itself available, but remove the SDK/compiler/Python from DLL lookup.
     $env:PATH = "$env:SystemRoot\System32;$env:SystemRoot"
     foreach ($name in $environmentNames | Where-Object { $_ -ne 'PATH' }) { [Environment]::SetEnvironmentVariable($name, $null, 'Process') }
+    $process = Start-Process -FilePath $playerExecutable -WorkingDirectory $playerRoot -ArgumentList '--version' `
+        -PassThru -WindowStyle Hidden -RedirectStandardOutput "$checkRoot/player-version.txt" -RedirectStandardError "$checkRoot/player-version-stderr.txt"
+    if (!$process.WaitForExit(30000) -or $process.ExitCode -ne 0) { throw 'The packaged player did not start.' }
     $testArguments = @('--self-test', ('"' + $fixtureRoot + '"'))
     foreach ($music in $MusicPaths) { $testArguments += ('"' + (Resolve-Path -LiteralPath $music).Path + '"') }
     $process = Start-Process -FilePath $executable -WorkingDirectory $playerRoot -ArgumentList $testArguments `

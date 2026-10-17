@@ -91,7 +91,7 @@ inputs are rejected; the app does not repair source files. Compatibility depends
 on the upstream C64 emulator and any required user-supplied ROMs; this is not a
 promise of every C64 tune.
 
-`--self-test <fixture-directory> --sid-only` exercises authored fixtures for both
+`bitmusic_checks --self-test <fixture-directory> --sid-only` exercises authored fixtures for both
 models/clocks, metadata/subsongs, actual voice frequencies and isolation, exact
 capture/master PCM agreement, rewind/irregular blocks, cancellation, mute/Solo,
 ring/sync preservation, filter boundaries, concurrency and live transport.

@@ -19,12 +19,16 @@ try {
     if (!$OutputPath) { $OutputPath = Join-Path $PSScriptRoot "dist/$packageName.zip" }
     $OutputPath = [IO.Path]::GetFullPath($OutputPath)
     if (Test-Path -LiteralPath $OutputPath) { throw "Archive already exists: $OutputPath. Choose another -OutputPath." }
-    & $CMake -S $PSScriptRoot -B $buildRoot -G Ninja '-DCMAKE_BUILD_TYPE=Release' '-DBITMUSIC_SHARED_GME=ON' `
+    & $CMake -S $PSScriptRoot -B $buildRoot -G Ninja '-DCMAKE_BUILD_TYPE=Release' '-DBITMUSIC_SHARED_GME=ON' '-DBITMUSIC_BUILD_TESTS=ON' `
         '-DCMAKE_CXX_FLAGS=' '-DCMAKE_C_FLAGS=' '-DCMAKE_EXE_LINKER_FLAGS=-s' '-DCMAKE_SHARED_LINKER_FLAGS=-s' `
         "-DCMAKE_PREFIX_PATH=$QtRoot" "-DCMAKE_C_COMPILER=$CompilerRoot/bin/gcc.exe" "-DCMAKE_CXX_COMPILER=$CompilerRoot/bin/g++.exe"
     if ($LASTEXITCODE -ne 0) { throw 'Portable CMake configuration failed.' }
     & $CMake --build $buildRoot --parallel 4
     if ($LASTEXITCODE -ne 0) { throw 'Portable build failed.' }
+    # Keep the matching developer runner outside the user archive.
+    $checkRoot = Join-Path $PSScriptRoot 'build/portable-checks'
+    New-Item -ItemType Directory -Path $checkRoot -Force | Out-Null
+    Copy-Item -LiteralPath "$buildRoot/bitmusic_checks.exe" -Destination $checkRoot
 
     # Start from an empty directory, never from an existing deployment or the music collection.
     $stageParent = Join-Path $PSScriptRoot ('build/pkg-' + [Guid]::NewGuid().ToString('N').Substring(0, 8))

@@ -44,39 +44,90 @@ include(cmake/FluidSynth.cmake)
 include(cmake/Munt.cmake)
 include(cmake/Xmp.cmake)
 include(cmake/Tia.cmake)
-add_executable(bitmusic_visualizer native/main.cpp native/engine.cpp native/window.cpp native/playerwindow.cpp native/scopewindow.cpp native/scopegpu.cpp native/scopecolors.cpp native/scopetheme.cpp native/chrome.cpp native/checks.cpp native/tapchecks.cpp native/gbschecks.cpp native/aychecks.cpp)
-file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/themes")
-configure_file(packaging/THEMES.txt "${CMAKE_CURRENT_BINARY_DIR}/themes/README.txt" COPYONLY)
-file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/roms/c64")
-configure_file(packaging/ROMS.txt "${CMAKE_CURRENT_BINARY_DIR}/roms/c64/README.txt" COPYONLY)
-file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/roms/ymfm")
-configure_file(packaging/YAMAHA-ROMS.txt "${CMAKE_CURRENT_BINARY_DIR}/roms/ymfm/README.txt" COPYONLY)
-qt_add_resources(bitmusic_visualizer app_assets PREFIX "/" FILES assets/player.png)
-target_sources(bitmusic_visualizer PRIVATE native/gpuchecks.cpp native/scopewave.cpp native/scopecontrols.cpp native/scopepresentation.cpp native/outputhistory.cpp native/wavechecks.cpp native/scopegrid.cpp native/scopelayout.cpp native/layoutchecks.cpp)
-target_sources(bitmusic_visualizer PRIVATE native/pacingchecks.cpp native/spectrum.cpp native/scopeviews.cpp native/viewchecks.cpp)
-target_sources(bitmusic_visualizer PRIVATE native/psgnoteschecks.cpp native/chipnoteschecks.cpp)
-target_sources(bitmusic_visualizer PRIVATE native/shortcuts.cpp native/shortcutchecks.cpp)
-target_sources(bitmusic_visualizer PRIVATE native/sidtrack.cpp native/sidchecks.cpp native/romfiles.cpp)
-target_sources(bitmusic_visualizer PRIVATE native/pokeytrack.cpp native/vgm.cpp native/pokeychecks.cpp)
-target_sources(bitmusic_visualizer PRIVATE native/yamahatrack.cpp native/yamahachecks.cpp native/yamahasamplechecks.cpp)
-target_sources(bitmusic_visualizer PRIVATE native/yamahavoicechecks.cpp
-  native/yamahaallvoicechecks.cpp)
-target_link_libraries(bitmusic_visualizer PRIVATE bitmusic_ymfm)
-target_link_libraries(bitmusic_visualizer PRIVATE bitmusic_sid)
-target_link_libraries(bitmusic_visualizer PRIVATE libfluidsynth MT32Emu::mt32emu)
-target_link_libraries(bitmusic_visualizer PRIVATE xmp_static)
-target_link_libraries(bitmusic_visualizer PRIVATE bitmusic_tia)
-target_sources(bitmusic_visualizer PRIVATE native/ttttrack.cpp native/tttchecks.cpp)
-target_sources(bitmusic_visualizer PRIVATE native/trackertrack.cpp native/xmp-taps/capture.cpp native/trackerchecks.cpp)
-target_sources(bitmusic_visualizer PRIVATE native/mt32track.cpp native/mt32checks.cpp)
-file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/roms/mt32")
-configure_file(packaging/MT32-ROMS.txt "${CMAKE_CURRENT_BINARY_DIR}/roms/mt32/README.txt" COPYONLY)
-target_sources(bitmusic_visualizer PRIVATE native/midisequence.cpp native/miditrack.cpp native/midichecks.cpp)
-target_sources(bitmusic_visualizer PRIVATE native/musicevents.cpp native/midiroll.cpp native/scopemusic.cpp)
-target_sources(bitmusic_visualizer PRIVATE native/musicviewchecks.cpp)
-file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/soundfonts")
-configure_file(packaging/SOUNDFONTS.txt "${CMAKE_CURRENT_BINARY_DIR}/soundfonts/README.txt" COPYONLY)
-target_sources(bitmusic_visualizer PRIVATE native/soundconfig.cpp native/scopepreset.cpp native/scopepresets.cpp native/presetchecks.cpp)
+# Compile the player once; checks reuse the same objects without entering the app.
+option(BITMUSIC_BUILD_TESTS "Build the separate developer check runner" ON)
+add_library(bitmusic_core OBJECT
+  native/engine.cpp
+  native/window.cpp
+  native/playerwindow.cpp
+  native/scopewindow.cpp
+  native/scopegpu.cpp
+  native/scopecolors.cpp
+  native/scopetheme.cpp
+  native/chrome.cpp
+  native/scopewave.cpp
+  native/scopecontrols.cpp
+  native/scopepresentation.cpp
+  native/outputhistory.cpp
+  native/scopegrid.cpp
+  native/scopelayout.cpp
+  native/spectrum.cpp
+  native/scopeviews.cpp
+  native/shortcuts.cpp
+  native/sidtrack.cpp
+  native/romfiles.cpp
+  native/pokeytrack.cpp
+  native/vgm.cpp
+  native/yamahatrack.cpp
+  native/ttttrack.cpp
+  native/trackertrack.cpp
+  native/xmp-taps/capture.cpp
+  native/mt32track.cpp
+  native/midisequence.cpp
+  native/miditrack.cpp
+  native/musicevents.cpp
+  native/midiroll.cpp
+  native/scopemusic.cpp
+  native/soundconfig.cpp
+  native/scopepreset.cpp
+  native/scopepresets.cpp
+  native/playlist.cpp
+  native/playerplaylist.cpp
+  native/playersettings.cpp
+)
+target_link_libraries(bitmusic_core PUBLIC Qt6::Widgets Qt6::Multimedia Qt6::QuickWidgets
+  gme::gme ZLIB::ZLIBSTATIC bitmusic_ymfm bitmusic_sid libfluidsynth
+  MT32Emu::mt32emu xmp_static bitmusic_tia)
+target_include_directories(bitmusic_core PUBLIC "${gme_SOURCE_DIR}/gme")
+qt_add_resources(bitmusic_core app_assets PREFIX "/" FILES assets/player.png)
+add_executable(bitmusic_visualizer native/main.cpp)
+target_link_libraries(bitmusic_visualizer PRIVATE bitmusic_core)
+set_target_properties(bitmusic_visualizer PROPERTIES WIN32_EXECUTABLE TRUE)
+set(BITMUSIC_EXECUTABLES bitmusic_visualizer)
+if(BITMUSIC_BUILD_TESTS)
+  add_executable(bitmusic_checks native/checkmain.cpp
+    native/checks.cpp
+    native/tapchecks.cpp
+    native/gbschecks.cpp
+    native/aychecks.cpp
+    native/gpuchecks.cpp
+    native/wavechecks.cpp
+    native/layoutchecks.cpp
+    native/pacingchecks.cpp
+    native/viewchecks.cpp
+    native/psgnoteschecks.cpp
+    native/chipnoteschecks.cpp
+    native/shortcutchecks.cpp
+    native/sidchecks.cpp
+    native/pokeychecks.cpp
+    native/yamahachecks.cpp
+    native/yamahasamplechecks.cpp
+    native/yamahavoicechecks.cpp
+    native/yamahaallvoicechecks.cpp
+    native/tttchecks.cpp
+    native/trackerchecks.cpp
+    native/mt32checks.cpp
+    native/midichecks.cpp
+    native/musicviewchecks.cpp
+    native/presetchecks.cpp
+    native/playlistchecks.cpp
+    native/preferenceschecks.cpp
+  )
+  target_link_libraries(bitmusic_checks PRIVATE bitmusic_core)
+  list(APPEND BITMUSIC_EXECUTABLES bitmusic_checks)
+endif()
+set_source_files_properties(native/main.cpp native/checkmain.cpp PROPERTIES
+  COMPILE_DEFINITIONS "BITMUSIC_VERSION=\"${PROJECT_VERSION}\"")
 if(WIN32)
   enable_language(RC)
   configure_file(native/app.rc.in "${CMAKE_CURRENT_BINARY_DIR}/app.rc" @ONLY)
@@ -84,17 +135,25 @@ if(WIN32)
   add_library(bitmusic_icon OBJECT "${CMAKE_CURRENT_BINARY_DIR}/app.rc")
   target_sources(bitmusic_visualizer PRIVATE $<TARGET_OBJECTS:bitmusic_icon>)
 endif()
-set_target_properties(bitmusic_visualizer PROPERTIES WIN32_EXECUTABLE TRUE)
-set_source_files_properties(native/main.cpp PROPERTIES COMPILE_DEFINITIONS "BITMUSIC_VERSION=\"${PROJECT_VERSION}\"")
-target_link_libraries(bitmusic_visualizer PRIVATE Qt6::Widgets Qt6::Multimedia Qt6::QuickWidgets gme::gme ZLIB::ZLIBSTATIC)
-target_include_directories(bitmusic_visualizer PRIVATE "${gme_SOURCE_DIR}/gme")
-if(WIN32 AND BITMUSIC_SHARED_GME)
-  add_custom_command(TARGET bitmusic_visualizer POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_FILE:gme_shared> $<TARGET_FILE_DIR:bitmusic_visualizer>)
-endif()
+foreach(target IN LISTS BITMUSIC_EXECUTABLES)
+  if(WIN32 AND BITMUSIC_SHARED_GME)
+    add_custom_command(TARGET ${target} POST_BUILD
+      COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_FILE:gme_shared> $<TARGET_FILE_DIR:${target}>)
+  endif()
+endforeach()
 if(MINGW)
-  target_compile_options(bitmusic_visualizer PRIVATE -Wall -Wextra)
+  foreach(target bitmusic_core ${BITMUSIC_EXECUTABLES})
+    target_compile_options(${target} PRIVATE -Wall -Wextra)
+  endforeach()
 endif()
+foreach(folder themes roms/c64 roms/ymfm roms/mt32 soundfonts)
+  file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/${folder}")
+endforeach()
+configure_file(packaging/THEMES.txt "${CMAKE_CURRENT_BINARY_DIR}/themes/README.txt" COPYONLY)
+configure_file(packaging/ROMS.txt "${CMAKE_CURRENT_BINARY_DIR}/roms/c64/README.txt" COPYONLY)
+configure_file(packaging/YAMAHA-ROMS.txt "${CMAKE_CURRENT_BINARY_DIR}/roms/ymfm/README.txt" COPYONLY)
+configure_file(packaging/MT32-ROMS.txt "${CMAKE_CURRENT_BINARY_DIR}/roms/mt32/README.txt" COPYONLY)
+configure_file(packaging/SOUNDFONTS.txt "${CMAKE_CURRENT_BINARY_DIR}/soundfonts/README.txt" COPYONLY)
 
 if(APPLE)
   set_target_properties(bitmusic_visualizer PROPERTIES
@@ -133,4 +192,12 @@ if(UNIX AND BITMUSIC_SHARED_GME)
   endif()
 endif()
 
-target_sources(bitmusic_visualizer PRIVATE native/playlist.cpp native/playerplaylist.cpp native/playlistchecks.cpp native/playersettings.cpp native/preferenceschecks.cpp)
+if(UNIX AND BITMUSIC_BUILD_TESTS)
+  if(APPLE)
+    set_target_properties(bitmusic_checks PROPERTIES INSTALL_RPATH "@executable_path/../Frameworks")
+    install(TARGETS bitmusic_checks RUNTIME DESTINATION bitmusic_visualizer.app/Contents/MacOS COMPONENT CheckRunner)
+  else()
+    set_target_properties(bitmusic_checks PROPERTIES INSTALL_RPATH "$ORIGIN/../lib")
+    install(TARGETS bitmusic_checks RUNTIME DESTINATION bin COMPONENT CheckRunner)
+  endif()
+endif()
