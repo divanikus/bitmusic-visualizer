@@ -19,6 +19,7 @@
 #include <QTemporaryDir>
 #include <QTextStream>
 #include <QTimer>
+#include <QTabWidget>
 #include <algorithm>
 #include <cmath>
 #include <stdexcept>
@@ -121,61 +122,33 @@ void checkEffectSettings(QApplication &app, QTextStream &log) {
     log << "Effects: portable INI, all five restored values, 999 ms/100% limits, theme coexistence, persistent defaults, malformed values and write failure PASS\n"; log.flush();
 }
 void checkRendererSettings(QApplication &app, QTextStream &log, const QDir &output) {
-    auto edit = [&](ScopeWindow &scope, const QString &expected, const QString &selected, bool save) {
-        scope.show(); scope.findChild<QPushButton *>("editLayout")->setChecked(true); pump(app);
-        std::exception_ptr failure; bool opened = false;
-        QTimer dismissError;
-        QObject::connect(&dismissError, &QTimer::timeout, &scope, [&] {
-            auto message = scope.findChild<QMessageBox *>(); if (!message) return;
-            failure = std::make_exception_ptr(std::runtime_error(message->text().toStdString()));
-            message->accept();
-            if (auto dialog = scope.findChild<QDialog *>("scopeRendererDialog")) dialog->reject();
-        });
-        dismissError.start(20);
-        QTimer::singleShot(30, &scope, [&] {
-            auto dialog = scope.findChild<QDialog *>("scopeRendererDialog");
-            if (!dialog) return;
-            opened = true;
-            try {
-                auto choice = dialog->findChild<QComboBox *>("rendererChoice");
-                require(choice && choice->currentData().toString() == expected, "Renderer selection not restored.");
-                choice->setCurrentIndex(choice->findData(selected));
-                require(choice->currentIndex() >= 0, "Renderer option absent.");
-                if (save) {
-                    dialog->grab().save(output.filePath("renderer-dialog.png"));
-                    dialog->findChild<QDialogButtonBox *>()->button(QDialogButtonBox::Save)->click();
-                } else dialog->reject();
-            } catch (...) { failure = std::current_exception(); dialog->reject(); }
-        });
-        scope.findChild<QPushButton *>("scopeRenderer")->click();
-        require(opened, "Renderer dialog unavailable.");
-        if (failure) std::rethrow_exception(failure);
+    auto edit = [&](PlayerWindow &window, const QString &expected, const QString &selected) {
+        window.showSettings();pump(app);
+        auto dialog=window.findChild<QDialog *>("playerSettings");require(dialog,"Settings dialog unavailable.");
+        dialog->findChild<QTabWidget *>("settingsTabs")->setCurrentIndex(1);
+        auto choice=dialog->findChild<QComboBox *>("rendererChoice");
+        require(choice && choice->currentData().toString()==expected,"Renderer selection not restored.");
+        choice->setCurrentIndex(choice->findData(selected));require(choice->currentIndex()>=0,"Renderer option absent.");
+        dialog->grab().save(output.filePath("renderer-dialog.png"));dialog->close();pump(app);
     };
-    { QSettings ini(playerSettingsPath(), QSettings::IniFormat); ini.setValue("Other/Keep", "untouched"); }
+    { QSettings ini(playerSettingsPath(), playerSettingsFormat());ini.setValue("Other/Keep","untouched"); }
     {
-        ScopeWindow first;
-        auto gpu = first.findChild<QQuickWidget *>("scopeGpu");
-        edit(first, "auto", "opengl", true);
-        require(first.findChild<QQuickWidget *>("scopeGpu") == gpu, "Saved renderer changed the live GPU widget.");
-        require(scopeRendererPreference() == "opengl", "Renderer choice was not saved.");
+        PlayerWindow first;auto gpu=first.scopeWindow().findChild<QQuickWidget *>("scopeGpu");
+        edit(first,"auto","opengl");
+        require(first.scopeWindow().findChild<QQuickWidget *>("scopeGpu")==gpu,"Saved renderer changed the live GPU widget.");
+        require(scopeRendererPreference()=="opengl","Renderer choice was not saved.");
     }
-    { ScopeWindow reopened; edit(reopened, "opengl", "cpu", false);
-      require(scopeRendererPreference() == "opengl", "Cancel changed the saved renderer."); }
-    const auto oldSoftware = qgetenv("BITMUSIC_SOFTWARE_SCOPES");
-    qputenv("BITMUSIC_SOFTWARE_SCOPES", "1");
+    { PlayerWindow reopened;edit(reopened,"opengl","cpu");require(scopeRendererPreference()=="cpu","Closing Settings lost the renderer choice."); }
+    const auto oldSoftware=qgetenv("BITMUSIC_SOFTWARE_SCOPES");qputenv("BITMUSIC_SOFTWARE_SCOPES","1");
     {
-        ScopeWindow software;
-        require(!software.findChild<QQuickWidget *>("scopeGpu"), "CPU scope test created a GPU widget.");
-        edit(software, "opengl", "auto", true);
-        require(scopeRendererPreference() == "auto", "Cannot select GPU rendering from CPU mode.");
+        PlayerWindow software;require(!software.scopeWindow().findChild<QQuickWidget *>("scopeGpu"),"CPU scope test created a GPU widget.");
+        edit(software,"cpu","auto");require(scopeRendererPreference()=="auto","Cannot select GPU rendering from CPU mode.");
     }
-    if (oldSoftware.isNull()) qunsetenv("BITMUSIC_SOFTWARE_SCOPES"); else qputenv("BITMUSIC_SOFTWARE_SCOPES", oldSoftware);
-    { QSettings ini(playerSettingsPath(), QSettings::IniFormat); ini.setValue("Renderer/Backend", "invalid"); ini.sync(); }
-    require(scopeRendererPreference() == "auto", "Invalid renderer did not fall back to Auto.");
-    { QSettings ini(playerSettingsPath(), QSettings::IniFormat);
-      require(ini.value("Other/Keep").toString() == "untouched", "Renderer save lost unrelated settings.");
-      ini.remove("Renderer"); }
-    log << "Renderer choice: save/restore, Cancel, deferred activation, CPU-to-GPU selection, invalid fallback and settings coexistence PASS\n";
+    if(oldSoftware.isNull())qunsetenv("BITMUSIC_SOFTWARE_SCOPES");else qputenv("BITMUSIC_SOFTWARE_SCOPES",oldSoftware);
+    { QSettings ini(playerSettingsPath(),playerSettingsFormat());ini.setValue("Renderer/Backend","invalid");ini.sync(); }
+    require(scopeRendererPreference()=="auto","Invalid renderer did not fall back to Auto.");
+    { QSettings ini(playerSettingsPath(),playerSettingsFormat());require(ini.value("Other/Keep").toString()=="untouched","Renderer save lost unrelated settings.");ini.remove("Renderer"); }
+    log<<"Renderer choice: Settings tabs, auto-save/restore, deferred activation, CPU-to-GPU, invalid fallback and settings coexistence PASS\n";
 }
 void checkPresentationTrail(QApplication &app, const QDir &dir, QTextStream &log) {
     // Exercise the complete window at a thin stroke/high refresh rate, including

@@ -30,8 +30,11 @@ runs decoder/tap checks; it is not a substitute for the full workstation suite.
 Unicode/relative paths, shuffle history, background metadata cancellation and
 live transport across files, repeats, edits, unknown durations and saved modes.
 Mouse checks cover source-header group selection and independent first-song
-selection/playback.
-Add `--decoder-only` for headless model/import checks. The live check saves a
+selection/playback. It also checks decoder end/loop boundaries without VGM header
+timing, tracker loop/reset, the tabbed Settings window, resource presence/size
+refresh, live FPS, preference restoration and optional unknown-duration limits
+through natural queue advancement, replay and repeat.
+Add `--decoder-only` for headless model/import/boundary checks. The live check saves a
 player screenshot and runs with isolated settings and silent audio.
 `--self-test test-output --transport-only` runs the existing transport, scope
 continuity, compact-player, layout and shutdown checks without unrelated backend
@@ -69,7 +72,7 @@ so restricted system temporary folders do not trigger modal write warnings.
 `--self-test test-output --shortcuts-only` exercises keyboard events in both
 windows, number-row/numpad mapping, duplicate/reordered/hidden cards, independent
 mute and visibility, Full mix on 0/Alt+0, L/R output toggles, input/dialog
-protection, transport and reset. Solo checks cover Shift-click, Ctrl+Shift+1вЂ“9,
+protection, transport and reset. Solo checks cover Shift-click, Ctrl+Shift+1–9,
 switching/restoring mutes, manual overrides and transport/file changes. It also checks
 the main-window help button and F1 guide, saving screenshots with isolated
 preferences and silent playback. It is included in the complete native suite.

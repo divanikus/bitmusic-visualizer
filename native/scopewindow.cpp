@@ -323,9 +323,6 @@ ScopeWindow::ScopeWindow() {
     connect(waves, &QPushButton::clicked, this, [this] { editWaves(); });
     auto effects = new QPushButton("Effects..."); effects->setObjectName("scopeEffects"); visualActions->addWidget(effects);
     connect(effects, &QPushButton::clicked, this, [this] { editEffects(); });
-    auto renderer = new QPushButton("Renderer..."); renderer->setObjectName("scopeRenderer");
-    renderer->setToolTip("Choose the renderer for the next application start");
-    connect(renderer, &QPushButton::clicked, this, [this] { editRenderer(); });
     auto themeCombo = new ThemeComboBox; themes_ = themeCombo;
     themes_->setObjectName("scopeTheme"); themes_->setAccessibleName("Theme");
     themes_->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);
@@ -337,14 +334,7 @@ ScopeWindow::ScopeWindow() {
     connect(save, &QPushButton::clicked, this, [this] { saveTheme(); });
     auto displayHint = new QLabel("All cards\nDisplay settings are saved automatically.");
     displayHint->setObjectName("editorHint"); displayHint->setWordWrap(true); display->addWidget(displayHint);
-    auto fps = new QComboBox; fps->setObjectName("waveFrameRate"); fps->setAccessibleName("Frame rate");
-    for (int rate : {30, 60, 120}) fps->addItem(QString("%1 FPS").arg(rate), rate);
-    styleCombo(fps); fps->setCurrentIndex(fps->findData(frameRate_));
-    fps->setToolTip("Target refresh rate for all views. Higher rates use more CPU/GPU.");
-    auto rateRow = new QFormLayout; rateRow->addRow("Frame rate", fps); display->addLayout(rateRow);
-    connect(fps, &QComboBox::currentIndexChanged, this, [this, fps] { setFrameRate(fps->currentData().toInt()); rememberWaves(); });
     display->addLayout(visualActions);
-    display->addWidget(renderer);
     display->addStretch();
     editor_->hide(); channelPanel_->hide();
     motion_ = new QTimer(this); motion_->setInterval(16);
@@ -770,39 +760,7 @@ void ScopeWindow::rememberEffects() {
             "The effects are applied for this session, but could not be saved to:\n" + playerSettingsPath() +
             "\n\nPlease check that this settings location is writable.");
 }
-void ScopeWindow::editRenderer() {
-    QDialog dialog(this); dialog.setWindowTitle("Scope renderer"); dialog.setObjectName("scopeRendererDialog");
-    dialog.setMinimumWidth(330);
-    auto layout = new QVBoxLayout(&dialog);
-    auto current = new QLabel("Currently using: " + (gpu_ ? gpu_->backend() : QString("CPU (no effects)")));
-    current->setObjectName("currentRenderer"); layout->addWidget(current);
-    auto choices = new QComboBox; choices->setObjectName("rendererChoice"); choices->setAccessibleName("Renderer");
-    styleCombo(choices); choices->addItem("Auto (recommended)", "auto");
-#ifdef Q_OS_WIN
-    choices->addItem("Direct3D 11", "d3d11");
-#endif
-    choices->addItem("OpenGL", "opengl"); choices->addItem("CPU (no effects)", "cpu");
-    const auto previous = scopeRendererPreference(); choices->setCurrentIndex(choices->findData(previous));
-    layout->addWidget(choices);
-    auto note = new QLabel("Changes take effect after restarting the app.\nCPU rendering has no trail or glow.");
-    note->setObjectName("editorHint"); layout->addWidget(note);
-    auto buttons = new QDialogButtonBox(QDialogButtonBox::Save | QDialogButtonBox::Cancel); layout->addWidget(buttons);
-    connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
-    connect(buttons, &QDialogButtonBox::accepted, &dialog, [&] {
-        if (choices->currentData().toString() != previous) {
-            QSettings settings(playerSettingsPath(), playerSettingsFormat()); settings.setFallbacksEnabled(false);
-            settings.setValue("Renderer/Backend", choices->currentData().toString()); settings.sync();
-            if (settings.status() != QSettings::NoError) {
-                QMessageBox::warning(&dialog, "Could not save settings",
-                    "The renderer choice could not be saved to:\n" + playerSettingsPath() +
-                    "\n\nPlease check that this settings location is writable.");
-                return;
-            }
-        }
-        dialog.accept();
-    });
-    dialog.exec();
-}
+QString ScopeWindow::rendererName() const { return gpu_ && !gpuFailed_ ? gpu_->backend() : QString("CPU (no effects)"); }
 void ScopeWindow::editEffects() {
     QDialog dialog(this); dialog.setWindowTitle("Scope effects"); dialog.setObjectName("scopeEffectsDialog");
     dialog.setMinimumWidth(310);

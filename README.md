@@ -67,13 +67,30 @@ Other native libxmp formats can be opened through **All files**; Amiga names suc
 as `mod.song` work too. [Tracker details and limits](docs/TRACKERS.md).
 
 Voice cards show signals before shared processing; **Full mix** includes effects,
-volume and mutes. Tracks without duration data play until stopped. MIDI tracks
+volume and mutes. Tracks with no known end play until stopped, unless you enable
+a limit in **Settings → Playback**. MIDI tracks
 within one file play together as one song. [Format details and limits](#documentation).
+
+## Settings
+
+The gear in the player title bar opens a separate window with three tabs:
+
+| Tab | Options |
+| --- | --- |
+| Playback | Optional limit for tracks without a known end; off by default. Applies to the next track |
+| Rendering | Renderer (after restart) and 30/60/120 FPS (immediately) |
+| Resources | ROM/SoundFont presence, locations, Refresh and Open folder |
+
+Changes are saved automatically. Themes, card layout and effects remain in the
+visualization editor. [Playback boundaries and limits](docs/PLAYLISTS.md#track-end-and-duration).
 
 ## ROMs and SoundFonts
 
 Music, ROMs and SoundFonts are not bundled or downloaded. Most formats need no
 extra files. A missing-ROM warning appears only when the loaded track needs it.
+**Settings → Resources** shows file presence, expected locations and an Open folder
+button. Presence/size checks do not certify ROM contents; the decoder validates
+resources when opening music.
 
 Folders below are relative to this **data directory**:
 
@@ -130,7 +147,8 @@ SF3 and DLS are not supported. [MIDI setup and limits](docs/MIDI.md).
 | Change or add a view | **Cards → View** or **Add card…**; MIDI also offers **Piano roll**, trackers offer **Pattern** |
 | Show the output mix | Enable **Full mix** in Cards; hidden by default |
 | Show stereo or level meters | **Stereo** / **Levels** in the editor toolbar |
-| Adjust waves and effects | **Display → Waves… / Effects…**; **Frame rate** is directly in Display |
+| Adjust waves and effects | **Display → Waves… / Effects…** |
+| Set renderer or FPS | Main player gear → **Settings → Rendering** |
 | Save colors | **Display → Color theme / Save theme…** |
 | Save a layout / set its default | **Layout → Preset / Save preset… / Use by default**; **Clear default** removes the assignment |
 | Set exact window dimensions | Window-size icon beside the background eyedropper |

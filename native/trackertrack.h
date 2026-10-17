@@ -16,6 +16,7 @@ public:
     QVector<float> notePitches(int) const override { return {-1}; } // Sample pitch is not necessarily a musical note.
     QStringList instrumentNames(qint64 frame) const override;
     PatternPosition patternPosition(qint64 frame) const override;
+    TrackBoundary boundary() const override;
     qint64 frame() const override { return frame_; }
 private:
     struct Impl;

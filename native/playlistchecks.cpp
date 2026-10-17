@@ -14,6 +14,9 @@
 #include <QToolButton>
 #include <stdexcept>
 
+void checkPlaybackBoundaries(QApplication &,const QDir &,QTextStream &);
+void checkPlayerSettings(QApplication &,const QDir &,QTextStream &);
+
 namespace {
 void require(bool value,const char *message) {if(!value)throw std::runtime_error(message);}
 void spin(QApplication &app,const std::function<bool()> &ready,const char *message,int limit=12000) {
@@ -86,6 +89,7 @@ int runPlaylistChecks(QApplication &app,const QStringList &args) {
         spin(app,[&]{result+=loader.takeResults();return !result.isEmpty();},"Missing-file scan timed out.");
         require(result[0].entries.size()==1 && !result[0].entries[0].error.isEmpty(),"Missing entry was silently lost.");
         log<<"Playlist order, identity, shuffle history/cycles, removal, M3U8, metadata and cancellation PASS\n";log.flush();
+        checkPlaybackBoundaries(app,dir,log);
         if(args.contains("--decoder-only"))return 0;
 
         PlayerWindow window;window.player().setVolume(0);window.show();
@@ -182,6 +186,7 @@ int runPlaylistChecks(QApplication &app,const QStringList &args) {
         log<<"Header/first-song hit regions, Ctrl/Shift selection, double-click, source boundaries and group removal PASS\n";log.flush();
         window.setPlaylistShuffle(true);window.setPlaylistRepeat(PlaylistRepeat::All);window.close();
         {PlayerWindow restored;require(restored.playlist().shuffle,"Shuffle preference was not saved.");require(restored.findChild<QPushButton*>("repeat")->toolTip().contains("Playlist"),"Repeat preference was not saved.");}
+        checkPlayerSettings(app,dir,log);
         log<<"Live append/reorder/remove, file/subsong transitions, repeat modes, unknown duration, persistence and UI PASS\n";return 0;
     } catch(const std::exception &e) {log<<"FAIL: "<<e.what()<<'\n';return 1;}
 }

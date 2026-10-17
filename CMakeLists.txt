@@ -133,4 +133,4 @@ if(UNIX AND BITMUSIC_SHARED_GME)
   endif()
 endif()
 
-target_sources(bitmusic_visualizer PRIVATE native/playlist.cpp native/playerplaylist.cpp native/playlistchecks.cpp)
+target_sources(bitmusic_visualizer PRIVATE native/playlist.cpp native/playerplaylist.cpp native/playlistchecks.cpp native/playersettings.cpp native/preferenceschecks.cpp)

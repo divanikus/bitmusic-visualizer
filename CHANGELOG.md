@@ -10,6 +10,10 @@ not published GitHub releases. Unreleased lists changes made after the latest ta
 
 ### Added
 
+- Settings window with Playback, Rendering and Resources tabs, opened with the gear.
+  Set an optional limit for tracks with no known end and check ROM/SoundFont locations.
+- Playlist advancement at confirmed decoder end/loop boundaries, including VGM
+  files without header timing. Unknown-length tracks remain unlimited by default.
 - M3U/M3U8 playlists with adding, removing and drag reordering, including
   individual subsongs. Shuffle and repeat can cover the whole playlist.
 - Atari 2600 music in TIATracker (`.ttt`) projects: two TIA channel cards,
@@ -26,7 +30,7 @@ not published GitHub releases. Unreleased lists changes made after the latest ta
 ### Changed
 
 - The visualization editor now groups settings into Cards, Layout and Display.
-  The card list uses the available height; FPS and Renderer are directly in Display.
+  The card list uses the available height; FPS and Renderer are in Settings → Rendering.
   Preset saving/default controls have text labels. Done finishes editing without saving.
 - The file picker has compact format groups instead of long extension lists.
 - Channel titles stay in place with the current instrument after a separator,

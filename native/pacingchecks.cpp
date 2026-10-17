@@ -38,13 +38,8 @@ void edit(ScopeWindow &scope, const std::function<void(QDialog *)> &action) {
     scope.findChild<QPushButton *>("editLayout")->setChecked(false);
 }
 void selectRate(ScopeWindow &scope, int fps) {
-    scope.show(); scope.findChild<QPushButton *>("editLayout")->setChecked(true);
-    scope.findChild<QTabWidget *>("scopeChannels")->setCurrentIndex(2);
-    auto combo = scope.findChild<QComboBox *>("waveFrameRate");
-    require(combo && combo->count() == 3 && combo->findData(fps) >= 0 && combo->isVisible(), "Display FPS choices missing.");
-    combo->setCurrentIndex(combo->findData(fps));
+    scope.setFrameRate(fps);scope.saveFrameRate();
     require(scope.frameRate() == fps, "FPS is not applied live.");
-    scope.findChild<QPushButton *>("editLayout")->setChecked(false);
 }
 void preferences() {
     QSettings settings(playerSettingsPath(), playerSettingsFormat());
@@ -64,7 +59,7 @@ void preferences() {
         ScopeWindow scope; require(scope.frameRate() == 60, "60 FPS did not survive restart.");
         edit(scope, [&](QDialog *dialog) {
             dialog->findChild<QDialogButtonBox *>()->button(QDialogButtonBox::RestoreDefaults)->click();
-            require(scope.frameRate() == 60, "Waveform defaults changed the separate Display frame rate.");
+            require(scope.frameRate() == 60, "Waveform defaults changed the application frame rate.");
         });
         selectRate(scope, 30);
     }

@@ -7,6 +7,7 @@
 #include <QThread>
 #include <QVector>
 #include <array>
+#include <algorithm>
 #include <atomic>
 #include <condition_variable>
 #include <functional>
@@ -67,6 +68,11 @@ struct TrackInfo {
     VoiceMask emptyVoices = 0; // Proven to contain no notes; initially hide their cards, never mute audio.
 };
 
+struct TrackBoundary {
+    qint64 frame = -1; // First proven end/loop boundary, in output sample frames.
+    qint64 loopFrame = -1; // -1 means restart from the beginning.
+};
+
 // A decoder instance belongs to exactly one worker. Audio and scopes never share it.
 class MusicTrack {
 public:
@@ -83,6 +89,7 @@ public:
     virtual QStringList instrumentNames(qint64) const { return {}; }
     virtual PatternPosition patternPosition(qint64) const { return {}; }
     virtual qint64 frame() const = 0;
+    virtual TrackBoundary boundary() const { return {}; }
 };
 std::unique_ptr<MusicTrack> openMusicTrack(const QString &path, int song = 0, bool readPlaylist = true, bool capture = false,
                                           std::shared_ptr<const SidRoms> roms = {}, std::shared_ptr<const YamahaRoms> yamahaRoms = {},
@@ -104,7 +111,9 @@ public:
     float noteHz(int channel) const; // -1 unavailable, 0 gated off.
     QVector<float> notePitches(int channel) const; // Active Hz, empty = silent, {-1} = unavailable.
     qint64 frame() const { return frame_; }
+    TrackBoundary boundary() const override;
 private:
+    TrackBoundary boundary_;
     Music_Emu *emu_ = nullptr;
     BmTaps *taps_ = nullptr;
     BmNotes *notes_ = nullptr;
@@ -122,7 +131,8 @@ struct PlayerState {
     bool valid = false, busy = false, playing = false;
     bool finished = false; // Natural endpoint only; pause/Stop/seek never emit it.
     bool repeat = false;
-    int positionMs = 0;
+    int positionMs = 0, playbackEndMs = -1;
+    bool durationLimited = false;
     VoiceMask muteMask = 0;
     int soloChannel = -1; // Temporary exclusive listening; not a saved preference.
     uint32_t outputMask = 3; // Bit 0: left speaker, bit 1: right speaker.
@@ -161,6 +171,8 @@ public:
     void setVolume(float value) { volume_.store(value); }
     void setOutputMask(uint32_t mask) { outputMask_.store(mask & 3u); }
     void setRepeat(bool enabled) { repeat_.store(enabled); }
+    void setUnknownDurationLimit(int ms) { unknownDurationLimit_.store(std::max(0, ms)); }
+    int unknownDurationLimit() const { return unknownDurationLimit_.load(); }
     void setScopesEnabled(bool enabled);
     void setScopeMask(VoiceMask mask);
     void setScopeFrameRate(int fps);
@@ -188,7 +200,8 @@ private:
     std::atomic<quint64> outputToken_{0}; // Low bit enables capture; upper bits invalidate old history.
     std::atomic<quint64> generation_{0};
     std::atomic<bool> enabled_{false}, closing_{false};
-    std::atomic<bool> repeat_{false};
+    std::atomic<bool> repeat_{false}, durationLimited_{false};
+    std::atomic<int> unknownDurationLimit_{0};
     std::atomic<bool> autoSubsong_{true};
     std::atomic<bool> scopesEnabled_{false}, scopesSuspended_{true};
     std::atomic<quint64> scopeRevision_{0};

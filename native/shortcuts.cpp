@@ -91,7 +91,8 @@ void PlayerWindow::showShortcutsHelp() {
       selected rows. Use ⋯ below Tracks to create, open or save a playlist.</p>
       <p>Repeat cycles through Off, Track (1), and Playlist. Shuffle visits
       tracks in random order; Previous follows listening history.
-      Tracks without a duration continue until you press Next.</p>
+      Settings (gear) offers an optional limit for tracks with no known end.
+      Without a limit they continue until you press Next.</p>
       <p>Works in either player window. Use the number row or the numpad with
       Num Lock on. Numbers refer to the original channel numbers, even after
       reordering. Multiple cards of one channel change together.</p>

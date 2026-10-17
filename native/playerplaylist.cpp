@@ -246,7 +246,7 @@ void PlayerWindow::decoratePlaylist() {
     tabs_->setTabText(0,QString("Tracks (%1)").arg(playlist_.entries.size()));
 }
 void PlayerWindow::setPlaylistRepeat(PlaylistRepeat mode) {
-    playlistRepeat_=mode;player_.setRepeat(mode==PlaylistRepeat::Track && player_.state().info.durationMs>0);
+    playlistRepeat_=mode;player_.setRepeat(mode==PlaylistRepeat::Track);
 }
 void PlayerWindow::setPlaylistShuffle(bool enabled) {playlist_.setShuffle(enabled);}
 void PlayerWindow::stepPlaylist(bool forward) {

@@ -1,6 +1,8 @@
 #include "window.h"
 #include "shortcuts.h"
 #include "appsettings.h"
+#include "playersettings.h"
+#include <QDialog>
 #include "miditrack.h"
 #include "mt32track.h"
 #include <QDesktopServices>
@@ -34,7 +36,7 @@
 #include <algorithm>
 
 namespace {
-enum class Symbol { Previous, Stop, Play, Pause, Next, Repeat, Shuffle, Open, Scopes, Volume };
+enum class Symbol { Previous, Stop, Play, Pause, Next, Repeat, Shuffle, Open, Scopes, Volume, Settings };
 class ChannelButton : public QToolButton {
 public:
     std::function<void()> onSolo;
@@ -118,6 +120,9 @@ protected:
         case Symbol::Scopes:
             p.setBrush(Qt::NoBrush); p.drawRoundedRect(QRectF(1, 2, 18, 16), 2, 2);
             p.drawPolyline(QPolygonF{{3, 10}, {6, 10}, {8, 5}, {11, 15}, {13, 9}, {17, 9}}); break;
+        case Symbol::Settings:
+            p.setBrush(Qt::NoBrush);p.setPen(QPen(ink,1.8));p.drawEllipse(QRectF(4,4,12,12));p.drawEllipse(QRectF(8,8,4,4));
+            p.translate(10,10);for(int i=0;i<8;++i) {p.drawLine(QPointF(0,-7),QPointF(0,-9));p.rotate(45);}break;
         case Symbol::Volume:
             p.setPen(Qt::NoPen); p.drawPolygon(QPolygonF{{2, 8}, {6, 8}, {11, 4}, {11, 16}, {6, 12}, {2, 12}});
             p.setBrush(Qt::NoBrush); p.setPen(QPen(ink, 1.7)); p.drawArc(QRectF(10, 4, 8, 12), -65 * 16, 130 * 16); break;
@@ -158,6 +163,8 @@ PlayerWindow::PlayerWindow() {
     auto root = new QVBoxLayout(this); root->setContentsMargins(14, 6, 14, 12); root->setSpacing(6);
     auto titleBar = new TitleBar(this); titleBar->setTitle(QApplication::applicationName()); root->addWidget(titleBar);
     setupShortcutsHelp(titleBar);
+    auto settingsButton=new IconButton(Symbol::Settings,"playerSettingsButton","Settings");settingsButton->setFixedSize(28,28);titleBar->addAction(settingsButton);
+    connect(settingsButton,&QPushButton::clicked,this,[this] {showSettings();});
     auto header = new QHBoxLayout; header->setSpacing(8);
     auto text = new QVBoxLayout; text->setSpacing(2);
     title_ = new QLabel(QString::fromUtf8("Open a file")); title_->setObjectName("title"); title_->setMinimumWidth(0); title_->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
@@ -279,6 +286,7 @@ PlayerWindow::PlayerWindow() {
     restoreGeometry(settings.value("Windows/Player").toByteArray());
     playlistRepeat_=PlaylistRepeat(std::clamp(settings.value("Playback/Repeat",0).toInt(),0,2));
     playlist_.setShuffle(settings.value("Playback/Shuffle",false).toBool());
+    player_.setUnknownDurationLimit(unknownTrackLimitPreference());
     auto timer = new QTimer(this); timer->setInterval(33);
     connect(timer, &QTimer::timeout, this, [this] {
         refreshControls();
@@ -332,6 +340,7 @@ void PlayerWindow::playSong(int song) {
     songs_->setCurrentRow(song); songs_->scrollToItem(songs_->item(song));
 }
 void PlayerWindow::closeEvent(QCloseEvent *event) {
+    if(auto dialog=findChild<QDialog *>("playerSettings"))dialog->close();
     // Snapshot before hiding, including a scope window hidden earlier by the user.
     QSettings settings(playerSettingsPath(), playerSettingsFormat()); settings.setFallbacksEnabled(false);
     settings.setValue("Playback/Repeat",int(playlistRepeat_));
@@ -375,7 +384,7 @@ void PlayerWindow::refreshControls() {
         const bool fileChanged = shownPath_ != s.info.path;
         shownPath_ = s.info.path; shownSong_ = s.info.song; unknownRangeMs_ = 180000;
         if (fileChanged || channels_->count()!=s.info.voices.size()) rebuildChannels(s);
-        player_.setRepeat(playlistRepeat_==PlaylistRepeat::Track && s.info.durationMs>0);
+        player_.setRepeat(playlistRepeat_==PlaylistRepeat::Track);
     }
     if (s.valid) {
         title_->setText(title_->fontMetrics().elidedText(s.info.title, Qt::ElideRight, title_->width()));
@@ -406,19 +415,19 @@ void PlayerWindow::refreshControls() {
         ++side;
     }
     repeat_->setToolTip(QString("Repeat: %1 (click to change)").arg(playlistRepeat_==PlaylistRepeat::Off?"Off":playlistRepeat_==PlaylistRepeat::Track?"Track":"Playlist")+
-        (s.valid && s.info.durationMs<0?"\nNo duration provided: use Next to advance.":""));
+        (s.valid && s.playbackEndMs<0?"\nNo known end: use Next to advance.":""));
     repeat_->setAccessibleName(repeat_->toolTip());
     if (!timeline_->isSliderDown()) {
         if (s.positionMs > unknownRangeMs_ - 30000) unknownRangeMs_ = std::min(3600000, ((s.positionMs / 60000) + 2) * 60000);
-        QSignalBlocker block(timeline_); timeline_->setRange(0, s.info.durationMs > 0 ? std::min(3600000, s.info.durationMs) : unknownRangeMs_); timeline_->setValue(s.positionMs); clock_->setText(timeText(s.positionMs));
+        QSignalBlocker block(timeline_); timeline_->setRange(0, s.playbackEndMs > 0 ? std::min(3600000, s.playbackEndMs) : unknownRangeMs_); timeline_->setValue(s.positionMs); clock_->setText(timeText(s.positionMs));
     }
-    total_->setText(s.info.durationMs > 0 ? timeText(s.info.durationMs) : QString::fromUtf8("—"));
+    total_->setText(s.playbackEndMs > 0 ? timeText(s.playbackEndMs) : QString::fromUtf8("—"));
     const bool mt32=midiEngine_->currentData()=="mt32" || (midiEngine_->currentData()=="auto" && ((s.valid && s.info.mt32Resources) || s.error.contains("MT-32")));
     soundFont_->setVisible(!mt32);
     findChild<QToolButton *>("refreshSoundFonts")->setVisible(!mt32);
     findChild<QPushButton *>("soundFontFolder")->setToolTip(mt32?"Open MT-32 ROM folder":"Open SoundFonts folder");
-    total_->setToolTip((s.info.midiResources || s.info.mt32Resources) ? "MIDI sequence duration plus 2 seconds for release and effects" : s.info.configuration.family=="tracker" ? "Duration calculated from module patterns" : s.info.durationMs > 0 ? QString::fromUtf8("Duration from file") : QString::fromUtf8("No duration provided; playback continues indefinitely"));
-    timeline_->setToolTip(s.info.durationMs > 0 ? QString::fromUtf8("Seek") : QString::fromUtf8("Seek: range expands during playback"));
+    total_->setToolTip(s.durationLimited?"Playback limit for a track without duration":(s.info.durationMs<0 && s.playbackEndMs>=0)?"End or loop boundary reported by the decoder":(s.info.midiResources || s.info.mt32Resources) ? "MIDI sequence duration plus 2 seconds for release and effects" : s.info.configuration.family=="tracker" ? "Duration calculated from module patterns" : s.info.durationMs > 0 ? QString::fromUtf8("Duration from file") : QString::fromUtf8("No known end; playback continues until stopped"));
+    timeline_->setToolTip(s.playbackEndMs > 0 ? QString::fromUtf8("Seek") : QString::fromUtf8("Seek: range expands during playback"));
     for (int i = 0; i < songs_->count(); ++i) {
         auto item = songs_->item(i);
         const bool current=s.valid && item->data(Qt::UserRole+4).toULongLong()==playlist_.current;

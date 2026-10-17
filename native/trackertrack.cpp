@@ -24,6 +24,7 @@ struct TrackerTrack::Impl {
     QVector<std::array<QVector<float>, 2>> history;
     xmp_module_info module{};
     xmp_frame_info tick{};
+    qint64 firstLoop=-1;
     struct Names { qint64 frame; QStringList channels; };
     std::deque<Names> names;
     struct Position { qint64 frame; PatternPosition value; };
@@ -44,13 +45,14 @@ struct TrackerTrack::Impl {
         // libxmp returns -1 for a valid restart at order zero.
         require(xmp_set_position(ctx, entry) >= -1, "Cannot select tracker sequence.");
         for (int i=0; i<module.mod->chn; ++i) xmp_channel_mute(ctx, i, muteMask.test(i));
-        first = end = 0; tick = {}; names.clear(); positions.clear();
+        first = end = 0; tick = {}; firstLoop=-1; names.clear(); positions.clear();
         for (auto &channel : history) for (auto &side : channel) side.fill(0, ScopeFrames);
     }
     void next(qint64 frame) {
         XmpCaptureScope scope(capture ? taps.get() : nullptr);
         require(xmp_play_frame(ctx) == 0, "Tracker decoding failed.");
         xmp_get_frame_info(ctx, &tick);
+        if(tick.loop_count>0 && firstLoop<0)firstLoop=frame;
         if(positions.empty() || positions.back().value.order!=tick.pos ||
             positions.back().value.row!=tick.row || positions.back().value.speed!=tick.speed || positions.back().value.bpm!=tick.bpm)
             positions.push_back({frame,{tick.pos,tick.pattern,tick.row,tick.speed,tick.bpm}});
@@ -194,3 +196,5 @@ PatternPosition TrackerTrack::patternPosition(qint64 frame) const {
     const auto *m=impl_->module.mod;
     return {impl_->entry,m->xxo[impl_->entry],0,m->spd,m->bpm};
 }
+
+TrackBoundary TrackerTrack::boundary() const { return {impl_->firstLoop,-1}; }

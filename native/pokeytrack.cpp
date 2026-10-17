@@ -119,6 +119,9 @@ PokeyTrack::PokeyTrack(const QString &path, QByteArray data, int song, bool play
     d.reset();
 }
 PokeyTrack::~PokeyTrack() = default;
+TrackBoundary PokeyTrack::boundary() const {
+    return {impl_->ticks,impl_->loopDuration?impl_->loopTick:-1};
+}
 bool PokeyTrack::hasTaps() const { return impl_->capture; }
 void PokeyTrack::render(short *out, int frames) {
     auto &d = *impl_;

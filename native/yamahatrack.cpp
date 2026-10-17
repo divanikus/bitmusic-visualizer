@@ -346,6 +346,9 @@ YamahaTrack::YamahaTrack(const QString &path, QByteArray data, int song, bool pl
     d.reset();
 }
 YamahaTrack::~YamahaTrack() = default;
+TrackBoundary YamahaTrack::boundary() const {
+    return {impl_->ticks,impl_->loopDuration?impl_->loopTick:-1};
+}
 bool YamahaTrack::hasTaps() const { return impl_->capture; }
 void YamahaTrack::render(short *out, int frames) {
     auto &d = *impl_;

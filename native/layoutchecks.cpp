@@ -96,7 +96,7 @@ void checkLayoutSpans(QApplication &app, const QString &directory, QTextStream &
                     "Changing editor tabs altered card selection, views or capture.");
             require(scope.rect().contains(tabs->geometry()) && scope.panelRect(0).right() < tabs->x(),
                     "Editor overlaps the canvas or escapes a small window.");
-            if (tab == 2) require(scope.findChild<QPushButton *>("scopeRenderer")->isVisible(), "Renderer is hidden in Display.");
+            if (tab == 2) require(!scope.findChild<QPushButton *>("scopeRenderer"), "Renderer was not moved to application settings.");
             scope.grab().save(QDir(directory).filePath(QString("editor-%1-%2.png").arg(size.width()).arg(tabs->tabText(tab).toLower())));
         }
         inspector->ensureWidgetVisible(view); pump(app, 20);

@@ -4,7 +4,8 @@ The pencil opens three tabs in the existing side panel:
 
 - **Cards:** visibility, adding/removing cards and the selected card's view/options.
 - **Layout:** grid dimensions, Numbers/Names, Keep grid and saved presets.
-- **Display:** color themes, FPS, global Waves/Effects and Renderer.
+- **Display:** color themes and global Waves/Effects.
+- **Settings → Rendering** in the main player: renderer and FPS.
 
 Stereo, Levels, background color and exact window size remain in the top strip.
 Changes apply live. **Done** closes the editor without saving a preset or theme;
@@ -140,7 +141,7 @@ of the final audible mix. Muted voice/output lanes remain visible but dimmed;
 Full mix follows the actual final volume and mutes. Silence empties the meter.
 Meters have no glow or fading trail. Line width and Levels survive file changes
 and restarts, independently of color themes and layout presets. Restore Defaults
-in Waves resets line width but preserves Levels and the separate Display frame rate.
+in Waves resets line width but preserves Levels and the separate application frame rate.
 
 The full-screen icon beside the pencil, or **F11** from either player window,
 expands the visualizer on its current display and hides the title bar/editor.
@@ -264,7 +265,7 @@ Glow and trail apply to signal plots, not note bars or pattern text.
 
 ## Waveform controls
 
-In the visualization window, click the pencil and open **Display**. **Frame rate** selects
+In the main player, click the gear and open **Settings → Rendering**. **Frame rate** selects
 a target of **30, 60 or 120 FPS**, applied immediately and remembered across
 restarts. The default is 30. It controls both channel snapshot preparation and
 scope presentation, including GPU trail fading; audio playback is independent.

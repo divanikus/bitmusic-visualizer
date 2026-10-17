@@ -33,6 +33,36 @@ struct TapScope {
     ~TapScope() { bm_taps_enter(previous); }
 };
 void check(gme_err_t error) { if (error) throw std::runtime_error(error); }
+TrackBoundary gmeVgmBoundary(const QByteArray &data) {
+    auto word=[&](qsizetype at) { return qFromLittleEndian<quint32>(data.constData()+at); };
+    if(data.size()<0x40)return {};
+    quint64 pos=word(8)>=0x150 && word(0x34)?0x34ULL+word(0x34):0x40;
+    const quint64 loop=word(0x1c)?0x1cULL+word(0x1c):0;
+    qint64 ticks=0,loopFrame=-1;
+    while(pos<quint64(data.size())) {
+        if(pos==loop)loopFrame=ticks;
+        const auto op=quint8(data[qsizetype(pos++)]);
+        const auto remaining=quint64(data.size())-pos;
+        if(op==0x66)return ticks>0 && (!loop || (loopFrame>=0 && loopFrame<ticks))?TrackBoundary{ticks,loopFrame}:TrackBoundary{};
+        if(op==0x61) {
+            if(remaining<2)return {};
+            ticks+=qFromLittleEndian<quint16>(data.constData()+pos);pos+=2;
+        } else if(op==0x62)ticks+=735;
+        else if(op==0x63)ticks+=882;
+        else if(op>=0x70 && op<=0x7f)ticks+=(op&15)+1;
+        else if(op>=0x80 && op<=0x8f)ticks+=op&15;
+        else if(op==0x4f || op==0x50 || op==0x3f || op==0x30) {if(!remaining)return {}; ++pos;}
+        else if((op>=0x51 && op<=0x53) || (op>=0xa1 && op<=0xa3)) {if(remaining<2)return {}; pos+=2;}
+        else if(op==0xe0) {if(remaining<4)return {}; pos+=4;}
+        else if(op==0x67) {
+            if(remaining<6 || quint8(data[qsizetype(pos)])!=0x66)return {};
+            const quint64 size=word(qsizetype(pos+2))&0x7fffffffu;
+            if(size>remaining-6)return {};
+            pos+=6+size;
+        } else return {}; // Do not guess timing for an unsupported/legacy command.
+    }
+    return {};
+}
 bool psgHasStereoRouting(const QByteArray &data) {
     // Used only for libgme's PSG-only VGM path. FM paths have fixed capabilities.
     if (data.size() < 0x40) return false;
@@ -133,6 +163,7 @@ GmeTrack::GmeTrack(const QString &path, int song, bool readPlaylist, bool captur
         if (header.pokeyClock) throw std::runtime_error("POKEY VGM requires the POKEY decoder.");
         if (!header.yamaha.isEmpty()) throw std::runtime_error("This VGM requires the Yamaha decoder.");
     }
+    if(data.startsWith("Vgm "))boundary_=gmeVgmBoundary(data);
     const bool psgNotes = data.startsWith("Vgm ") && data.size() >= 0x40 &&
         !((qFromLittleEndian<quint32>(data.constData()+12) | qFromLittleEndian<quint32>(data.constData()+16) |
            qFromLittleEndian<quint32>(data.constData()+44)) & 0xc0000000u);
@@ -202,6 +233,10 @@ GmeTrack::GmeTrack(const QString &path, int song, bool readPlaylist, bool captur
             (data.startsWith("Vgm ") && (count == 8 || (count != 10 && psgHasStereoRouting(data))));
         check(gme_start_track(emu_, song));
     } catch (...) { if (emu_) gme_delete(emu_); emu_ = nullptr; bm_taps_delete(taps_); taps_ = nullptr; bm_notes_delete(notes_); notes_ = nullptr; throw; }
+}
+TrackBoundary GmeTrack::boundary() const {
+    if(boundary_.frame>=0)return boundary_;
+    return gme_track_ended(emu_)?TrackBoundary{frame_,-1}:TrackBoundary{};
 }
 GmeTrack::~GmeTrack() { if (emu_) gme_delete(emu_); bm_taps_delete(taps_); bm_notes_delete(notes_); }
 bool GmeTrack::seek(qint64 target, const std::function<bool()> &cancelled) {
@@ -346,8 +381,11 @@ PlayerState NativePlayer::state() const {
     result.positionMs = static_cast<int>(playedFrame_.load() * 1000 / SampleRate);
     // A millisecond endpoint may lie between samples. Flooring twice otherwise
     // leaves the UI one millisecond short, so Play never recognizes the end.
-    if (state_.valid && !state_.busy && endFrame_ >= 0 && playedFrame_ >= endFrame_)
-        result.positionMs = state_.info.durationMs;
+    const auto end=endFrame_.load();
+    result.playbackEndMs=end<0?-1:int(std::min<qint64>((end*1000+SampleRate-1)/SampleRate,std::numeric_limits<int>::max()));
+    result.durationLimited=durationLimited_.load();
+    if (state_.valid && !state_.busy && end >= 0 && playedFrame_ >= end)
+        result.positionMs = result.playbackEndMs;
     result.muteMask = muteMask_.load();
     result.outputMask = outputMask_.load();
     result.repeat = repeat_.load();
@@ -381,6 +419,7 @@ void NativePlayer::run() {
     std::array<short, BlockFrames * 2> buffer{};
     quint64 active = 0;
     bool playing = false;
+    int activeLimit = 0;
     // Scope work owns Qt objects (including a QThreadPool). Let Qt perform
     // thread cleanup before native TLS teardown; an adopted std::thread caused
     // a multi-second join delay on Windows even after scopeLoop had returned.
@@ -392,6 +431,14 @@ void NativePlayer::run() {
         ring_.reset();
         playing = false;
     };
+    auto updateEnd = [&] {
+        qint64 end=track->info().durationMs<0?-1:qint64(track->info().durationMs)*SampleRate/1000;
+        const auto boundary=track->boundary();
+        if(boundary.frame>=0 && (end<0 || boundary.frame<end))end=boundary.frame;
+        const bool limited=end<0 && activeLimit>0;
+        if(limited)end=qint64(activeLimit)*SampleRate/1000;
+        endFrame_=end;durationLimited_=limited;
+    };
     auto fill = [&] {
         if (!track) return;
         track->mute(muteMask_.load());
@@ -400,7 +447,10 @@ void NativePlayer::run() {
             auto count = qint64(BlockFrames);
             if (endFrame_ >= 0) count = std::min(count, endFrame_.load() - track->frame());
             if (count <= 0) break;
+            const auto start=track->frame();
             track->render(buffer.data(), static_cast<int>(count));
+            updateEnd(); // A decoder may discover a loop while producing this block.
+            if(endFrame_>=0)count=std::clamp<qint64>(endFrame_.load()-start,0,count);
             ring_.push(buffer.data(), static_cast<size_t>(count) * 2);
         }
     };
@@ -416,21 +466,26 @@ void NativePlayer::run() {
                 active = command->generation;
                 stopOutput();
                 if (command->unload) {
-                    track.reset(); playedFrame_ = 0; endFrame_ = -1;
+                    track.reset(); playedFrame_ = 0; endFrame_ = -1; durationLimited_=false;
                     std::lock_guard lock(stateMutex_);
                     if (active == generation_) { state_ = {}; state_.generation = active; }
                     return;
                 }
-                if (command->load) track = openMusicTrack(command->path, command->song);
+                if (command->load) {
+                    track = openMusicTrack(command->path, command->song);
+                    activeLimit=unknownDurationLimit_.load();
+                }
                 if (!track) throw std::runtime_error("Open a music file first.");
+                updateEnd();
                 int target = command->ms;
-                if (track->info().durationMs >= 0) target = std::min(target, track->info().durationMs);
+                const int endMs=endFrame_<0?-1:int(std::min<qint64>((endFrame_*1000+SampleRate-1)/SampleRate,std::numeric_limits<int>::max()));
+                if(endMs>=0)target=std::min(target,endMs);
                 if (!command->load && command->playing && !state().playing &&
-                    endFrame_ >= 0 && playedFrame_ >= endFrame_ && target >= track->info().durationMs)
+                    endFrame_ >= 0 && playedFrame_ >= endFrame_ && target >= endMs)
                     target = 0;
                 if (!track->seek(qint64(target) * SampleRate / 1000, [&] { return closing_ || active != generation_; })) return;
                 playedFrame_ = track->frame();
-                endFrame_ = track->info().durationMs < 0 ? -1 : qint64(track->info().durationMs) * SampleRate / 1000;
+                updateEnd();
                 playing = command->playing && (endFrame_ < 0 || playedFrame_ < endFrame_);
                 if (playing) {
                     QAudioFormat format;
@@ -485,7 +540,9 @@ void NativePlayer::run() {
                             state_.generation = next;
                             state_.busy = true;
                             state_.finished = false;
-                            if (repeat) pending_ = Command{next, {}, 0, track->info().loopStartMs, false, true};
+                            const auto boundary=track->boundary();
+                            const int loopMs=boundary.loopFrame>=0?int(boundary.loopFrame*1000/SampleRate):track->info().loopStartMs;
+                            if (repeat) pending_ = Command{next, {}, 0, durationLimited_?0:loopMs, false, true};
                             else pending_ = Command{next, track->info().path, track->info().song + 1, 0, true, true};
                         }
                     }

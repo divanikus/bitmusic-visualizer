@@ -15,6 +15,7 @@ public:
     bool hasTaps() const override;
     bool readTap(int channel, QVector<float> &left, QVector<float> &right) const override;
     QVector<float> notePitches(int) const override { return {-1}; }
+    TrackBoundary boundary() const override;
     qint64 frame() const override { return frame_; }
 private:
     struct Impl;

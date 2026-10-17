@@ -58,6 +58,9 @@ public:
     std::function<void()> onRefreshRequested;
     std::function<void(int)> onFrameRateChanged;
     int frameRate() const { return frameRate_; }
+    void setFrameRate(int fps);
+    void saveFrameRate() { rememberWaves(); }
+    QString rendererName() const;
     bool outputEnabled() const;
     bool renderingVisible() const { return isVisible() && !isMinimized(); }
     QVector<int> visibleChannels() const;
@@ -146,13 +149,11 @@ private:
     };
     std::array<PitchState, VoiceMask::Capacity+1> pitchStates_{};
     void editEffects();
-    void editRenderer();
     void restoreEffects();
     void rememberEffects();
     void editWaves();
     void restoreWaves();
     void rememberWaves();
-    void setFrameRate(int fps);
     int frameRate_ = ScopePacing::DefaultFps;
     QChronoTimer *presentationTimer_;
     WaveOptions waveOptions_;
@@ -275,6 +276,7 @@ public:
     NativePlayer &player() { return player_; }
     ScopeWindow &scopeWindow() { return scopes_; }
     void refresh();
+    void showSettings();
 protected:
     bool eventFilter(QObject *object, QEvent *event) override;
     void closeEvent(QCloseEvent *) override;
