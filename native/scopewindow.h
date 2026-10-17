@@ -132,6 +132,11 @@ private:
     QString channelName(int channel) const;
     bool channelReady(int channel) const;
     bool channelStereo(int channel) const;
+    enum class MissingSide { Mono, Empty };
+    // -1 selects mono; 0/1 select captured physical L/R, independent of display.
+    const QVector<float> &sourceSamples(int source, int side = -1, MissingSide missing = MissingSide::Mono) const;
+    bool sourceDimmed(int source) const;
+    bool laneDimmed(int source, bool stereo, int side) const;
     int slotAt(const QPointF &point) const;
     const ScopeGrid &displayLayout() const;
     QVector<int> displayedChannels() const;

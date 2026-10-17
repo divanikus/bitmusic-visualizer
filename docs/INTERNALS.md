@@ -22,6 +22,13 @@ traces share lane bounds; line/bar styles share logarithmic FFT-band peak
 selection. Building geometry does not advance analysis or alter PCM. Both CPU
 and GPU consume the resulting lanes with the existing point limits and margins.
 
+The window's source-sample accessor borrows the same mono/physical L/R buffers
+for traces, meters and estimated pitch. Missing meter sides fall back to mono;
+pitch retains its existing empty-right/missing-left-mono rule, independently of
+the Stereo display preference. Source/output dimming conditions are shared by
+card labels, traces, meters and musical events; their existing alpha values stay
+with each painter. Readiness checks still gate all source-buffer access.
+
 `ScopeCards` owns session card state: stable IDs, source/view options, visibility,
 cell spans and active order. Removing a card removes its ID from the active order;
 hiding preserves it. Duplicates share a source, audio mutes, theme colors and
@@ -46,4 +53,6 @@ wave/effect preferences and window geometry remain separate from presets.
 
 The developer runner's `--self-test <fixtures> --layout-only` checks card state
 and grid gestures. `--presets-only` checks serialization, hardware transfer and
-live application. See [build and check commands](BUILDING.md).
+live application. `--views-only` checks source-cache contracts, pure plot geometry
+and partial stereo input alongside the existing live visualization checks.
+See [build and check commands](BUILDING.md).

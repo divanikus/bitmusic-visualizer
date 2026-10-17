@@ -68,7 +68,7 @@ void ScopeWindow::paintPianoRoll(QPainter &p,int card,const QRectF &plot) {
     for(int id:visible) {
         const auto &n=roll.notes[id]; if(n.key<lo||n.key>hi) continue;
         auto color=theme_.colors(n.instrument%ScopeTheme::SlotCount).waveform;
-        if(state_.muteMask.test(n.source)||!state_.outputMask) color.setAlpha(85);
+        if(sourceDimmed(n.source)) color.setAlpha(85);
         else color.setAlpha(150+n.velocity*80/127);
         const auto &key=keys[n.key];
         const double top=std::max(0.,travel-(n.end-now)*scale);
@@ -143,7 +143,7 @@ void ScopeWindow::paintPattern(QPainter &p,int card,const QRectF &plot) {
                 text+=" "+(cell.volume?hex(cell.volume-1):QString(".."))+" "+effect(cell.effect,cell.parameter)+" "+effect(cell.effect2,cell.parameter2);
             }
             auto ink=cell.note||cell.instrument?theme_.colors(cell.instrument?((cell.instrument-1)%ScopeTheme::SlotCount):first+c).waveform:colors.label;
-            if(state_.muteMask.test(first+c)||!state_.outputMask) ink.setAlpha(85);
+            if(sourceDimmed(first+c)) ink.setAlpha(85);
             else if(!cell.note&&!cell.instrument) ink.setAlpha(row==pos.row?210:100);
             p.setPen(ink);
             const QRectF rect(plot.left()+gutter+c*cellWidth+5,area.top(),cellWidth-10,rowHeight);

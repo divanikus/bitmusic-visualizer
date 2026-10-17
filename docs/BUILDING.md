@@ -74,6 +74,8 @@ counts are not monitor-presented FPS. Add `--software-scopes` to check CPU drawi
 
 `--self-test test-output --views-only` checks spectra, NES/PSG/GBS/AY pitch-state capture,
 multi-note keyboards, duplicate cards, audio continuity and transport changes.
+It also checks per-source analysis reuse/invalidation, pitch cadence and rewind,
+wave/spectrum geometry, and missing physical-side fallbacks with Stereo off.
 Add `--software-scopes` for CPU rendering. These checks also run in the complete native suite.
 
 `--music-view-checks test-output` checks MIDI gate spans, program changes and

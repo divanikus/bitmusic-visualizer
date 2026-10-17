@@ -105,8 +105,7 @@ void ScopeWindow::paintMeterTracks(QPainter &p, int card) {
             p.drawLine(QPointF(track.left()-2, y), QPointF(track.right()+2, y));
         }
         auto label = colors.label;
-        if (!state_.outputMask || (stereo && !(state_.outputMask & (1u<<side))) ||
-            (sourceFor(card) != ScopeTheme::FullMix && state_.muteMask.test(sourceFor(card)))) label.setAlpha(115);
+        if (laneDimmed(sourceFor(card), stereo, side)) label.setAlpha(115);
         p.setPen(label);
         p.drawText(QRectF(track.left()-3, track.bottom()+2, 12, 12), Qt::AlignCenter, stereo ? (side ? "R" : "L") : "M");
     }
@@ -120,19 +119,17 @@ QVector<ScopeMeter> ScopeWindow::meterFills() const {
     for (int card : displayedChannels()) {
         if (!channelReady(card) || meterRect(card, 0).isEmpty()) continue;
         const int source = sourceFor(card);
-        const bool stereo = meterStereo(card), mix = source == ScopeTheme::FullMix;
+        const bool stereo = meterStereo(card);
         for (int side = 0; side < (stereo ? 2 : 1); ++side) {
             auto &level = levels[source][side];
             if (level < 0) {
-                const auto &rows = side ? frame_.right : frame_.left;
-                const auto &samples = mix ? (stereo ? (side ? output_.right : output_.left) : outputMono_)
-                    : stereo && source < rows.size() ? rows[source] : frame_.channels[source];
+                const auto &samples = sourceSamples(source, stereo ? side : -1);
                 level = scopeMeterLevel(samples);
             }
             if (level <= 0) continue;
             auto rect = meterRect(card, side); rect.setTop(rect.bottom()-rect.height()*level);
             auto color = theme_.colors(source).waveform;
-            if ((!mix && state_.muteMask.test(source)) || !state_.outputMask || (stereo && !(state_.outputMask & (1u<<side)))) color.setAlpha(115);
+            if (laneDimmed(source, stereo, side)) color.setAlpha(115);
             fills.push_back({rect, color, card});
         }
     }

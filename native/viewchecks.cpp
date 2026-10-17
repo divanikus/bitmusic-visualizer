@@ -205,6 +205,37 @@ void checkSpectrumControls(QApplication& app, const QString& directory, QTextStr
     require(style->currentIndex()==0 && grid->isChecked(), "New file retained previous spectrum options.");
     scope.close(); log << "Spectrum UI: conditional/per-card controls, paused redraw, stereo, hide/resize, Reset and new-file defaults PASS\n"; log.flush();
 }
+void checkPartialStereo(QApplication &app, QTextStream &log) {
+    ScopeWindow scope; scope.resize(700, 440); scope.show();
+    PlayerState state; state.valid = true; state.generation = 11;
+    state.info.path = "partial-stereo-preview"; state.info.title = "Physical pitch input";
+    state.info.voices = {"Voice"}; state.info.stereoOutput = true;
+    ScopeFrame frame; frame.generation = state.generation; frame.mask = 1; frame.positionMs = 100;
+    QVector<float> mono(ScopeFrames), left(ScopeFrames);
+    for (int i = 0; i < ScopeFrames; ++i) {
+        mono[i] = float(12000 * std::sin(2 * 3.141592653589793 * 440 * i / SampleRate));
+        left[i] = float(1000 * std::sin(2 * 3.141592653589793 * 880 * i / SampleRate));
+    }
+    frame.channels = {mono}; frame.left = {left};
+    scope.present(state, frame); scope.setAllViews(ScopeView::Keyboard);
+    auto capture = [&] {
+        scope.present(state, frame); pump(app, 120);
+        auto gpu = dynamic_cast<ScopeGpu *>(scope.findChild<QQuickWidget *>("scopeGpu"));
+        const auto image = gpu && gpu->isVisible() ? gpu->grabFramebuffer() : scope.grab().toImage();
+        const auto area = scope.panelRect(0); const auto dpr = scope.devicePixelRatioF();
+        return image.copy(QRect(qRound(area.x() * dpr), qRound(area.y() * dpr), qRound(area.width() * dpr), qRound(area.height() * dpr)));
+    };
+    const auto absentRight = capture();
+    frame.right = {QVector<float>{}}; frame.generation = ++state.generation;
+    require(capture() == absentRight, "An absent right side changed pitch compared with an explicitly empty side.");
+    frame.left.clear(); frame.right.clear(); frame.generation = ++state.generation;
+    const auto absentLeft = capture();
+    require(absentLeft != absentRight, "Pitch estimation replaced captured left PCM with a louder mono fallback.");
+    frame.left = {mono}; frame.generation = ++state.generation;
+    require(capture() == absentLeft, "An absent left side did not retain the mono pitch fallback.");
+    scope.close();
+    log << "Physical pitch input: stereo display off, missing/empty right equivalence and missing-left mono fallback PASS\n";
+}
 void checkPitch(QTextStream& log) {
     QVector<float> pcm(ScopeFrames), other(ScopeFrames);
     for (double hz : {55., 110., 440., 1760., 3000.}) {
@@ -294,6 +325,7 @@ void checkViews(QApplication& app, const QString& directory, QTextStream& log) {
     checkGbAyNotes(app, directory, log);
     checkAnalysisCache(log);
     checkPlotGeometry(log);
+    checkPartialStereo(app, log);
     checkSpectrum(log); checkSpectrumControls(app, directory, log); checkPitch(log); checkNotes(directory, log);
     checkPsgNotes(app, directory, log);
     PlayerWindow player; player.player().setVolume(0); player.show(); player.loadFile(QDir(directory).filePath("demo.nsf"));

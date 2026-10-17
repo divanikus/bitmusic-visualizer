@@ -418,6 +418,21 @@ bool ScopeWindow::channelStereo(int channel) const {
     return channel < frame_.left.size() && channel < frame_.right.size() &&
         frame_.left[channel].size() == ScopeFrames && frame_.right[channel].size() == ScopeFrames;
 }
+const QVector<float> &ScopeWindow::sourceSamples(int source, int side, MissingSide missing) const {
+    if (source == ScopeTheme::FullMix) return side < 0 ? outputMono_ : side ? output_.right : output_.left;
+    if (side < 0) return frame_.channels[source];
+    const auto &rows = side ? frame_.right : frame_.left;
+    if (source < rows.size()) return rows[source];
+    if (missing == MissingSide::Mono) return frame_.channels[source];
+    static const QVector<float> empty;
+    return empty;
+}
+bool ScopeWindow::sourceDimmed(int source) const {
+    return state_.muteMask.test(source) || !state_.outputMask;
+}
+bool ScopeWindow::laneDimmed(int source, bool stereo, int side) const {
+    return sourceDimmed(source) || (stereo && !(state_.outputMask & (1u << side)));
+}
 void ScopeWindow::layoutChanged() {
     cancelDrag();
     cards_.clampSpans(rows_->value(), columns_->value());
@@ -596,10 +611,9 @@ QVector<ScopeLane> ScopeWindow::waveLanes() {
         const auto kind = viewFor(card);
         const auto plot = plotRect(card);
         if (plot.width() < 2 || plot.height() < 2) continue;
-        const bool stereo = channelStereo(card), mix = source == ScopeTheme::FullMix;
-        const bool muted = !mix && (state_.muteMask & (VoiceMask::bit(source)));
-        const auto &left = mix ? (stereo ? output_.left : outputMono_) : (stereo ? frame_.left[source] : frame_.channels[source]);
-        const auto &right = mix ? (stereo ? output_.right : outputMono_) : (stereo ? frame_.right[source] : frame_.channels[source]);
+        const bool stereo = channelStereo(card);
+        const auto &left = sourceSamples(source, stereo ? 0 : -1);
+        const auto &right = sourceSamples(source, stereo ? 1 : -1);
         const auto key = analysisKey(source, stereo);
         const ScopeWave *wave = nullptr;
         const ScopeAnalysis::Spectrum *spectrum = nullptr;
@@ -608,7 +622,7 @@ QVector<ScopeLane> ScopeWindow::waveLanes() {
         for (int side = 0; side < (stereo ? 2 : 1); ++side) {
             ScopeLane lane; lane.id = card*2+side; lane.clip = plot; lane.color = theme_.colors(source).waveform;
             lane.lineWidth = waveOptions_.lineWidth;
-            if (muted || !state_.outputMask || (stereo && !(state_.outputMask & (1u << side)))) lane.color.setAlpha(115);
+            if (laneDimmed(source, stereo, side)) lane.color.setAlpha(115);
             if (kind == ViewKind::Spectrum) {
                 const auto &bins = side ? spectrum->right : spectrum->left;
                 const auto bounds = scopeSpectrumBounds(plot, stereo, side, cards_[card].spectrumGrid);
@@ -739,7 +753,7 @@ void ScopeWindow::paintContents(QPainter &p, bool waves) {
         p.setClipRect(card);
         const int source = sourceFor(channel);
         const bool mix = source == ScopeTheme::FullMix;
-        const bool muted = (!mix && (state_.muteMask & (VoiceMask::bit(source)))) || state_.outputMask == 0;
+        const bool muted = sourceDimmed(source);
         const auto colors = theme_.colors(source);
         auto dimmed = [muted](QColor color) { if (muted) color.setAlpha(115); return color; };
         p.setPen(QPen(floating ? QColor("#a2e5d5") : colors.border, floating ? 2 : 1));

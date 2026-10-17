@@ -184,11 +184,12 @@ void ScopeWindow::updateKeyboardNotes() {
         const int source = sourceFor(card);
         if (viewFor(card) != ViewKind::Keyboard || !channelReady(card) ||
             (source < VoiceMask::Capacity && (state_.info.tonalMask & (VoiceMask::bit(source))))) continue;
-        const bool mix = source == ScopeTheme::FullMix;
         // Analysis is bounded to ~30 Hz per source, reused by all its cards.
         // Read actual stereo sides even when the visual Stereo checkbox is off.
-        const auto& left = mix ? output_.left : frame_.left.value(source, frame_.channels[source]);
-        const auto& right = mix ? output_.right : frame_.right.value(source);
+        const auto &left = sourceSamples(source, 0);
+        // Pitch estimation treats an absent right side as empty, while meters
+        // fall back to mono. Keep that distinction when selecting source PCM.
+        const auto &right = sourceSamples(source, 1, MissingSide::Empty);
         analysis_.estimatePitch(source, analysisKey(source), left, right);
     }
 }
