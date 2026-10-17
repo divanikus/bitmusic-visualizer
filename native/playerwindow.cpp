@@ -5,6 +5,7 @@
 #include "playlistview.h"
 #include "appsettings.h"
 #include "playersettings.h"
+#include "resourceerror.h"
 #include <QDialog>
 #include <QDesktopServices>
 #include <QDir>
@@ -202,12 +203,15 @@ void PlayerWindow::refreshControls() {
     channels_->present(s);
     const auto message = !s.error.isEmpty() ? s.error : !s.scopeError.isEmpty() ? s.scopeError : s.busy ? QString::fromUtf8("Loading…") : playlistMessage_;
     status_->setText(message.section('\n', 0, 0)); status_->setToolTip(message); status_->setVisible(!message.isEmpty());
-    if ((s.error.startsWith("C64 ROM required:") || s.error.startsWith("YM2608 ROM required:") || s.error.startsWith("SoundFont required:") || s.error.startsWith("MT-32 ROM required:")) && romWarningGeneration_ != s.generation) {
-        romWarningGeneration_ = s.generation;
-        auto warning = new QMessageBox(QMessageBox::Warning, s.error.startsWith("SoundFont required:") ? "SoundFont required" : "ROM required", s.error, QMessageBox::Ok, this);
-        warning->setObjectName("romWarning"); warning->setTextFormat(Qt::PlainText);
-        warning->setAttribute(Qt::WA_DeleteOnClose); warning->open();
-    }
+    showResourceWarning(s);
+}
+void PlayerWindow::showResourceWarning(const PlayerState &state) {
+    const auto title = resourceWarningTitle(state.error);
+    if (title.isEmpty() || resourceWarningGeneration_ == state.generation) return;
+    resourceWarningGeneration_ = state.generation;
+    auto warning = new QMessageBox(QMessageBox::Warning, title, state.error, QMessageBox::Ok, this);
+    warning->setObjectName("romWarning"); warning->setTextFormat(Qt::PlainText);
+    warning->setAttribute(Qt::WA_DeleteOnClose); warning->open();
 }
 void PlayerWindow::refreshScopes() {
     scopes_.present(player_.state(), scopes_.renderingVisible() ? player_.scopes() : ScopeFrame{},

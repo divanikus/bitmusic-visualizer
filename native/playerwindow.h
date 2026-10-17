@@ -34,6 +34,7 @@ protected:
     void dropEvent(QDropEvent *) override;
 private:
     void refreshControls();
+    void showResourceWarning(const PlayerState &state);
     void togglePlayback();
     void refreshScopes();
     void setScopesVisible(bool visible);
@@ -75,5 +76,5 @@ private:
     QString shownPath_;
     int shownSong_ = -1;
     bool openedOnce_ = false;
-    quint64 romWarningGeneration_ = 0;
+    quint64 resourceWarningGeneration_ = 0;
 };

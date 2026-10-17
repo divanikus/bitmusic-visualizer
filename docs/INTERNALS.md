@@ -60,6 +60,13 @@ and applies those callbacks to playback, scopes and the MIDI bank row. Opening
 Settings never applies a live change; a failed preference save never applies a
 new playback limit. Renderer changes remain deferred until app restart.
 
+`resourceerror.*` defines the four existing required-resource prefixes and their
+warning titles. Backends supply their unchanged details through that text
+boundary; the player recognizes only a case-sensitive prefix at the start of
+the primary error. Ordinary validation errors remain in status text. The window
+retains the existing warning generation gate, plain text, dialog name and lifetime;
+dismissing a warning never makes it eligible again until a different generation.
+
 `ScopeWindow` coordinates transport snapshots, capture requests, layout gestures
 and CPU/GPU presentation. It does not own playback or decode music in painting.
 

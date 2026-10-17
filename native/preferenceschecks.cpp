@@ -2,6 +2,9 @@
 #include "playersettings.h"
 #include "appsettings.h"
 #include "resourcestatus.h"
+#include "resourceerror.h"
+#include "miditrack.h"
+#include "mt32track.h"
 #include <QApplication>
 #include <QCheckBox>
 #include <QComboBox>
@@ -32,6 +35,53 @@ void spin(QApplication &app,const std::function<bool()> &ready,const char *messa
 }
 void write(const QString &path,const QByteArray &data) {
     QFile f(path);require(f.open(QIODevice::WriteOnly) && f.write(data)==data.size(),"Preference fixture write failed.");
+}
+void checkResourceMessages(QTextStream &log) {
+    const QString detail = QString::fromUtf8("Missing resource\nМузыка");
+    const std::array<RequiredResource,4> kinds{RequiredResource::C64Rom,RequiredResource::Ym2608Rom,RequiredResource::SoundFont,RequiredResource::Mt32Rom};
+    const QStringList prefixes{"C64 ROM required:","YM2608 ROM required:","SoundFont required:","MT-32 ROM required:"};
+    for(int i=0;i<4;++i) {
+        const auto message=resourceRequiredMessage(kinds[i],detail);
+        const auto title=i==2?"SoundFont required":"ROM required";
+        require(message==prefixes[i]+" "+detail && resourceWarningTitle(message)==title && resourceWarningTitle(prefixes[i])==title,
+            "Resource error text or warning title changed.");
+    }
+    for(const auto &error:QStringList{"", " C64 ROM required:", "c64 ROM required:", "Load failed: C64 ROM required:",
+            "Invalid SoundFont size (maximum 1 GiB).", "Invalid MT-32 ROM size.", "Not an SF2 SoundFont."})
+        require(resourceWarningTitle(error).isEmpty(),"An ordinary/invalid resource error acquired a required-resource warning.");
+    log<<"Resource messages: exact prefixes/titles, Unicode detail and ordinary validation-error exclusion PASS\n";log.flush();
+}
+void checkResourceWarnings(QApplication &app, const QDir &dir, QTextStream &log) {
+    PlayerWindow window; window.player().setVolume(0); window.show();
+    const auto midi=dir.filePath("demo.mid");
+    const QString soundFontError="SoundFont required: place a .sf2 file in:\n"+
+        QDir::toNativeSeparators(playerSoundFontsDirectory())+"\nThen select it in the player's SoundFont list and reopen the MIDI.";
+    const QString mt32Error="MT-32 ROM required: place MT32_CONTROL.ROM and MT32_PCM.ROM in:\n"+
+        QDir::toNativeSeparators(playerMt32Directory());
+    auto expectWarning=[&](const QString &title,const QString &error) {
+        spin(app,[&]{window.refresh();return !window.player().state().busy && window.findChild<QMessageBox *>("romWarning");},"Required-resource warning not shown.");
+        auto warning=window.findChild<QMessageBox *>("romWarning");
+        require(warning->windowTitle()==title && warning->text()==error && warning->textFormat()==Qt::PlainText &&
+            window.player().state().error==error,"Resource warning changed its title, text or formatting.");
+        for(int i=0;i<3;++i)window.refresh();
+        require(window.findChildren<QMessageBox *>("romWarning").size()==1,"Resource warning duplicated while open.");
+        warning->accept(); app.sendPostedEvents(nullptr,QEvent::DeferredDelete); window.refresh();
+        require(!window.findChild<QMessageBox *>("romWarning"),"Dismissed resource warning reappeared in the same generation.");
+    };
+    window.loadFile(midi); expectWarning("SoundFont required",soundFontError);
+    const auto previous=window.player().state().generation;
+    window.loadFile(midi); expectWarning("SoundFont required",soundFontError);
+    require(window.player().state().generation!=previous,"Warning reload did not create a new generation.");
+    selectMidiEngine("mt32"); window.loadFile(midi); expectWarning("ROM required",mt32Error); selectMidiEngine("auto");
+    const auto invalidBank=QDir(playerSoundFontsDirectory()).filePath("Invalid.sf2"); write(invalidBank,{});
+    window.loadFile(midi); spin(app,[&]{return !window.player().state().busy && !window.player().state().error.isEmpty();},"Invalid bank load did not settle."); window.refresh();
+    require(window.player().state().error=="Invalid SoundFont size (maximum 1 GiB)." && !window.findChild<QMessageBox *>("romWarning"),
+        "Invalid bank validation error changed or opened a required-resource warning.");
+    require(QFile::remove(invalidBank),"Invalid-bank fixture cleanup failed.");
+    window.loadFile(dir.filePath("demo.nsf")); spin(app,[&]{return !window.player().state().busy && window.player().state().valid;},"Playback did not recover from missing resources."); window.refresh();
+    require(window.player().state().error.isEmpty() && !window.findChild<QMessageBox *>("romWarning"),"Unrelated music required MIDI resources.");
+    window.close();
+    log<<"Resource warnings: exact GM/MT-32 messages, one per generation, reload, invalid-bank exclusion and unrelated-file recovery PASS\n";log.flush();
 }
 QByteArray fixture(bool pokey,bool loop) {
     // Original tone with a one-second intro and one-second body; no declared time.
@@ -148,8 +198,10 @@ void checkPlayerSettings(QApplication &app,const QDir &dir,QTextStream &log) {
     struct Restore {QApplication &app;QVariant settings,roms,banks;~Restore(){app.setProperty("settingsFileForTests",settings);app.setProperty("romsDirectoryForTests",roms);app.setProperty("soundFontsDirectoryForTests",banks);}} restore{app,previousSettings,previousRoms,previousBanks};
     app.setProperty("settingsFileForTests",scratch.filePath("settings.ini"));app.setProperty("romsDirectoryForTests",scratch.filePath("roms"));app.setProperty("soundFontsDirectoryForTests",scratch.filePath("soundfonts"));
     require(unknownTrackLimitPreference()==0,"Unknown duration default is not unlimited.");
+    checkResourceMessages(log);
     checkResourceInspection(QDir(scratch.path()),log);
     checkSettingsCallbacks(app,QDir(scratch.path()),log);
+    checkResourceWarnings(app,dir,log);
     {
         PlayerWindow window;window.player().setVolume(0);window.show();auto &player=window.player();
         auto gear=window.findChild<QPushButton *>("playerSettingsButton");require(gear,"Settings gear missing.");gear->click();

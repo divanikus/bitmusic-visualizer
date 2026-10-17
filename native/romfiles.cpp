@@ -1,5 +1,6 @@
 #include "romfiles.h"
 #include "appsettings.h"
+#include "resourceerror.h"
 #include <QFile>
 #include <stdexcept>
 
@@ -28,9 +29,10 @@ std::shared_ptr<const SidRoms> loadSidRoms() {
     return result;
 }
 void missingSidRom(const SidRoms &roms, int index) {
-    throw std::runtime_error(QString("C64 ROM required: %1\n%2\nPlace your %3-byte ROM at:\n%4\nThen reopen the music file.")
+    throw std::runtime_error(resourceRequiredMessage(RequiredResource::C64Rom,
+        QString("%1\n%2\nPlace your %3-byte ROM at:\n%4\nThen reopen the music file.")
         .arg(names[index], roms.problem[index]).arg(sizes[index])
-        .arg(QDir::toNativeSeparators(QDir(roms.directory).filePath(names[index]))).toStdString());
+        .arg(QDir::toNativeSeparators(QDir(roms.directory).filePath(names[index])))).toStdString());
 }
 
 std::shared_ptr<const YamahaRoms> loadYamahaRoms() {
@@ -47,7 +49,8 @@ std::shared_ptr<const YamahaRoms> loadYamahaRoms() {
     return result;
 }
 void missingYamahaRom(const YamahaRoms &roms) {
-    throw std::runtime_error(QString("YM2608 ROM required: ym2608_adpcm_rom.bin\n%1\n"
+    throw std::runtime_error(resourceRequiredMessage(RequiredResource::Ym2608Rom,
+        QString("ym2608_adpcm_rom.bin\n%1\n"
         "This track uses the chip's rhythm samples. Place your 8192-byte ROM at:\n%2\nThen reopen the music file.")
-        .arg(roms.problem, QDir::toNativeSeparators(roms.path)).toStdString());
+        .arg(roms.problem, QDir::toNativeSeparators(roms.path))).toStdString());
 }

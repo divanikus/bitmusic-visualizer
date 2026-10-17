@@ -2,6 +2,7 @@
 #include "miditrack.h"
 #include "romfiles.h"
 #include "appsettings.h"
+#include "resourceerror.h"
 #include <mt32emu/mt32emu.h>
 #include <QFile>
 #include <QFileInfo>
@@ -29,7 +30,8 @@ std::shared_ptr<const Mt32Resources> loadResources(const QByteArray &data) {
     const auto read=[&](const QString &name) {
         QFile f(folder.filePath(name));
         if(!f.open(QIODevice::ReadOnly))
-            throw std::runtime_error(("MT-32 ROM required: place MT32_CONTROL.ROM and MT32_PCM.ROM in:\n"+QDir::toNativeSeparators(folder.path())).toStdString());
+            throw std::runtime_error(resourceRequiredMessage(RequiredResource::Mt32Rom,
+                "place MT32_CONTROL.ROM and MT32_PCM.ROM in:\n"+QDir::toNativeSeparators(folder.path())).toStdString());
         require(f.size()>0 && f.size()<=2*1024*1024,"Invalid MT-32 ROM size.");
         const auto bytes=f.readAll(); require(f.error()==QFile::NoError && bytes.size()==f.size(),"Cannot read MT-32 ROM.");
         return bytes;

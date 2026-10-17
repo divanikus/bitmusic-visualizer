@@ -72,6 +72,7 @@ add_library(bitmusic_core OBJECT
   native/shortcuts.cpp
   native/sidtrack.cpp
   native/romfiles.cpp
+  native/resourceerror.cpp
   native/pokeytrack.cpp
   native/vgm.cpp
   native/yamahatrack.cpp

@@ -1,5 +1,6 @@
 #include "miditrack.h"
 #include "appsettings.h"
+#include "resourceerror.h"
 #include <fluidsynth.h>
 #include <QFile>
 #include <QFileInfo>
@@ -40,7 +41,7 @@ std::shared_ptr<const MidiResources> loadResources(const QByteArray &data) {
     r->soundFontName=selectedSoundFont();
     QFile file(QDir(playerSoundFontsDirectory()).filePath(r->soundFontName));
     if (r->soundFontName.isEmpty() || !file.open(QIODevice::ReadOnly))
-        throw std::runtime_error(("SoundFont required: place a .sf2 file in:\n" +
+        throw std::runtime_error(resourceRequiredMessage(RequiredResource::SoundFont, "place a .sf2 file in:\n" +
             QDir::toNativeSeparators(playerSoundFontsDirectory())+"\nThen select it in the player's SoundFont list and reopen the MIDI.").toStdString());
     require(file.size()>12 && file.size()<=1024LL*1024*1024,"Invalid SoundFont size (maximum 1 GiB).");
     r->soundFont=file.readAll();
