@@ -92,7 +92,7 @@ void ScopeWindow::applyPreset(const ScopePreset &preset, const QString &file) {
     clearCardSelection();
     applyingPreset_ = true; automaticGrid_ = false;
     ++cardRevision_;
-    if (colorDialog_) colorDialog_->reject();
+    if (appearanceDialog_) appearanceDialog_->reject();
     cancelDrag(); if (gpu_) gpu_->suspend();
     const QSignalBlocker r(rows_), c(columns_), n(numbers_), a(names_), s(stereo_);
     rows_->setValue(preset.rows); columns_->setValue(preset.columns);

@@ -21,18 +21,18 @@
 #include <QSettings>
 #include <QVBoxLayout>
 
-void ScopeWindow::editColors(int selectedChannel) {
-    if (colorDialog_) return;
-    const int cardId = selectedChannel >= 0 ? selectedChannel : selectedCardId();
+void ScopeWindow::editCardSettings(int selectedCard) {
+    if (appearanceDialog_) return;
+    const int cardId = selectedCard >= 0 ? selectedCard : selectedCardId();
     const bool hasCard = cardId >= 0 && cards_.order().contains(cardId);
     const ScopeCard originalCard = hasCard ? cards_[cardId] : ScopeCard{};
     const auto cardRevision = cardRevision_;
-    if (hasCard) selectedChannel = sourceFor(cardId);
+    const int selectedSource = hasCard ? sourceFor(cardId) : selectedCard;
     bool colorsChanged = false;
     const auto original = theme_;
     const auto revision = colorRevision_;
     QDialog dialog(this);
-    colorDialog_ = &dialog;
+    appearanceDialog_ = &dialog;
     dialog.setObjectName("scopeColorsDialog"); dialog.setWindowTitle(hasCard ? "Card settings" : "Scope colors");
     dialog.setMinimumWidth(380);
     const auto palette = playerPalette();
@@ -73,7 +73,7 @@ void ScopeWindow::editColors(int selectedChannel) {
     for (int id = 0; id < std::max(32, int(state_.info.voices.size())); ++id)
         channel->addItem(QString("%1  %2").arg(id + 1, 2, 10, QLatin1Char('0')).arg(state_.info.voices.value(id, "Unused tile")), id);
     channel->addItem("Full mix", ScopeTheme::FullMix);
-    if (selectedChannel >= 0 && selectedChannel <= ScopeTheme::FullMix) channel->setCurrentIndex(selectedChannel == ScopeTheme::FullMix ? channel->count()-1 : selectedChannel);
+    if (selectedSource >= 0 && selectedSource <= ScopeTheme::FullMix) channel->setCurrentIndex(selectedSource == ScopeTheme::FullMix ? channel->count()-1 : selectedSource);
     else if (channelList_->currentItem()) channel->setCurrentIndex(channel->findData(sourceFor(channelList_->currentItem()->data(Qt::UserRole).toInt())));
     colorsLayout->addWidget(channel);
     auto fields = new QGridLayout; fields->setHorizontalSpacing(10); fields->setVerticalSpacing(10);
@@ -143,7 +143,7 @@ void ScopeWindow::editColors(int selectedChannel) {
     connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
     load();
     const int result = dialog.exec();
-    colorDialog_ = nullptr;
+    appearanceDialog_ = nullptr;
     if (result != QDialog::Accepted && revision == colorRevision_) theme_ = original;
     else if (result == QDialog::Accepted && colorsChanged) markThemeEdited();
     if (hasCard && cardRevision == cardRevision_) {
@@ -154,16 +154,16 @@ void ScopeWindow::editColors(int selectedChannel) {
 }
 
 void ScopeWindow::editWindowBackground() {
-    if (colorDialog_) return;
+    if (appearanceDialog_) return;
     const auto original = theme_.windowBackground;
     QColorDialog picker(original, this);
-    colorDialog_ = &picker;
+    appearanceDialog_ = &picker;
     picker.setObjectName("windowBackgroundPicker"); picker.setWindowTitle("Window background");
     picker.setOption(QColorDialog::DontUseNativeDialog); picker.setPalette(playerPalette());
     connect(&picker, &QColorDialog::currentColorChanged, &picker, [this](const QColor &color) { theme_.windowBackground = color; update(); });
     if (picker.exec() != QDialog::Accepted) theme_.windowBackground = original;
     else markThemeEdited();
-    colorDialog_ = nullptr; update();
+    appearanceDialog_ = nullptr; update();
 }
 
 void ScopeWindow::markThemeEdited() {

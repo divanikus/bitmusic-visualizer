@@ -9,6 +9,8 @@
 #include <QDialogButtonBox>
 #include <QEventLoop>
 #include <QFile>
+#include <QKeyEvent>
+#include <QMouseEvent>
 #include <QMessageBox>
 #include <QPushButton>
 #include <QPointer>
@@ -180,10 +182,25 @@ void checkPresentationTrail(QApplication &app, const QDir &dir, QTextStream &log
             scopes.present(state, frame, output); pump(app, 8);
         }
     };
+    bool selectionChecked = false;
     for (bool full : {false, true, false}) {
         if (full != scopes.presentationFullscreen()) scopes.toggleFullscreen();
         advance(16000, 28); advance(-16000, 2);
         require(gpu->historySize() > 2, "Presentation discarded trail history on each frame.");
+        if (!selectionChecked) {
+            scopes.setFocus();
+            const auto point = scopes.panelRect(0).center();
+            QMouseEvent press(QEvent::MouseButtonPress,point,scopes.mapToGlobal(point.toPoint()),Qt::LeftButton,Qt::LeftButton,Qt::NoModifier);
+            QMouseEvent release(QEvent::MouseButtonRelease,point,scopes.mapToGlobal(point.toPoint()),Qt::LeftButton,Qt::NoButton,Qt::NoModifier);
+            QApplication::sendEvent(&scopes,&press); QApplication::sendEvent(&scopes,&release); scopes.repaint();
+            require(gpu->historySize() > 2, "Mouse card selection cleared GPU trails.");
+            QKeyEvent next(QEvent::KeyPress,Qt::Key_Down,Qt::NoModifier);
+            require(scopes.handleCardShortcut(&next,&scopes), "Canvas navigation was not accepted.");
+            scopes.repaint();
+            require(gpu->historySize() > 2, "Keyboard card selection cleared GPU trails.");
+            selectionChecked = true;
+            log << "Card selection: mouse and keyboard retain GPU trail history PASS\n"; log.flush();
+        }
         const auto early = capture();
         const auto plot = scopes.panelRect(0).adjusted(42, 32, -12, -10);
         const double y = plot.center().y()-16000*plot.height()*.44/32768;

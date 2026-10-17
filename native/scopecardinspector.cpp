@@ -10,7 +10,7 @@
 #include <QVBoxLayout>
 #include <algorithm>
 
-ScopeCardInspector::ScopeCardInspector(QWidget *parent, bool colorsButton) : QScrollArea(parent) {
+ScopeCardInspector::ScopeCardInspector(QWidget *parent, bool settingsButton) : QScrollArea(parent) {
     setObjectName("cardInspector");
     setWidgetResizable(true); setFrameShape(QFrame::NoFrame);
     setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Preferred);
@@ -75,9 +75,9 @@ ScopeCardInspector::ScopeCardInspector(QWidget *parent, bool colorsButton) : QSc
     levels_->setToolTip("Show this card's peak levels: L/R for stereo sources, M for mono.");
     layout->addWidget(levels_);
     connect(levels_, &QCheckBox::toggled, this, [this](bool enabled) { if (onLevelsChanged) onLevelsChanged(enabled); });
-    auto colors = new QPushButton("Card settings..."); colors->setObjectName("scopeColors");
-    colors->setToolTip("Edit this card and its source colors"); layout->addWidget(colors); colors->setVisible(colorsButton);
-    connect(colors, &QPushButton::clicked, this, [this] { if (onColorsRequested) onColorsRequested(); });
+    auto settings = new QPushButton("Card settings..."); settings->setObjectName("scopeColors");
+    settings->setToolTip("Edit this card and its source colors"); layout->addWidget(settings); settings->setVisible(settingsButton);
+    connect(settings, &QPushButton::clicked, this, [this] { if (onSettingsRequested) onSettingsRequested(); });
     layout->addWidget(viewHelp_); layout->addWidget(keyboardHint_); layout->addStretch();
 }
 void ScopeCardInspector::setCard(const ScopeCard *card, const QString &name, ScopeViewSupport support,

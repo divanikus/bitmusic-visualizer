@@ -97,6 +97,9 @@ private:
     struct MusicImage { QByteArray key; QImage image; };
     QHash<int, MusicImage> musicImages_;
     int selectedCardId() const;
+    enum class CardAction { None, Navigate, Resize, ClearSelection, CycleView, Mute, Solo, Visibility, Levels, Settings };
+    static CardAction decodeCardShortcut(const QKeyEvent &event);
+    void executeCardAction(CardAction action, int key);
     void selectCard(int id);
     void clearCardSelection();
     void updateCardSelection();
@@ -151,7 +154,7 @@ private:
     const ScopeGrid &displayLayout() const;
     QVector<int> displayedChannels() const;
     QRectF cellsRect(const QRect &cells) const;
-    QRectF colorButtonRect(const QRectF &card) const;
+    QRectF cardSettingsButtonRect(const QRectF &card) const;
     int panelAt(const QPointF &point) const;
     int resizeEdgesAt(const QRectF &card, const QPointF &point) const;
     QVector<int> dropOrder() const;
@@ -161,7 +164,8 @@ private:
     void animateLayout(const QHash<int, QRectF> &from);
     void applyCardSize(int id, QSize span);
     void cancelDrag();
-    void editColors(int channel = -1);
+    bool cardGestureActive() const;
+    void editCardSettings(int card = -1);
     void editWindowBackground();
     void refreshThemes();
     void restoreTheme();
@@ -203,14 +207,14 @@ private:
     ScopeTheme theme_;
     QComboBox *themes_;
     QString themePath_;
-    QDialog *colorDialog_ = nullptr;
+    QDialog *appearanceDialog_ = nullptr;
     quint64 colorRevision_ = 0, cardRevision_ = 0;
     bool newFile_ = true, dragging_ = false;
     bool automaticGrid_ = false;
     int pressedChannel_ = -1, dropSlot_ = -1;
     int pressedSolo_ = -1;
     bool soloMoved_ = false;
-    int pressedColor_ = -1, hoveredColor_ = -1;
+    int pressedSettings_ = -1, hoveredSettings_ = -1;
     int resizeChannel_ = -1, resizeEdges_ = 0;
     QSize resizeSpan_, originalSpan_;
     bool previewValid_ = false;

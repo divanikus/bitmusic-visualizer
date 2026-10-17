@@ -9,7 +9,7 @@
 #include <QTimer>
 #include <algorithm>
 
-QRectF ScopeWindow::colorButtonRect(const QRectF &card) const {
+QRectF ScopeWindow::cardSettingsButtonRect(const QRectF &card) const {
     return card.width() >= 82 && card.height() >= 28 ? QRectF(card.right()-56, card.top()+2, 24, 24) : QRectF();
 }
 QRectF ScopeWindow::cardRect(int slot) const {
@@ -101,8 +101,11 @@ void ScopeWindow::cancelDrag() {
     motion_->stop(); animationFrom_.clear(); animationTo_.clear();
     pressedChannel_ = -1; dragging_ = false; dropSlot_ = -1; unsetCursor();
     resizeChannel_ = -1; resizeEdges_ = 0; previewValid_ = false; previewLayout_.clear();
-    pressedColor_ = hoveredColor_ = -1; setToolTip({});
+    pressedSettings_ = hoveredSettings_ = -1; setToolTip({});
     updateList();
+}
+bool ScopeWindow::cardGestureActive() const {
+    return pressedChannel_ >= 0 || resizeChannel_ >= 0 || pressedSettings_ >= 0 || pressedSolo_ >= 0;
 }
 void ScopeWindow::previewGesture(const QPointF &point) {
     const auto from = panelPositions();
@@ -155,8 +158,8 @@ void ScopeWindow::mousePressEvent(QMouseEvent *event) {
         const int channel = panelAt(event->position());
         if (channel >= 0) {
             const auto card = panelRect(channel);
-            if (colorButtonRect(card).contains(event->position())) {
-                cancelDrag(); pressedColor_ = hoveredColor_ = channel; update(); event->accept(); return;
+            if (cardSettingsButtonRect(card).contains(event->position())) {
+                cancelDrag(); pressedSettings_ = hoveredSettings_ = channel; update(); event->accept(); return;
             }
             const int edges = resizeEdgesAt(card, event->position());
             if (edges) {
@@ -193,7 +196,7 @@ void ScopeWindow::mouseMoveEvent(QMouseEvent *event) {
         if ((event->position()-dragStart_).manhattanLength() >= QApplication::startDragDistance()) soloMoved_ = true;
         event->accept(); return;
     }
-    if (pressedColor_ >= 0) { event->accept(); return; }
+    if (pressedSettings_ >= 0) { event->accept(); return; }
     if (resizeChannel_ >= 0 && (event->buttons() & Qt::LeftButton)) {
         previewGesture(event->position());
         setCursor(resizeEdges_ == 3 ? Qt::SizeFDiagCursor : resizeEdges_ == 1 ? Qt::SizeHorCursor : Qt::SizeVerCursor);
@@ -209,10 +212,10 @@ void ScopeWindow::mouseMoveEvent(QMouseEvent *event) {
     const int channel = edit_->isChecked() ? panelAt(event->position()) : -1;
     if (channel >= 0) {
         const auto card = panelRect(channel);
-        if (colorButtonRect(card).contains(event->position())) hovered = channel;
+        if (cardSettingsButtonRect(card).contains(event->position())) hovered = channel;
         else edges = resizeEdgesAt(card, event->position());
     }
-    if (hoveredColor_ != hovered) { hoveredColor_ = hovered; update(); }
+    if (hoveredSettings_ != hovered) { hoveredSettings_ = hovered; update(); }
     if (hovered >= 0) {
         setToolTip("Edit settings for "+channelName(hovered)); setCursor(Qt::PointingHandCursor); return;
     }
@@ -243,11 +246,11 @@ void ScopeWindow::mouseReleaseEvent(QMouseEvent *event) {
         applyCardSize(resizeChannel_, commit ? resizeSpan_ : cards_[resizeChannel_].span);
         event->accept(); return;
     }
-    if (event->button() == Qt::LeftButton && pressedColor_ >= 0) {
-        const int channel = pressedColor_;
-        const bool activate = edit_->isChecked() && visibleChannels().contains(channel) && colorButtonRect(panelRect(channel)).contains(event->position());
+    if (event->button() == Qt::LeftButton && pressedSettings_ >= 0) {
+        const int channel = pressedSettings_;
+        const bool activate = edit_->isChecked() && visibleChannels().contains(channel) && cardSettingsButtonRect(panelRect(channel)).contains(event->position());
         cancelDrag(); update(); event->accept();
-        if (activate) { channelList_->setCurrentRow(cards_.order().indexOf(channel)); editColors(channel); }
+        if (activate) { channelList_->setCurrentRow(cards_.order().indexOf(channel)); editCardSettings(channel); }
         return;
     }
     if (event->button() == Qt::LeftButton && pressedChannel_ >= 0) {
@@ -264,11 +267,11 @@ void ScopeWindow::keyPressEvent(QKeyEvent *event) {
         if (!event->isAutoRepeat()) toggleFullscreen();
         event->accept(); return;
     }
-    if (event->key() == Qt::Key_Escape && (resizeChannel_ >= 0 || pressedChannel_ >= 0 || pressedColor_ >= 0 || pressedSolo_ >= 0)) {
+    if (event->key() == Qt::Key_Escape && cardGestureActive()) {
         const auto from = panelPositions(); cancelDrag(); animateLayout(from); update(); event->accept(); return;
     }
     FrameWindow::keyPressEvent(event);
 }
 void ScopeWindow::leaveEvent(QEvent *event) {
-    hoveredColor_ = -1; setToolTip({}); update(); FrameWindow::leaveEvent(event);
+    hoveredSettings_ = -1; setToolTip({}); update(); FrameWindow::leaveEvent(event);
 }

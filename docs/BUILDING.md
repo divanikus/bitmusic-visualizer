@@ -144,6 +144,9 @@ keyboard resizing through reordered/spanning cards, independent duplicate
 views/Levels, source mute/Solo,
 hidden-card restoration, Card settings, focus guards and reset/file lifecycle.
 Run with and without `--software-scopes` to exercise CPU and GPU selection chrome.
+Override events claim commands without executing them; modified V must not act as
+plain V. The dedicated `--gpu-checks` suite also retains accumulated trail history
+through mouse selection and keyboard navigation in its live presentation fixture.
 
 `--self-test test-output --presets-only` checks preset serialization/validation,
 hardware identities, same-platform transfer, default assignment/removal/restart,

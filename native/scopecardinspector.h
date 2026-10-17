@@ -13,14 +13,14 @@ class QPushButton;
 // the selection never emits edits; user changes are applied by the window.
 class ScopeCardInspector : public QScrollArea {
 public:
-    explicit ScopeCardInspector(QWidget *parent = nullptr, bool colorsButton = true);
+    explicit ScopeCardInspector(QWidget *parent = nullptr, bool settingsButton = true);
     void setCard(const ScopeCard *card, const QString &name, ScopeViewSupport support,
                  const QString &keyboardHint, int sources);
     QSize sizeHint() const override;
     std::function<void(ScopeView)> onViewChanged;
     std::function<void(bool bars, bool grid)> onSpectrumChanged;
     std::function<void(const ScopeCard &options)> onMusicChanged;
-    std::function<void()> onColorsRequested;
+    std::function<void()> onSettingsRequested;
     std::function<void(bool)> onLevelsChanged;
 protected:
     bool eventFilter(QObject *object, QEvent *event) override;

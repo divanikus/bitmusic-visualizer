@@ -238,7 +238,7 @@ ScopeWindow::ScopeWindow() {
     cardInspector_->onLevelsChanged = [this](bool enabled) {
         if (const int id = selectedCardId(); id >= 0) { cards_[id].levels = enabled; layoutChanged(); }
     };
-    cardInspector_->onColorsRequested = [this] { editColors(); };
+    cardInspector_->onSettingsRequested = [this] { editCardSettings(); };
     connect(channelList_, &QListWidget::currentRowChanged, this, [this] {
         cardSelectionActive_ = selectedCardId() >= 0; updateViewEditor(); updateCardSelection();
     });
@@ -334,7 +334,7 @@ ScopeWindow::ScopeWindow() {
 void ScopeWindow::beginFile() {
     clearCardSelection();
     ++cardRevision_;
-    if (colorDialog_) colorDialog_->reject();
+    if (appearanceDialog_) appearanceDialog_->reject();
     if (gpu_) gpu_->suspend();
     newFile_ = true; frame_ = {}; output_ = {}; analysis_.clear(); cancelDrag();
     musicImages_.clear();
@@ -360,7 +360,7 @@ void ScopeWindow::present(const PlayerState &state, const ScopeFrame &frame, con
         }
     } else if (usageChanged) {
         ++cardRevision_;
-        if (colorDialog_) colorDialog_->reject();
+        if (appearanceDialog_) appearanceDialog_->reject();
         if (hideEmptyChannels()) {
             if (automaticGrid_ && !keepGrid_->isChecked()) resetGrid();
             layoutChanged(); updateViewEditor();
@@ -403,7 +403,7 @@ void ScopeWindow::resetGrid() {
 void ScopeWindow::resetChannels(bool grid) {
     clearCardSelection();
     ++cardRevision_;
-    if (colorDialog_) colorDialog_->reject();
+    if (appearanceDialog_) appearanceDialog_->reject();
     cards_.reset(int(state_.info.voices.size()), waveOptions_.output, state_.info.emptyVoices, waveOptions_.meters);
     analysis_.clear();
     cancelDrag();
@@ -606,7 +606,7 @@ QByteArray ScopeWindow::chromeKey(bool dynamic) const {
       << edit_->isChecked() << windowSize_->isChecked() << numbers_->isChecked() << names_->isChecked() << stereo_->isChecked()
       << presentationFullscreen() << waveOptions_.lineWidth << waveOptions_.meters
       << state_.info.stereoOutput << state_.info.tonalMask << state_.busy << (frame_.generation == state_.generation)
-      << state_.muteMask << state_.outputMask << state_.scopeError << frame_.mask << hoveredColor_ << pressedColor_;
+      << state_.muteMask << state_.outputMask << state_.scopeError << frame_.mask << hoveredSettings_ << pressedSettings_;
     s << channelReady(ScopeTheme::FullMix) << state_.playing;
     for (int ch : displayedChannels()) {
         const int source = sourceFor(ch);
@@ -796,10 +796,10 @@ void ScopeWindow::paintContents(QPainter &p, bool waves) {
         p.drawText(QRectF(textRect.left(), textRect.top(), std::max(0.0, textRect.width()), 22), Qt::AlignVCenter,
                    p.fontMetrics().elidedText(label.join("   "), Qt::ElideRight, std::max(0, int(textRect.width()))));
         if (editing) {
-            const auto button = colorButtonRect(card);
+            const auto button = cardSettingsButtonRect(card);
             if (!button.isEmpty()) {
                 const QColor ink(colors.background.lightnessF() > .55 ? "#243a43" : "#b8cccf");
-                drawPipette(p, button, ink, hoveredColor_ == channel || pressedColor_ == channel);
+                drawPipette(p, button, ink, hoveredSettings_ == channel || pressedSettings_ == channel);
             }
             p.setPen(Qt::NoPen); p.setBrush(QColor("#93aab0"));
             for (int x = 0; x < 2; ++x) for (int y = 0; y < 3; ++y) p.drawEllipse(QPointF(card.left() + 10 + x * 5, card.top() + 10 + y * 5), 1.1, 1.1);
