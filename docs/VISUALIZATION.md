@@ -53,14 +53,18 @@ it can also select hidden or overflowing cards.
 - **H:** hide/show only this card; a hidden-selection hint explains how to restore it.
 - **L:** toggle only this card's Levels.
 - **Enter:** open Card settings, including view-specific options and colors.
+- **Shift + arrows:** resize by one grid cell; Right/Down grow, Left/Up shrink.
+  Hold to repeat. The grid stays fixed; a visible card cannot grow beyond the
+  available space. Neighboring cards reflow as with mouse resizing. Hidden/overflow
+  cards can also be resized from the list. Ctrl + Left/Right still toggle audio outputs.
 - **Esc:** clear selection; first leave fullscreen or cancel an active drag if applicable.
 
 These commands work only on the canvas or in the Cards list. Fields, dropdowns,
-buttons and dialogs keep their normal keys. Holding an action key does not repeat
-it; holding an arrow continues navigation. Selection is temporary: reset, preset
-application and a new file clear it. Other card edits retain the normal preset
-behavior. Duplicate cards keep independent view/visibility/Levels settings, while
-mute/Solo still affects their shared source.
+buttons and dialogs keep their normal keys. View/mute/Solo/visibility/Levels keys
+ignore auto-repeat; arrows continue navigation or resizing. Selection is temporary:
+reset, preset application and a new file clear it. Card edits retain the normal
+preset behavior. Duplicate cards keep independent view/visibility/Levels/size
+settings, while mute/Solo still affects their shared source.
 
 Digits refer to audio channel numbers, not grid slots. If several cards share
 a channel, a digit cycles them together based on its original card's current

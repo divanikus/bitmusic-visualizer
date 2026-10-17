@@ -11,7 +11,8 @@ not published GitHub releases. Unreleased lists changes made after the latest ta
 ### Added
 
 - Keyboard control for any selected visualization card: click or use arrows,
-  then change its view, mute/Solo, hide/show, toggle Levels or open Card settings.
+  then change its view, mute/Solo, hide/show, toggle Levels, resize with
+  Shift + arrows or open Card settings.
   The F1 guide lists the new keys; existing channel shortcuts still work.
 - Card settings from each card's pencil: view, its options and colors in one dialog.
 - Independent Levels for each card, saved in layout presets; the toolbar still

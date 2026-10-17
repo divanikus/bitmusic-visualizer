@@ -215,7 +215,7 @@ void ScopeWindow::mouseMoveEvent(QMouseEvent *event) {
     }
     // FrameWindow's event filter already restores the ordinary cursor or its
     // outer window resize grip. Do not overwrite that edge cursor here.
-    setToolTip(panelAt(event->position()) >= 0 ? "Click to select a card. V: view · M: mute · S: Solo · H: hide/show · L: levels · Enter: settings. F1: all shortcuts." : QString());
+    setToolTip(panelAt(event->position()) >= 0 ? "Click to select a card. Shift + arrows: resize · V: view · M: mute · S: Solo · H: hide/show · L: levels · Enter: settings. F1: all shortcuts." : QString());
     FrameWindow::mouseMoveEvent(event);
 }
 void ScopeWindow::mouseReleaseEvent(QMouseEvent *event) {

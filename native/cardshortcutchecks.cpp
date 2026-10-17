@@ -75,6 +75,9 @@ void checkSelectedCardShortcuts(QApplication &app, const QString &directory, QTe
         return nullptr;
     };
     const auto selected = [&] { return list->currentItem()->data(Qt::UserRole).toInt(); };
+    const auto hasSpan = [&](int id, int w, int h) {
+        return item(id)->toolTip().contains(QString("Size: %1 x %2 cells").arg(w).arg(h));
+    };
     const auto focus = [&] {
         scope.activateWindow(); pump(app); scope.setFocus(); pump(app);
         require(QApplication::focusWidget()==&scope,"Cannot focus the visualization canvas.");
@@ -88,6 +91,7 @@ void checkSelectedCardShortcuts(QApplication &app, const QString &directory, QTe
     };
     edit->setChecked(false); focus(); key(scope,Qt::Key_Escape); key(scope,Qt::Key_V);
     require(view->currentData().toInt()==0,"A card changed without an explicit selection.");
+    key(scope,Qt::Key_Right,Qt::ShiftModifier); require(hasSpan(0,1,1),"Resize selected an implicit card.");
     click(15); const auto generation=player.state().generation;
     key(scope,Qt::Key_V); require(view->currentData().toInt()==1,"Channel 16 could not cycle its view.");
     key(scope,Qt::Key_V,{},true); require(view->currentData().toInt()==1,"Held view key cycled repeatedly.");
@@ -114,6 +118,31 @@ void checkSelectedCardShortcuts(QApplication &app, const QString &directory, QTe
     mouse(scope,QEvent::MouseButtonPress,start); mouse(scope,QEvent::MouseMove,end); mouse(scope,QEvent::MouseButtonRelease,end);
     pump(app,200); click(15); key(scope,Qt::Key_Right); require(selected()==0,"Right navigation got stuck inside a spanning card.");
     click(15); key(scope,Qt::Key_Down); require(selected()==4,"Down navigation ignored a two-row card.");
+    click(15); edit->setChecked(false); focus();
+    for (int i=0;i<3;++i) { key(scope,Qt::Key_Left,Qt::ShiftModifier); key(scope,Qt::Key_Up,Qt::ShiftModifier); }
+    require(hasSpan(15,1,1),"Keyboard shrink crossed the one-cell minimum.");
+    key(scope,Qt::Key_Right,Qt::ShiftModifier);
+    key(scope,Qt::Key_Right,Qt::ShiftModifier|Qt::KeypadModifier,true);
+    key(scope,Qt::Key_Down,Qt::ShiftModifier);
+    require(selected()==15 && hasSpan(15,3,2) && player.state().outputMask==3,"Keyboard grow/repeat changed selection or audio outputs.");
+    for (int i=0;i<7;++i) { key(scope,Qt::Key_Right,Qt::ShiftModifier); key(scope,Qt::Key_Down,Qt::ShiftModifier); }
+    pump(app,200);
+    require(hasSpan(15,4,6) && scope.visibleChannels()==QVector<int>{15},"Keyboard resize ignored grid limits/overflow.");
+    // Overflow cards remain adjustable in the list, without changing their source.
+    edit->setChecked(true); list->setCurrentItem(item(0)); list->setFocus();
+    key(*list,Qt::Key_Right,Qt::ShiftModifier); require(hasSpan(0,2,1),"Overflow card could not be resized from the list.");
+    key(*list,Qt::Key_Left,Qt::ShiftModifier);
+    list->setCurrentItem(item(15));
+    for (int i=0;i<4;++i) key(*list,Qt::Key_Up,Qt::ShiftModifier);
+    for (int i=0;i<2;++i) key(*list,Qt::Key_Left,Qt::ShiftModifier);
+    require(hasSpan(15,2,2) && scope.visibleChannels().contains(0),"Shrinking did not restore overflowing neighbors.");
+    // Growth is rejected if it would lose the selected visible card.
+    list->setCurrentItem(item(0));
+    for (int i=0;i<5;++i) key(*list,Qt::Key_Down,Qt::ShiftModifier);
+    key(*list,Qt::Key_Right,Qt::ShiftModifier); key(*list,Qt::Key_Right,Qt::ShiftModifier);
+    require(hasSpan(0,2,6) && scope.visibleChannels().contains(0),"Resize pushed the selected card outside the grid.");
+    for (int i=0;i<5;++i) key(*list,Qt::Key_Up,Qt::ShiftModifier);
+    key(*list,Qt::Key_Left,Qt::ShiftModifier); pump(app,200);
     QTimer::singleShot(0,&scope,[&] {
         if (auto d=qobject_cast<QDialog *>(QApplication::activeModalWidget())) {
             auto source=d->findChild<QComboBox *>("newCardSource"); source->setCurrentIndex(source->findData(15));
@@ -123,6 +152,9 @@ void checkSelectedCardShortcuts(QApplication &app, const QString &directory, QTe
     list->setCurrentItem(item(15)); scope.findChild<QPushButton *>("addScopeCard")->click();
     const int duplicate=selected(); click(duplicate); key(scope,Qt::Key_V);
     require(view->currentData().toInt()==1,"Duplicate card did not cycle independently.");
+    key(scope,Qt::Key_H); key(scope,Qt::Key_Right,Qt::ShiftModifier);
+    require(hasSpan(duplicate,2,1) && hasSpan(15,2,2),"Hidden duplicate resize changed its original.");
+    key(scope,Qt::Key_Left,Qt::ShiftModifier); key(scope,Qt::Key_H); pump(app,200);
     key(scope,Qt::Key_V); require(view->currentData().toInt()==2,"Duplicate card keyboard view missing.");
     click(15); require(view->currentData().toInt()==1 && levels->isChecked(),"Duplicate shortcuts changed the original card.");
     click(duplicate); key(scope,Qt::Key_M); require(player.state().muteMask==VoiceMask::bit(15),"Duplicate mute targeted its card ID."); key(scope,Qt::Key_M);
@@ -131,17 +163,21 @@ void checkSelectedCardShortcuts(QApplication &app, const QString &directory, QTe
     scope.toggleSourceVisibility(ScopeTheme::FullMix); click(ScopeTheme::FullMix);
     key(scope,Qt::Key_M); key(scope,Qt::Key_S); require(player.state().muteMask==0 && player.state().soloChannel==-1,"Full mix changed voice audio.");
     key(scope,Qt::Key_V); key(scope,Qt::Key_L); require(view->currentData().toInt()==1 && levels->isChecked(),"Full mix card commands failed.");
+    key(scope,Qt::Key_Right,Qt::ShiftModifier); require(hasSpan(ScopeTheme::FullMix,2,1),"Full mix keyboard resize failed.");
+    key(scope,Qt::Key_Left,Qt::ShiftModifier);
     bool dialogSeen=false;
     QTimer::singleShot(0,&scope,[&] {
         auto d=qobject_cast<QDialog *>(QApplication::activeModalWidget());
         if (!d) return;
         dialogSeen=d->objectName()=="scopeColorsDialog" && d->windowTitle()=="Card settings";
-        key(scope,Qt::Key_H); d->reject();
+        key(scope,Qt::Key_H); key(scope,Qt::Key_Right,Qt::ShiftModifier); d->reject();
     });
     key(scope,Qt::Key_Return); require(dialogSeen && item(ScopeTheme::FullMix)->checkState()==Qt::Checked,"Enter settings or modal protection failed.");
+    require(hasSpan(ScopeTheme::FullMix,1,1),"Keyboard resize escaped a modal dialog.");
     click(duplicate);
     auto field=scope.findChild<QSpinBox *>("gridRows")->findChild<QLineEdit *>(); field->setFocus();
     key(scope,Qt::Key_V); key(scope,Qt::Key_M); require(view->currentData().toInt()==0 && player.state().muteMask==0,"Card command escaped a field through its parent.");
+    key(scope,Qt::Key_Right,Qt::ShiftModifier); require(hasSpan(duplicate,1,1),"Keyboard resize escaped a focused field.");
     view->setFocus(); key(*view,Qt::Key_M); require(player.state().muteMask==0,"Card mute escaped a dropdown.");
     view->showPopup(); pump(app); key(scope,Qt::Key_H); require(item(duplicate)->checkState()==Qt::Checked,"Card hide escaped a popup.");
     view->hidePopup(); pump(app,250);
@@ -164,6 +200,8 @@ void checkSelectedCardShortcuts(QApplication &app, const QString &directory, QTe
     edit->setChecked(false); click(15); pump(app);
     scope.grab().save(QDir(directory).filePath("native-selected-card.png"));
     scope.toggleFullscreen(); focus(); key(scope,Qt::Key_V); require(view->currentData().toInt()==2,"Fullscreen selected-card view failed.");
+    key(scope,Qt::Key_Right,Qt::ShiftModifier); require(hasSpan(15,3,2),"Fullscreen keyboard resize failed.");
+    key(scope,Qt::Key_Left,Qt::ShiftModifier);
     key(scope,Qt::Key_Escape); require(!scope.presentationFullscreen(),"Escape selection intercepted fullscreen exit.");
     key(scope,Qt::Key_Escape); key(scope,Qt::Key_V); require(view->currentData().toInt()==2,"Second Escape failed to clear selection.");
     require(player.state().generation==generation && player.state().outputMask==3 && !player.state().busy,"Card commands restarted playback or changed transport.");
@@ -176,6 +214,6 @@ void checkSelectedCardShortcuts(QApplication &app, const QString &directory, QTe
     require(view->currentData().toInt()==0 && !hint->isVisible(),"New file reused old selection.");
     require(player.state().outputErrors==0 && player.state().starvations==0,"Card shortcuts interrupted audio output.");
     window.close();
-    log << "Selected-card shortcuts: channel 16, spatial/spanning/reordered navigation, duplicates, hidden restore, Levels, mute/Solo, Full mix, fields/popups/dialogs, fullscreen and reset/file lifecycle PASS\n";
+    log << "Selected-card shortcuts: channel 16, spatial/spanning/reordered navigation, keyboard resize/limits/overflow, duplicates, hidden restore, Levels, mute/Solo, Full mix, fields/popups/dialogs, fullscreen and reset/file lifecycle PASS\n";
     log.flush();
 }

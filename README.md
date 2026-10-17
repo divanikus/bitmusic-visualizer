@@ -172,7 +172,8 @@ The selected card has a highlighted border. **V** cycles its view, **M** toggles
 its source's sound, **S** toggles Solo, **H** hides/shows the card, **L** toggles
 its Levels, and **Enter** opens Card settings. **Esc** clears selection after
 leaving fullscreen. These commands also work in the Cards list and have no
-channel-number limit. View/visibility/Levels affect only the selected card.
+channel-number limit. **Shift + arrows** resize it by one grid cell: Right/Down
+grow, Left/Up shrink. View/visibility/Levels/size affect only the selected card.
 
 | Key | Action |
 | --- | --- |

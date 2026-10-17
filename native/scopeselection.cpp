@@ -76,10 +76,13 @@ bool ScopeWindow::handleCardShortcut(QKeyEvent *event, QWidget *target) {
     const auto focus = QApplication::focusWidget();
     const auto inList = [this](QWidget *w) { return w && (w == channelList_ || channelList_->isAncestorOf(w)); };
     if ((target != this && !inList(target)) || (focus && focus != this && !inList(focus))) return false;
-    if ((event->modifiers() & ~Qt::KeypadModifier) != Qt::NoModifier) return false;
     const int key = event->key();
     const bool arrow = key == Qt::Key_Left || key == Qt::Key_Right || key == Qt::Key_Up || key == Qt::Key_Down;
-    if (arrow && inList(focus)) {
+    const auto modifiers = event->modifiers() & ~Qt::KeypadModifier;
+    const bool resize = arrow && modifiers == Qt::ShiftModifier;
+    if (modifiers != Qt::NoModifier && !resize) return false;
+    if (resize && !cardSelectionActive_) return false;
+    if (arrow && !resize && inList(focus)) {
         // Native list navigation/scrolling, even at an edge where the row stays the same.
         if (event->type() == QEvent::KeyPress && state_.valid && !state_.busy && !newFile_) selectCard(selectedCardId());
         return false;
@@ -93,9 +96,24 @@ bool ScopeWindow::handleCardShortcut(QKeyEvent *event, QWidget *target) {
     if (event->type() == QEvent::ShortcutOverride || (event->isAutoRepeat() && !arrow)) return true;
     if (escape) { clearCardSelection(); return true; }
     if (!state_.valid || state_.busy || newFile_) return true;
-    if (arrow) { moveCardSelection(key); return true; }
+    if (arrow && !resize) { moveCardSelection(key); return true; }
     const int id = selectedCardId();
     if (id < 0 || !cards_.order().contains(id)) return true;
+    if (resize) {
+        auto span = cards_[id].span;
+        if (key == Qt::Key_Left || key == Qt::Key_Right)
+            span.setWidth(std::clamp(span.width()+(key == Qt::Key_Right ? 1 : -1), 1, columns_->value()));
+        else span.setHeight(std::clamp(span.height()+(key == Qt::Key_Down ? 1 : -1), 1, rows_->value()));
+        if (span == cards_[id].span) return true;
+        // Like mouse resizing, do not push the selected visible card out of the grid.
+        // Hidden/overflow cards can still be resized from the list, including recovery.
+        if (gridLayout_.contains(id) && !cards_.pack(rows_->value(), columns_->value(), cards_.order(), id, span).contains(id))
+            return true;
+        const auto from = panelPositions();
+        cards_[id].span = span; automaticGrid_ = false;
+        layoutChanged(); animateLayout(from);
+        return true;
+    }
     const int source = sourceFor(id);
     if (key == Qt::Key_M || key == Qt::Key_S) {
         if (source >= 0 && source < state_.info.voices.size()) {

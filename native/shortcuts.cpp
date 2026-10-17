@@ -75,6 +75,7 @@ void showShortcutsHelp(QWidget *owner) {
       including channels beyond 9 and Full mix.</p>
       <table cellspacing="8">
       <tr><td><b>Arrow keys</b></td><td>Select a neighboring visible card</td></tr>
+      <tr><td><b>Shift + arrow keys</b></td><td>Resize by one grid cell: Right/Down grow, Left/Up shrink</td></tr>
       <tr><td><b>V</b></td><td>Cycle this card's available views</td></tr>
       <tr><td><b>M / S</b></td><td>Mute / Solo its source channel</td></tr>
       <tr><td><b>H</b></td><td>Hide / show this card; press again to restore</td></tr>
@@ -83,9 +84,10 @@ void showShortcutsHelp(QWidget *owner) {
       <tr><td><b>Esc</b></td><td>Clear selection (leave full screen first)</td></tr>
       </table>
       <p>These keys work on the canvas or in the Cards list. The list keeps its
-      normal arrow navigation, including hidden cards. View, visibility and Levels
-      affect only the selected card; mute/Solo affect its sound source and all
-      copies. Full mix cannot be muted or soloed.</p>
+      normal arrow navigation, including hidden cards. View, visibility, Levels
+      and size affect only the selected card; mute/Solo affect its sound source and all
+      copies. Full mix cannot be muted or soloed. Hold Shift + an arrow to keep resizing;
+      the grid size stays fixed. Ctrl + Left/Right still toggle audio outputs.</p>
       <h3>Channels</h3>
       <table cellspacing="8">
       <tr><td><b>1–9</b></td><td>Cycle available views: Waveform, Spectrum, Keyboard, Piano roll or Pattern</td></tr>
