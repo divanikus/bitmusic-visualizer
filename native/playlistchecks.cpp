@@ -6,6 +6,7 @@
 #include <QFile>
 #include <QKeyEvent>
 #include <QListWidget>
+#include <QMouseEvent>
 #include <QPushButton>
 #include <QSettings>
 #include <QTemporaryDir>
@@ -17,6 +18,20 @@ namespace {
 void require(bool value,const char *message) {if(!value)throw std::runtime_error(message);}
 void spin(QApplication &app,const std::function<bool()> &ready,const char *message,int limit=12000) {
     QElapsedTimer timer;timer.start();while(!ready() && timer.elapsed()<limit){app.processEvents();QThread::msleep(5);}require(ready(),message);
+}
+void clickTrack(QApplication &app,QListWidget *list,int row,bool header,
+                Qt::KeyboardModifiers modifiers=Qt::NoModifier,bool doubleClick=false) {
+    auto item=list->item(row);list->scrollToItem(item);app.processEvents();
+    const auto rect=list->visualItemRect(item);
+    const QPointF point(rect.left()+50,header?rect.top()+10:rect.bottom()-14);
+    const QPointF global=list->viewport()->mapToGlobal(point.toPoint());
+    auto send=[&](QEvent::Type type,Qt::MouseButtons buttons) {
+        QMouseEvent event(type,point,global,Qt::LeftButton,buttons,modifiers);
+        QApplication::sendEvent(list->viewport(),&event);
+    };
+    send(QEvent::MouseButtonPress,Qt::LeftButton);send(QEvent::MouseButtonRelease,Qt::NoButton);
+    if(doubleClick) {send(QEvent::MouseButtonDblClick,Qt::LeftButton);send(QEvent::MouseButtonRelease,Qt::NoButton);}
+    app.processEvents();
 }
 void write(const QString &path,const QByteArray &data) {QFile f(path);require(f.open(QIODevice::WriteOnly) && f.write(data)==data.size(),"Fixture write failed.");}
 }
@@ -83,6 +98,22 @@ int runPlaylistChecks(QApplication &app,const QStringList &args) {
         spin(app,[&]{return window.playlist().entries.size()==4;},"Append failed.");
         require(player.state().generation==generation && window.playlist().current==identity,"Append interrupted playback.");
         require(!list->item(0)->data(Qt::UserRole+3).toString().isEmpty() && list->item(1)->data(Qt::UserRole+3).toString().isEmpty(),"Subsong headers are not contiguous groups.");
+        window.resize(430,480);app.processEvents();
+        clickTrack(app,list,0,true);
+        require(list->selectedItems().size()==3 && !list->item(3)->isSelected(),"Header click did not select exactly its source group.");
+        require(window.grab().save(dir.filePath("playlist-group-selected.png")),"Group selection screenshot failed.");
+        clickTrack(app,list,0,false);
+        require(list->selectedItems().size()==1 && list->item(0)->isSelected(),"First composition cannot be selected independently of its header.");
+        require(window.grab().save(dir.filePath("playlist-first-selected.png")),"First-song selection screenshot failed.");
+        clickTrack(app,list,0,true,Qt::NoModifier,true);
+        require(list->selectedItems().size()==3 && player.state().generation==generation && !player.state().playing,"Header double-click activated a song or collapsed selection.");
+        clickTrack(app,list,3,false);clickTrack(app,list,0,true,Qt::ControlModifier);
+        require(list->selectedItems().size()==4,"Ctrl-header did not add the group to the existing selection.");
+        clickTrack(app,list,0,true,Qt::ControlModifier);
+        require(list->selectedItems().size()==1 && list->item(3)->isSelected(),"Ctrl-header did not deselect only its group.");
+        clickTrack(app,list,3,false);clickTrack(app,list,0,true,Qt::ShiftModifier);
+        require(list->selectedItems().size()==4,"Shift-header lost the range or part of the group.");
+        require(player.state().generation==generation && window.playlist().current==identity,"Group selection interrupted playback.");
         require(list->model()->moveRows({},0,1,{},3),"List drag move failed.");window.refresh();
         require(window.playlist().current==identity && window.playlist().currentRow()==2 && player.state().generation==generation,"Reorder changed the playing entry.");
         list->clearSelection();list->setCurrentRow(0);window.findChild<QToolButton*>("removeTracks")->click();
@@ -134,6 +165,21 @@ int runPlaylistChecks(QApplication &app,const QStringList &args) {
         QElapsedTimer endpoint;endpoint.start();while(!player.state().finished && endpoint.elapsed()<2000)QThread::msleep(5);
         require(player.state().finished,"Natural EOF was not reported.");window.findChild<QPushButton*>("next")->click();window.refresh();
         spin(app,[&]{return !player.state().busy;},"User Next at EOF failed.");require(player.state().info.song==1,"A stale natural-end event overrode user Next.");
+        player.seek(0,false);spin(app,[&]{return !player.state().busy;},"Group-boundary pause failed.");
+        require(QDir().mkpath(scratch.filePath("other")),"Same-name fixture directory failed.");
+        const auto sameName=scratch.filePath("other/named.nsfe");require(QFile::copy(named,sameName),"Same-name fixture copy failed.");
+        window.addFiles({sameName,loop,named});
+        spin(app,[&]{return window.playlist().entries.size()==10;},"Group-boundary append failed.");
+        clickTrack(app,list,0,true);
+        require(list->selectedItems().size()==3 && !list->item(3)->isSelected() && !list->item(7)->isSelected(),"Group selected a same-name file or a noncontiguous source run.");
+        clickTrack(app,list,3,true);
+        require(list->selectedItems().size()==3 && list->item(5)->isSelected() && !list->item(6)->isSelected(),"Scrolled group selection crossed its separator.");
+        clickTrack(app,list,3,false,Qt::NoModifier,true);
+        spin(app,[&]{return !player.state().busy && player.state().info.path==sameName;},"First song double-click no longer starts playback.");
+        require(player.state().info.song==0 && player.state().playing && list->selectedItems().size()==1,"First song double-click selected the group or wrong subsong.");
+        clickTrack(app,list,7,true);window.findChild<QToolButton*>("removeTracks")->click();
+        require(window.playlist().entries.size()==7 && player.state().info.path==sameName,"Group removal deleted the wrong entries.");
+        log<<"Header/first-song hit regions, Ctrl/Shift selection, double-click, source boundaries and group removal PASS\n";log.flush();
         window.setPlaylistShuffle(true);window.setPlaylistRepeat(PlaylistRepeat::All);window.close();
         {PlayerWindow restored;require(restored.playlist().shuffle,"Shuffle preference was not saved.");require(restored.findChild<QPushButton*>("repeat")->toolTip().contains("Playlist"),"Repeat preference was not saved.");}
         log<<"Live append/reorder/remove, file/subsong transitions, repeat modes, unknown duration, persistence and UI PASS\n";return 0;

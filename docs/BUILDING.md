@@ -29,6 +29,8 @@ runs decoder/tap checks; it is not a substitute for the full workstation suite.
 `--playlist-checks test-output` checks queue identities/reordering, M3U8 subsongs,
 Unicode/relative paths, shuffle history, background metadata cancellation and
 live transport across files, repeats, edits, unknown durations and saved modes.
+Mouse checks cover source-header group selection and independent first-song
+selection/playback.
 Add `--decoder-only` for headless model/import checks. The live check saves a
 player screenshot and runs with isolated settings and silent audio.
 `--self-test test-output --transport-only` runs the existing transport, scope

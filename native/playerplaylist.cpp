@@ -11,6 +11,9 @@
 #include <QMenu>
 #include <QMessageBox>
 #include <QMimeData>
+#include <QMouseEvent>
+#include <QPainter>
+#include <QStyledItemDelegate>
 #include <QPushButton>
 #include <QShortcut>
 #include <QSignalBlocker>
@@ -18,9 +21,21 @@
 #include <QTimer>
 #include <QToolButton>
 #include <QVBoxLayout>
+#include <algorithm>
 
 namespace {
-constexpr int IdRole=Qt::UserRole+4;
+constexpr int HeaderRole=Qt::UserRole+3, IdRole=Qt::UserRole+4, SourceRole=Qt::UserRole+7;
+constexpr int HeaderHeight=23, TrackHeight=30;
+int groupEnd(const QListWidget &list,int first) {
+    const auto source=list.item(first)->data(SourceRole).toString();
+    int end=first+1;
+    while(end<list.count() && list.item(end)->data(SourceRole).toString()==source)++end;
+    return end;
+}
+bool groupSelected(const QListWidget &list,int first,int end) {
+    for(int i=first;i<end;++i)if(!list.item(i)->isSelected())return false;
+    return true;
+}
 QStringList localFiles(const QMimeData *mime) {
     QStringList paths; for(const auto &url:mime->urls()) if(url.isLocalFile()) paths<<url.toLocalFile(); return paths;
 }
@@ -29,6 +44,35 @@ public:
     std::function<void(const QStringList&)> onFiles;
     std::function<void()> onDelete;
 protected:
+    void mousePressEvent(QMouseEvent *event) override {
+        int first=headerAt(event);
+        headerPressed_=first>=0;
+        int end=headerPressed_?groupEnd(*this,first):0;
+        if(event->button()==Qt::LeftButton && !(event->modifiers() & Qt::ShiftModifier))
+            selectionAnchor_=indexAt(event->position().toPoint());
+        const int anchor=selectionAnchor_.isValid()?selectionAnchor_.row():currentRow();
+        const bool selected=headerPressed_ && groupSelected(*this,first,end);
+        // Let Qt initialize focus, the selection anchor and native drag handling.
+        QListWidget::mousePressEvent(event);
+        if(!headerPressed_)return;
+        auto command=QItemSelectionModel::ClearAndSelect;
+        if(event->modifiers() & Qt::ShiftModifier) {
+            if(anchor>=0) {first=std::min(first,anchor);end=std::max(end,anchor+1);}
+            if(event->modifiers() & Qt::ControlModifier)command=QItemSelectionModel::Select;
+        } else if(event->modifiers() & Qt::ControlModifier)command=selected?QItemSelectionModel::Deselect:QItemSelectionModel::Select;
+        selectionModel()->select(QItemSelection(model()->index(first,0),model()->index(end-1,0)),command);
+        event->accept();
+    }
+    void mouseReleaseEvent(QMouseEvent *event) override {
+        if(headerPressed_ && event->button()==Qt::LeftButton) {
+            // A normal selected-row release would collapse the group to its first song.
+            headerPressed_=false;setState(NoState);event->accept();
+        } else QListWidget::mouseReleaseEvent(event);
+    }
+    void mouseDoubleClickEvent(QMouseEvent *event) override {
+        if(headerAt(event)>=0) {headerPressed_=true;event->accept();}
+        else QListWidget::mouseDoubleClickEvent(event);
+    }
     void dragEnterEvent(QDragEnterEvent *event) override {
         if(!localFiles(event->mimeData()).isEmpty()) event->acceptProposedAction(); else QListWidget::dragEnterEvent(event);
     }
@@ -41,14 +85,68 @@ protected:
     }
     void keyPressEvent(QKeyEvent *event) override {
         if(event->key()==Qt::Key_Delete && event->modifiers()==Qt::NoModifier) {onDelete();event->accept();}
-        else QListWidget::keyPressEvent(event);
+        else {
+            QListWidget::keyPressEvent(event);
+            if(!(event->modifiers() & Qt::ShiftModifier))selectionAnchor_=currentIndex();
+        }
     }
+private:
+    bool headerPressed_=false;
+    QPersistentModelIndex selectionAnchor_;
+    int headerAt(const QMouseEvent *event) const {
+        if(event->button()!=Qt::LeftButton)return -1;
+        auto item=itemAt(event->position().toPoint());
+        if(!item || item->data(HeaderRole).toString().isEmpty())return -1;
+        return event->position().y()<visualItemRect(item).top()+HeaderHeight?row(item):-1;
+    }
+};
+class TrackDelegate : public QStyledItemDelegate {
+public:
+    explicit TrackDelegate(QListWidget *list) : QStyledItemDelegate(list), list_(list) {}
+    QSize sizeHint(const QStyleOptionViewItem &, const QModelIndex &index) const override {
+        return {180, !index.data(HeaderRole).toString().isEmpty()?HeaderHeight+TrackHeight:index.data(Qt::UserRole+6).toBool()?TrackHeight+9:TrackHeight};
+    }
+    void paint(QPainter *p, const QStyleOptionViewItem &option, const QModelIndex &index) const override {
+        p->save(); p->setRenderHint(QPainter::Antialiasing);
+        const bool current = index.data(Qt::UserRole + 1).toBool();
+        const auto header=index.data(HeaderRole).toString();
+        const auto songRect=option.rect.adjusted(0,header.isEmpty()?0:HeaderHeight,0,0);
+        if (option.state & QStyle::State_Selected) p->fillRect(songRect, QColor("#263f3f"));
+        else if (option.state & QStyle::State_MouseOver) p->fillRect(songRect, QColor("#222f35"));
+        if(!header.isEmpty()) {
+            const QRect headerRect(option.rect.topLeft(),QSize(option.rect.width(),HeaderHeight));
+            if(groupSelected(*list_,index.row(),groupEnd(*list_,index.row())))p->fillRect(headerRect,QColor("#263f3f"));
+            else if(option.state & QStyle::State_MouseOver)p->fillRect(headerRect,QColor("#222f35"));
+            const auto hr=option.rect.adjusted(10,0,-10,0);p->setPen(QColor("#92a6b0"));p->setFont(option.font);
+            p->drawText(QRect(hr.left(),hr.top(),hr.width(),HeaderHeight-1),Qt::AlignVCenter,option.fontMetrics.elidedText(header,Qt::ElideMiddle,hr.width()));
+            p->setPen(QColor("#314047"));p->drawLine(hr.left(),hr.top()+HeaderHeight-1,hr.right(),hr.top()+HeaderHeight-1);
+        }
+        const bool separator=index.data(Qt::UserRole+6).toBool();
+        if(separator) {p->setPen(QColor("#314047"));p->drawLine(option.rect.left()+10,option.rect.top()+4,option.rect.right()-10,option.rect.top()+4);}
+        const auto r = option.rect.adjusted(10, header.isEmpty()?(separator?9:0):HeaderHeight, -10, 0);
+        p->setFont(option.font); p->setPen(current ? QColor("#a2e5d5") : QColor("#8f9eaa"));
+        if (index.data(Qt::UserRole + 2).toBool()) {
+            p->setPen(Qt::NoPen); p->setBrush(QColor("#a2e5d5"));
+            p->drawPolygon(QPolygonF{{qreal(r.left() + 4), qreal(r.center().y() - 4)},
+                {qreal(r.left() + 11), qreal(r.center().y())}, {qreal(r.left() + 4), qreal(r.center().y() + 4)}});
+        } else p->drawText(QRect(r.left(), r.top(), 25, r.height()), Qt::AlignVCenter, QString::number(index.row() + 1));
+        p->setPen(index.data(Qt::UserRole+5).toBool()?QColor("#efb49a"):current ? QColor("#c3f1e7") : QColor("#dce5e8"));
+        const QRect title(r.left() + 28, r.top(), std::max(0, r.width() - 86), r.height());
+        p->drawText(title, Qt::AlignVCenter, option.fontMetrics.elidedText(index.data().toString(), Qt::ElideRight, title.width()));
+        p->setPen(QColor("#92a6b0"));
+        p->drawText(QRect(r.right() - 52, r.top(), 52, r.height()), Qt::AlignRight | Qt::AlignVCenter, index.data(Qt::UserRole).toString());
+        p->restore();
+    }
+private:
+    QListWidget *list_;
 };
 }
 void PlayerWindow::setupPlaylistUi() {
     auto page=new QWidget;
     auto layout=new QVBoxLayout(page); layout->setContentsMargins(0,0,0,0);layout->setSpacing(2);
     auto list=new PlaylistList; songs_=list;
+    songs_->setItemDelegate(new TrackDelegate(songs_));
+    connect(songs_,&QListWidget::itemSelectionChanged,songs_->viewport(),QOverload<>::of(&QWidget::update));
     songs_->setObjectName("songs");songs_->setMouseTracking(true);songs_->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     songs_->setSelectionMode(QAbstractItemView::ExtendedSelection);
     songs_->setDragDropMode(QAbstractItemView::InternalMove);songs_->setDefaultDropAction(Qt::MoveAction);
@@ -138,7 +236,8 @@ void PlayerWindow::decoratePlaylist() {
     for(int i=0;i<playlist_.entries.size();++i) {
         const auto &entry=playlist_.entries[i];auto item=songs_->item(i);if(!item)continue;
         item->setText(entry.title);item->setData(Qt::UserRole,entry.durationMs>0?timeText(entry.durationMs):QString::fromUtf8("—"));
-        item->setData(Qt::UserRole+3,entry.songs>1 && (i==0 || playlist_.entries[i-1].path!=entry.path)?QFileInfo(entry.path).fileName():QString());
+        item->setData(SourceRole,entry.path);
+        item->setData(HeaderRole,entry.songs>1 && (i==0 || playlist_.entries[i-1].path!=entry.path)?QFileInfo(entry.path).fileName():QString());
         item->setData(Qt::UserRole+6,entry.songs==1 && i>0 && playlist_.entries[i-1].songs>1 && playlist_.entries[i-1].path!=entry.path);
         item->setData(Qt::UserRole+5,!entry.error.isEmpty());
         item->setToolTip(entry.title+"\n"+entry.path+(entry.songs>1?QString("\nSubsong %1 of %2").arg(entry.song+1).arg(entry.songs):QString())+

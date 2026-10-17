@@ -14,8 +14,11 @@
 | Random order | Toggle Shuffle beside Repeat |
 
 A multi-song file adds one row per composition. A small filename header separates
-consecutive compositions from that file. Headers are decorative: individual
-compositions can be moved, mixed with other files and removed independently.
+consecutive compositions from that file. Click the header to select the whole
+consecutive group; Ctrl-click adds or removes that group from the selection.
+Click a song below the header to select it individually, including the first song.
+Double-click a song to play it; double-clicking a header only selects its group.
+Compositions can be moved, mixed with other files and removed independently.
 MIDI channels/tracks that play together remain one composition.
 
 Adding and reordering leave playback running. Removing the playing row lets it

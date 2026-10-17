@@ -25,7 +25,6 @@
 #include <QShortcut>
 #include <QSignalBlocker>
 #include <QSettings>
-#include <QStyledItemDelegate>
 #include <QStylePainter>
 #include <QStyleOptionToolButton>
 #include <QTabWidget>
@@ -127,41 +126,6 @@ protected:
 private:
     Symbol symbol_;
 };
-
-class TrackDelegate : public QStyledItemDelegate {
-public:
-    using QStyledItemDelegate::QStyledItemDelegate;
-    QSize sizeHint(const QStyleOptionViewItem &, const QModelIndex &index) const override {
-        return {180, !index.data(Qt::UserRole+3).toString().isEmpty()?53:index.data(Qt::UserRole+6).toBool()?39:30};
-    }
-    void paint(QPainter *p, const QStyleOptionViewItem &option, const QModelIndex &index) const override {
-        p->save(); p->setRenderHint(QPainter::Antialiasing);
-        const bool current = index.data(Qt::UserRole + 1).toBool();
-        if (option.state & QStyle::State_Selected) p->fillRect(option.rect, QColor("#263f3f"));
-        else if (option.state & QStyle::State_MouseOver) p->fillRect(option.rect, QColor("#222f35"));
-        const auto header=index.data(Qt::UserRole+3).toString();
-        if(!header.isEmpty()) {
-            const auto hr=option.rect.adjusted(10,0,-10,0);p->setPen(QColor("#92a6b0"));p->setFont(option.font);
-            p->drawText(QRect(hr.left(),hr.top(),hr.width(),22),Qt::AlignVCenter,option.fontMetrics.elidedText(header,Qt::ElideMiddle,hr.width()));
-            p->setPen(QColor("#314047"));p->drawLine(hr.left(),hr.top()+22,hr.right(),hr.top()+22);
-        }
-        const bool separator=index.data(Qt::UserRole+6).toBool();
-        if(separator) {p->setPen(QColor("#314047"));p->drawLine(option.rect.left()+10,option.rect.top()+4,option.rect.right()-10,option.rect.top()+4);}
-        const auto r = option.rect.adjusted(10, header.isEmpty()?(separator?9:0):23, -10, 0);
-        p->setFont(option.font); p->setPen(current ? QColor("#a2e5d5") : QColor("#8f9eaa"));
-        if (index.data(Qt::UserRole + 2).toBool()) {
-            p->setPen(Qt::NoPen); p->setBrush(QColor("#a2e5d5"));
-            p->drawPolygon(QPolygonF{{qreal(r.left() + 4), qreal(r.center().y() - 4)},
-                {qreal(r.left() + 11), qreal(r.center().y())}, {qreal(r.left() + 4), qreal(r.center().y() + 4)}});
-        } else p->drawText(QRect(r.left(), r.top(), 25, r.height()), Qt::AlignVCenter, QString::number(index.row() + 1));
-        p->setPen(index.data(Qt::UserRole+5).toBool()?QColor("#efb49a"):current ? QColor("#c3f1e7") : QColor("#dce5e8"));
-        const QRect title(r.left() + 28, r.top(), std::max(0, r.width() - 86), r.height());
-        p->drawText(title, Qt::AlignVCenter, option.fontMetrics.elidedText(index.data().toString(), Qt::ElideRight, title.width()));
-        p->setPen(QColor("#92a6b0"));
-        p->drawText(QRect(r.right() - 52, r.top(), 52, r.height()), Qt::AlignRight | Qt::AlignVCenter, index.data(Qt::UserRole).toString());
-        p->restore();
-    }
-};
 }
 
 PlayerWindow::PlayerWindow() {
@@ -233,7 +197,7 @@ PlayerWindow::PlayerWindow() {
     auto mute = new IconButton(Symbol::Volume, "muteVolume", QString::fromUtf8("Mute / unmute")); transport->addWidget(mute);
     auto volume = new QSlider(Qt::Horizontal); volume->setObjectName("volume"); volume->setRange(0, 100); volume->setValue(65); volume->setFixedWidth(72); volume->setToolTip(QString::fromUtf8("Volume")); transport->addWidget(volume); root->addLayout(transport);
     tabs_ = new QTabWidget; tabs_->setObjectName("tabs");
-    setupPlaylistUi(); songs_->setItemDelegate(new TrackDelegate(songs_));
+    setupPlaylistUi();
     auto channelPage = new QWidget; auto channelLayout = new QVBoxLayout(channelPage); channelLayout->setContentsMargins(8, 8, 8, 8); channelLayout->setSpacing(6);
     auto scroll = new QScrollArea; scroll->setWidgetResizable(true); auto channelContents = new QWidget; channels_ = new QGridLayout(channelContents); channels_->setContentsMargins(0, 0, 0, 0); channels_->setSpacing(6); channels_->setAlignment(Qt::AlignTop); scroll->setWidget(channelContents); channelLayout->addWidget(scroll, 1);
     auto all = new QPushButton(QString::fromUtf8("Enable all")); auto none = new QPushButton(QString::fromUtf8("Disable all"));
