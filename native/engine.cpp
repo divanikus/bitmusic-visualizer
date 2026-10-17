@@ -372,6 +372,10 @@ void NativePlayer::toggleSolo(int channel) {
         muteMask_.store(~(VoiceMask::bit(channel)));
     }
 }
+int NativePlayer::playbackEndMs(qint64 frame) {
+    if (frame < 0) return -1;
+    return int(std::min<qint64>((frame * 1000 + SampleRate - 1) / SampleRate, std::numeric_limits<int>::max()));
+}
 PlayerState NativePlayer::state() const {
     std::lock_guard lock(stateMutex_);
     auto result = state_;
@@ -379,7 +383,7 @@ PlayerState NativePlayer::state() const {
     // A millisecond endpoint may lie between samples. Flooring twice otherwise
     // leaves the UI one millisecond short, so Play never recognizes the end.
     const auto end=endFrame_.load();
-    result.playbackEndMs=end<0?-1:int(std::min<qint64>((end*1000+SampleRate-1)/SampleRate,std::numeric_limits<int>::max()));
+    result.playbackEndMs = playbackEndMs(end);
     result.durationLimited=durationLimited_.load();
     if (state_.valid && !state_.busy && end >= 0 && playedFrame_ >= end)
         result.positionMs = result.playbackEndMs;

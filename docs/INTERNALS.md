@@ -9,6 +9,16 @@ before resetting the PCM ring. The real-time callback captures only the player
 and its generation; it never accesses the decoder, locks or GUI. Shutdown stops
 output before joining the separate scope thread.
 
+The worker's timer handler takes one pending command and calls named command,
+seek, output-start, playback-advance and metadata phases. One failure boundary
+retains unchanged exception text and the existing load-versus-seek invalidation
+policy. Generation-only publication guards stay distinct from cancellation,
+which also observes shutdown. Output errors share counting while retaining the
+different startup/runtime messages. Seek clamping and the published endpoint
+share sample-to-millisecond ceiling conversion; ordinary positions still floor.
+Keep the existing initial metadata reads under the publication lock and dynamic
+reads before it. Cancellation does not introduce a new error or completion event.
+
 The UI headers follow ownership: `playerwindow.h` includes `scopewindow.h`
 because the player owns that window; scope code has no dependency on the player
 or playlist UI. `timeline.h` contains the transport slider and time label helper.
