@@ -59,7 +59,6 @@ QByteArray ScopeWindow::windowedGeometry() const {
     return placement.saveGeometry();
 }
 void ScopeWindow::toggleFullscreen() {
-    cancelCardClick();
     cancelDrag();
     if (fullscreenGeometry_.isEmpty()) {
         fullscreenGeometry_ = windowedGeometry(); fullscreenEditor_ = edit_->isChecked(); fullscreenMaximized_ = isMaximized();

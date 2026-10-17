@@ -101,9 +101,6 @@ ScopeWindow::ScopeWindow() {
     setWindowTitle("Bit Music - Visualizations"); setAttribute(Qt::WA_QuitOnClose, false);
     setFocusPolicy(Qt::StrongFocus);
     setMouseTracking(true);
-    cardClickTimer_ = new QTimer(this); cardClickTimer_->setSingleShot(true);
-    cardClickTimer_->setTimerType(Qt::PreciseTimer);
-    connect(cardClickTimer_, &QTimer::timeout, this, &ScopeWindow::commitCardClick);
     restoreEffects();
     restoreWaves();
     presentationTimer_ = new QChronoTimer(ScopePacing::interval(frameRate_), this);
@@ -243,7 +240,6 @@ ScopeWindow::ScopeWindow() {
     };
     cardInspector_->onSettingsRequested = [this] { editCardSettings(); };
     connect(channelList_, &QListWidget::currentRowChanged, this, [this] {
-        cancelCardClick();
         cardSelectionActive_ = selectedCardId() >= 0; updateViewEditor(); updateCardSelection();
     });
     connect(channelList_, &QListWidget::itemClicked, this, [this](QListWidgetItem *item) {
@@ -294,7 +290,6 @@ ScopeWindow::ScopeWindow() {
         update();
     });
     connect(edit_, &QPushButton::toggled, this, [this](bool editing) {
-        cancelCardClick();
         edit_->setToolTip(editing ? "Done" : "Edit visualizations"); edit_->setAccessibleName(edit_->toolTip());
         cancelDrag();
         editor_->setVisible(editing); channelPanel_->setVisible(editing); updateEditorGeometry(); update();
@@ -463,7 +458,6 @@ bool ScopeWindow::laneDimmed(int source, bool stereo, int side) const {
     return sourceDimmed(source) || (stereo && !(state_.outputMask & (1u << side)));
 }
 void ScopeWindow::layoutChanged() {
-    cancelCardClick();
     updateLevelsControl();
     cancelDrag();
     cards_.clampSpans(rows_->value(), columns_->value());
@@ -535,7 +529,7 @@ void ScopeWindow::setFrameRate(int fps) {
     if (onFrameRateChanged) onFrameRateChanged(fps);
 }
 void ScopeWindow::showEvent(QShowEvent *event) { FrameWindow::showEvent(event); updateVisibility(); }
-void ScopeWindow::hideEvent(QHideEvent *event) { cancelCardClick(); FrameWindow::hideEvent(event); updateVisibility(); }
+void ScopeWindow::hideEvent(QHideEvent *event) { FrameWindow::hideEvent(event); updateVisibility(); }
 void ScopeWindow::changeEvent(QEvent *event) {
     FrameWindow::changeEvent(event);
     if (event->type() == QEvent::WindowStateChange) {
@@ -544,7 +538,6 @@ void ScopeWindow::changeEvent(QEvent *event) {
     }
 }
 bool ScopeWindow::event(QEvent *event) {
-    if (event->type() == QEvent::WindowDeactivate || event->type() == QEvent::FocusOut) cancelCardClick();
     const bool handled = FrameWindow::event(event);
     if (event->type() == QEvent::DevicePixelRatioChange && windowSize_) updateEditorGeometry();
     return handled;
@@ -601,7 +594,6 @@ void ScopeWindow::updateEditorGeometry() {
     channelList_->setMaximumHeight(listContent);
 }
 void ScopeWindow::resizeEvent(QResizeEvent *event) {
-    cancelCardClick();
     FrameWindow::resizeEvent(event); cancelDrag(); updateEditorGeometry();
     updateCardSelection();
     if (gpu_ && gpu_->checkHealth()) gpu_->setGeometry(rect());

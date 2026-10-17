@@ -191,11 +191,11 @@ Defaults in Waves preserves Levels and the separate application frame rate.
 The full-screen icon beside the pencil, or **F11** from either player window,
 expands the visualizer on its current display and hides the title bar/editor.
 The themed window background fills the screen edges without an outer window border.
-Double-click the visualization outside edit mode to toggle fullscreen without
-changing the selected card. A single click waits for the system double-click
-interval before selecting, so the first click of a double click does not flash a
-selection. Editor controls and Shift-click Solo respond immediately;
-double-clicking the title bar still maximizes.
+Single clicks select cards immediately. Double-click the visualization outside
+edit mode to toggle fullscreen, keeping the clicked card selected. Double-click
+recognition uses system settings; there is no delay before single-click selection.
+Editor controls and Shift-click Solo keep their normal behavior; double-clicking
+the title bar still maximizes.
 **F11** restores the previous window size, position, maximized state and editor.
 **Esc** first clears any card selection; another press exits fullscreen.
 Move the pointer to the top edge to reveal a temporary exit button. Playback

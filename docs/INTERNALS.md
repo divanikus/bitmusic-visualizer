@@ -310,12 +310,10 @@ reading UI state; `executeCardAction` applies admitted commands. Only navigation
 moving, resizing and grid counters repeat. `handleEscapeShortcut` shares one path
 between the player filter and standalone scope window: cancel a gesture, clear
 selection, or exit fullscreen, in that order, one action per press without repeat.
-Outside edit mode, a single click waits for the system double-click interval
-before selecting. A double click cancels the pending selection and only toggles
-fullscreen. Mouse movement, Escape, selection/layout/file changes, hide, resize,
-focus loss and fullscreen transitions cancel pending clicks. Keyboard card commands
-can commit a released single click immediately. Editor selection and Shift-click
-Solo remain immediate; no global double-click setting is overridden.
+Card selection happens immediately on mouse press. Qt recognizes double clicks
+using system settings; the handler toggles fullscreen without undoing the first
+press's selection. No selection delay, pending-click timer or rollback snapshot
+is needed. Escape clears selection while retaining fullscreen on the first press.
 Grid shortcuts require no selection and set the existing row/column spin boxes;
 their signals retain layout, capture, span-clamping and preset behavior.
 Card settings entry points, inspector callbacks and hit regions use settings

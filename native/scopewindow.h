@@ -8,7 +8,6 @@
 #include "scopecards.h"
 #include <QHash>
 #include <QElapsedTimer>
-#include <optional>
 
 class QLabel;
 class QComboBox;
@@ -109,18 +108,6 @@ private:
     int cardInDirection(int current, int key) const;
     void moveSelectedCard(int key);
     bool cardSelectionActive_ = false;
-    void cancelCardClick();
-    void commitCardClick();
-    struct CardClick {
-        int id;
-        quint64 revision;
-        QPointF position;
-        int interval;
-        bool released = false;
-        QElapsedTimer time;
-    };
-    std::optional<CardClick> pendingCardClick_;
-    QTimer *cardClickTimer_ = nullptr;
     QLabel *cardSelectionHint_ = nullptr;
     void updateViewEditor();
     void updateLevelsControl();

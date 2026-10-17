@@ -150,11 +150,11 @@ Movement checks include four directions, held keys, grid edges, hidden/overflow
 list entries, stable selection and preserved source audio/transport.
 Grid shortcut checks cover F9/F10 and Shift + F9/F10 counters without selection,
 limits/repeat, overflow/refill, span clamping, fullscreen and input/dialog guards.
-Gesture checks send complete double-click sequences and wait for single-click
-resolution. They cover unchanged selection between the two clicks, late second
-clicks, drag/lifecycle cancellation and prior or absent selection. Esc clears
-selection before fullscreen exit, one press at a time; override, repeat and focused
-fullscreen-button cases are covered.
+Gesture checks assert selection immediately on the first press and send complete
+double-click sequences to retain the clicked card across fullscreen entry/exit.
+They also cover two ordinary clicks, immediate click-then-keyboard commands and
+no delayed selection after Escape. Esc clears selection before fullscreen exit,
+one press at a time; override, repeat and focused fullscreen-button cases are covered.
 Run with and without `--software-scopes` to exercise CPU and GPU selection chrome.
 Override events claim commands without executing them; modified V must not act as
 plain V. The dedicated `--gpu-checks` suite also retains accumulated trail history
