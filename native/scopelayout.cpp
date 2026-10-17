@@ -40,7 +40,7 @@ const ScopeGrid &ScopeWindow::displayLayout() const {
 }
 QVector<int> ScopeWindow::displayedChannels() const {
     QVector<int> result;
-    for (int channel : order_) if (displayLayout().contains(channel)) result.push_back(channel);
+    for (int channel : cards_.order()) if (displayLayout().contains(channel)) result.push_back(channel);
     return result;
 }
 QRectF ScopeWindow::panelRect(int channel) const {
@@ -66,7 +66,7 @@ int ScopeWindow::resizeEdgesAt(const QRectF &card, const QPointF &point) const {
     return (corner || point.x() >= card.right()-7 ? 1 : 0) | (corner || point.y() >= card.bottom()-7 ? 2 : 0);
 }
 QVector<int> ScopeWindow::dropOrder() const {
-    auto result = order_;
+    auto result = cards_.order();
     if (pressedChannel_ < 0 || dropSlot_ < 0) return result;
     const QPoint cell(dropSlot_%columns_->value(), dropSlot_/columns_->value());
     int target = -1, nextSlot = rows_->value()*columns_->value();
@@ -109,15 +109,14 @@ void ScopeWindow::previewGesture(const QPointF &point) {
                          std::clamp(originalSpan_.height()+(resizeEdges_&2 ? qRound(delta.y()/pitchY) : 0), 1, rows_->value()));
         if (span == resizeSpan_) return;
         resizeSpan_ = span;
-        auto spans = spans_; spans[resizeChannel_] = span;
-        previewLayout_ = packScopes(rows_->value(), columns_->value(), order_, hidden_, spans);
+        previewLayout_ = cards_.pack(rows_->value(), columns_->value(), cards_.order(), resizeChannel_, span);
         previewValid_ = previewLayout_.contains(resizeChannel_);
     } else {
         const int slot = slotAt(point);
         const bool moved = !dragging_ || dropSlot_ != slot;
         dragging_ = true; dragPosition_ = point; dropSlot_ = slot;
         if (!moved) { update(); return; }
-        previewLayout_ = packScopes(rows_->value(), columns_->value(), dropOrder(), hidden_, spans_);
+        previewLayout_ = cards_.pack(rows_->value(), columns_->value(), dropOrder());
         previewValid_ = slot >= 0 && previewLayout_.contains(pressedChannel_);
     }
     animateLayout(from); updateList(); update();
@@ -151,15 +150,15 @@ void ScopeWindow::mousePressEvent(QMouseEvent *event) {
             if (edges) {
                 cancelDrag(); setFocus(); resizeChannel_ = channel; resizeEdges_ = edges;
                 setCursor(edges == 3 ? Qt::SizeFDiagCursor : edges == 1 ? Qt::SizeHorCursor : Qt::SizeVerCursor);
-                originalSpan_ = resizeSpan_ = spans_[channel]; dragStart_ = event->position();
+                originalSpan_ = resizeSpan_ = cards_[channel].span; dragStart_ = event->position();
                 previewLayout_ = gridLayout_; previewValid_ = true;
-                channelList_->setCurrentRow(order_.indexOf(channel)); update(); event->accept(); return;
+                channelList_->setCurrentRow(cards_.order().indexOf(channel)); update(); event->accept(); return;
             }
             if (event->position().y() < card.top()+28) {
-                if (event->position().x() > card.right()-28) { hidden_[channel] = true; layoutChanged(); }
+                if (event->position().x() > card.right()-28) { cards_[channel].hidden = true; layoutChanged(); }
                 else {
                     cancelDrag(); setFocus(); pressedChannel_ = channel; dragStart_ = dragPosition_ = event->position(); dragCard_ = card;
-                    channelList_->setCurrentRow(order_.indexOf(channel));
+                    channelList_->setCurrentRow(cards_.order().indexOf(channel));
                 }
                 event->accept(); return;
             }
@@ -225,20 +224,20 @@ void ScopeWindow::mouseReleaseEvent(QMouseEvent *event) {
         previewGesture(event->position());
         const auto from = panelPositions();
         if (previewValid_ && cellsRect(QRect(0, 0, columns_->value(), rows_->value())).contains(event->position()))
-            spans_[resizeChannel_] = resizeSpan_;
+            cards_[resizeChannel_].span = resizeSpan_;
         layoutChanged(); animateLayout(from); event->accept(); return;
     }
     if (event->button() == Qt::LeftButton && pressedColor_ >= 0) {
         const int channel = pressedColor_;
         const bool activate = edit_->isChecked() && visibleChannels().contains(channel) && colorButtonRect(panelRect(channel)).contains(event->position());
         cancelDrag(); update(); event->accept();
-        if (activate) { channelList_->setCurrentRow(order_.indexOf(channel)); editColors(channel); }
+        if (activate) { channelList_->setCurrentRow(cards_.order().indexOf(channel)); editColors(channel); }
         return;
     }
     if (event->button() == Qt::LeftButton && pressedChannel_ >= 0) {
         if (dragging_) previewGesture(event->position());
         const bool animate = dragging_; const auto from = panelPositions();
-        if (dragging_ && previewValid_) { order_ = dropOrder(); rebuildList(); }
+        if (dragging_ && previewValid_) { cards_.setOrder(dropOrder()); rebuildList(); }
         layoutChanged(); if (animate) animateLayout(from);
         event->accept(); return;
     }

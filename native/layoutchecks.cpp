@@ -28,6 +28,48 @@ void mouse(ScopeWindow &scope, QEvent::Type type, QPointF point) {
                       type == QEvent::MouseButtonRelease ? Qt::NoButton : Qt::LeftButton, Qt::NoModifier);
     QApplication::sendEvent(&scope, &event);
 }
+void checkCardState() {
+    ScopeCards cards;
+    cards.reset(3, false, VoiceMask::bit(1));
+    require(cards.order() == QVector<int>({0, 1, 2, ScopeCards::FullMix}) &&
+            cards[1].hidden && cards[ScopeCards::FullMix].hidden, "Initial card visibility or source IDs changed.");
+    cards[0].span = {2, 2};
+    const int extra = cards.add({0, ScopeView::Spectrum, true, false}, 0);
+    require(extra > ScopeCards::FullMix && cards.order()[1] == extra && cards.sourceFor(extra) == 0,
+            "Duplicate card lost its independent ID, source or insertion position.");
+    cards.toggleSourceVisibility(0);
+    require(cards[0].hidden && cards[extra].hidden, "Source hide did not include duplicates.");
+    cards.toggleSourceVisibility(0);
+    require(!cards[0].hidden && !cards[extra].hidden, "Source show did not include duplicates.");
+    cards.remove(0); cards.showAll();
+    require(!cards.order().contains(0), "Show all restored a removed card.");
+    cards.remove(extra);
+    const int reused = cards.add({2, ScopeView::Keyboard}, 2);
+    require(reused == extra && cards[reused].span == QSize(1, 1) && !cards[reused].spectrumBars &&
+            cards[reused].spectrumGrid, "Reused card ID retained removed card options.");
+
+    ScopePreset preset; preset.configuration.sources = {"voice:0", "voice:1", "voice:2"};
+    preset.rows = 3; preset.columns = 3;
+    preset.cards = {{"voice:2", 4, {2, 2}, true, true, false, true, true, 2, 60},
+                    {"mix", 3, {1, 2}, false}, {"voice:2", 1, {1, 1}, false}, {"voice:0", 2}};
+    cards.loadPreset(preset, {true, true});
+    ScopePreset roundtrip = preset; roundtrip.cards = cards.presetCards(preset.configuration);
+    require(roundtrip.encode() == preset.encode(), "Card model changed preset fields or ordering.");
+    require(cards.order()[0] == 2 && cards.order()[1] == ScopeCards::FullMix && cards.order()[2] > ScopeCards::FullMix,
+            "Preset duplicates alias their original card or Full mix.");
+    const auto before = cards.pack(3, 3);
+    const auto preview = cards.pack(3, 3, cards.order(), 2, {3, 3});
+    require(preview.value(2).size() == QSize(3, 3) && cards.pack(3, 3) == before && cards[2].span == QSize(2, 2),
+            "Packing a resize preview mutated committed card state.");
+    cards.loadPreset(preset, {});
+    require(cards.viewFor(2) == ScopeView::Waveform && cards.viewFor(ScopeCards::FullMix) == ScopeView::Waveform,
+            "Unavailable event views did not fall back to waveforms.");
+    cards.clampSpans(1, 1);
+    require(cards[2].span == QSize(1, 1), "Grid resize failed to clamp card spans.");
+    cards.reset(1, true, {});
+    while (cards.order().size() < ScopeCards::Maximum) require(cards.add({0}, 0) >= 0, "Card capacity shrank.");
+    require(cards.add({0}, 0) == -1 && cards.order().size() == ScopeCards::Maximum, "Card capacity is not bounded.");
+}
 void checkPacking() {
     QVector<int> order; QVector<bool> hidden(33, false); QVector<QSize> spans(33, QSize(1, 1));
     for (int i = 0; i < 33; ++i) order << i;
@@ -54,6 +96,7 @@ void checkPacking() {
 }
 }
 void checkLayoutSpans(QApplication &app, const QString &directory, QTextStream &log) {
+    checkCardState(); log << "Card state: stable IDs, duplicates/removal, visibility, preset compatibility, preview isolation and capacity PASS\n";
     checkPacking(); log << "Span packing: all 128 grid sizes, bounds, no overlap, hidden/refill and hole filling PASS\n"; log.flush();
     ScopeWindow scope; scope.resize(1100, 760); scope.show();
     PlayerState state; state.valid = true; state.generation = 1; state.info.path = "span-preview"; state.info.title = "Spanning cards"; state.info.stereoOutput = true;

@@ -303,7 +303,7 @@ ScopeWindow::ScopeWindow() {
         const int id = channelList_->currentItem()->data(Qt::UserRole).toInt();
         if (id < 0 || id >= cards_.size()) return;
         const int row = channelList_->currentRow();
-        order_.removeAll(id); hidden_[id] = true;
+        cards_.remove(id);
         rebuildList();
         if (channelList_->count()) channelList_->setCurrentRow(std::min(row, channelList_->count()-1));
         layoutChanged(); updateViewEditor();
@@ -356,14 +356,15 @@ ScopeWindow::ScopeWindow() {
     connect(reset, &QPushButton::clicked, this, [this] { resetLayout(); });
     connect(apply, &QPushButton::clicked, this, [this] { edit_->setChecked(false); });
     connect(colors, &QPushButton::clicked, this, [this] { editColors(); });
-    connect(showAll, &QPushButton::clicked, this, [this] { hidden_.fill(false); layoutChanged(); });
+    connect(showAll, &QPushButton::clicked, this, [this] { cards_.showAll(); layoutChanged(); });
     connect(channelList_, &QListWidget::itemChanged, this, [this](QListWidgetItem *item) {
         const int channel = item->data(Qt::UserRole).toInt();
-        if (channel >= 0 && channel < hidden_.size()) { hidden_[channel] = item->checkState() != Qt::Checked; layoutChanged(); }
+        if (channel >= 0 && channel < cards_.size()) { cards_[channel].hidden = item->checkState() != Qt::Checked; layoutChanged(); }
     });
     connect(channelList_->model(), &QAbstractItemModel::rowsMoved, this, [this] {
-        order_.clear();
-        for (int i = 0; i < channelList_->count(); ++i) order_.push_back(channelList_->item(i)->data(Qt::UserRole).toInt());
+        QVector<int> order;
+        for (int i = 0; i < channelList_->count(); ++i) order.push_back(channelList_->item(i)->data(Qt::UserRole).toInt());
+        cards_.setOrder(order);
         layoutChanged();
     });
     if (qEnvironmentVariableIntValue("BITMUSIC_SOFTWARE_SCOPES") != 1 && qEnvironmentVariable("QT_QUICK_BACKEND") != "software") {
@@ -435,7 +436,7 @@ void ScopeWindow::resetLayout() {
 }
 void ScopeWindow::resetGrid() {
     QSignalBlocker blockRows(rows_), blockColumns(columns_);
-    const int count = int(std::count_if(order_.begin(), order_.end(), [this](int id) { return !hidden_[id]; }));
+    const int count = int(std::count_if(cards_.order().begin(), cards_.order().end(), [this](int id) { return !cards_[id].hidden; }));
     // Large configurations must leave room for the plot below each heading.
     // Overflow stays available in the editor, just like a user-sized grid.
     const int columns = count > 32 ? std::min(8,(count+7)/8) : count > 5 ? 2 : 1;
@@ -444,28 +445,19 @@ void ScopeWindow::resetGrid() {
 }
 void ScopeWindow::resetChannels(bool grid) {
     if (colorDialog_) colorDialog_->reject();
-    order_.clear(); hidden_ = QVector<bool>(ScopeTheme::FullMix + 1, false);
-    spans_ = QVector<QSize>(ScopeTheme::FullMix + 1, QSize(1, 1));
-    cards_.clear(); for (int source = 0; source <= ScopeTheme::FullMix; ++source) cards_.push_back({source, ViewKind::Waveform});
+    cards_.reset(int(state_.info.voices.size()), waveOptions_.output, state_.info.emptyVoices);
     spectrumStates_ = {}; waveStates_ = {}; pitchStates_ = {};
-    for (int i = 0; i < state_.info.voices.size(); ++i) order_.push_back(i);
-    order_.push_back(ScopeTheme::FullMix); hidden_[ScopeTheme::FullMix] = !waveOptions_.output;
-    hideEmptyChannels();
     cancelDrag();
     if (grid) resetGrid();
     rebuildList(); layoutChanged(); updateViewEditor();
 }
 bool ScopeWindow::hideEmptyChannels() {
-    bool changed = false;
-    for (int id : order_) if (!hidden_[id] && state_.info.emptyVoices.test(sourceFor(id))) {
-        hidden_[id] = true; changed = true;
-    }
-    return changed;
+    return cards_.hideEmpty(state_.info.emptyVoices);
 }
 QVector<int> ScopeWindow::visibleChannels() const {
     QVector<int> result;
     if (!state_.valid) return result;
-    for (int channel : order_) if (gridLayout_.contains(channel)) result.push_back(channel);
+    for (int channel : cards_.order()) if (gridLayout_.contains(channel)) result.push_back(channel);
     return result;
 }
 VoiceMask ScopeWindow::visibleMask() const {
@@ -498,10 +490,10 @@ bool ScopeWindow::channelStereo(int channel) const {
 }
 void ScopeWindow::layoutChanged() {
     cancelDrag();
-    for (auto &span : spans_) span = QSize(std::clamp(span.width(), 1, columns_->value()), std::clamp(span.height(), 1, rows_->value()));
-    gridLayout_ = state_.valid ? packScopes(rows_->value(), columns_->value(), order_, hidden_, spans_) : ScopeGrid();
-    if (hidden_.size() > ScopeTheme::FullMix && waveOptions_.output == hidden_[ScopeTheme::FullMix]) {
-        waveOptions_.output = !hidden_[ScopeTheme::FullMix]; rememberWaves();
+    cards_.clampSpans(rows_->value(), columns_->value());
+    gridLayout_ = state_.valid ? cards_.pack(rows_->value(), columns_->value()) : ScopeGrid();
+    if (cards_.size() > ScopeTheme::FullMix && waveOptions_.output == cards_[ScopeTheme::FullMix].hidden) {
+        waveOptions_.output = !cards_[ScopeTheme::FullMix].hidden; rememberWaves();
     }
     updateList();
     if (onChannelsChanged) onChannelsChanged(newFile_ ? 0 : visibleMask());
@@ -515,10 +507,10 @@ void ScopeWindow::layoutChanged() {
 void ScopeWindow::rebuildList() {
     const int selected = channelList_->currentItem() ? channelList_->currentItem()->data(Qt::UserRole).toInt() : 0;
     QSignalBlocker block(channelList_); channelList_->clear();
-    for (int channel : order_) {
+    for (int channel : cards_.order()) {
         auto item = new QListWidgetItem(channelList_); item->setData(Qt::UserRole, channel);
         item->setFlags(item->flags() | Qt::ItemIsUserCheckable | Qt::ItemIsDragEnabled);
-        item->setCheckState(hidden_[channel] ? Qt::Unchecked : Qt::Checked);
+        item->setCheckState(cards_[channel].hidden ? Qt::Unchecked : Qt::Checked);
         if (channel == selected) channelList_->setCurrentItem(item);
     }
     if (!channelList_->currentItem() && channelList_->count()) channelList_->setCurrentRow(0);
@@ -530,21 +522,21 @@ void ScopeWindow::updateList() {
     const auto visible = preview ? displayedChannels() : visibleChannels();
     QSignalBlocker block(channelList_);
     int enabled = 0;
-    for (int channel : order_) if (!hidden_[channel]) ++enabled;
+    for (int channel : cards_.order()) if (!cards_[channel].hidden) ++enabled;
     for (int i = 0; i < channelList_->count(); ++i) {
         auto item = channelList_->item(i); const int channel = item->data(Qt::UserRole).toInt();
         const int source = sourceFor(channel);
         auto label = source == ScopeTheme::FullMix ? channelName(channel) : QString("%1  %2").arg(source + 1, 2, 10, QLatin1Char('0')).arg(channelName(channel));
         if (viewFor(channel) != ViewKind::Waveform) label += " / " + viewName(viewFor(channel));
-        const auto status = hidden_[channel] ? "Hidden" : visible.contains(channel) ? "Visible" : "Overflow";
-        const auto span = preview && previewValid_ && channel == resizeChannel_ ? resizeSpan_ : spans_[channel];
+        const auto status = cards_[channel].hidden ? "Hidden" : visible.contains(channel) ? "Visible" : "Overflow";
+        const auto span = preview && previewValid_ && channel == resizeChannel_ ? resizeSpan_ : cards_[channel].span;
         const auto size = QString("%1 x %2").arg(span.width()).arg(span.height());
         item->setText(label + (span == QSize(1, 1) ? QString() : "  [" + size + "]"));
         item->setToolTip(label + " - " + status + "\nSize: " + size + " cells (columns x rows).\nMove earlier, hide another card or enlarge the grid if it overflows.");
         if (source < 9) item->setToolTip(item->toolTip() + '\n' + channelShortcutHint(source));
         if (source == ScopeTheme::FullMix) item->setToolTip(item->toolTip() + "\nFinal audio after volume, voice mutes and effects.\n" + fullMixShortcutHint());
         item->setForeground(QColor(visible.contains(channel) ? "#c3f1e7" : "#81969f"));
-        item->setCheckState(hidden_[channel] ? Qt::Unchecked : Qt::Checked);
+        item->setCheckState(cards_[channel].hidden ? Qt::Unchecked : Qt::Checked);
     }
     summary_->setText((preview ? "Preview: " : "") + QString("%1 shown / %2 overflow").arg(visible.size()).arg(enabled - visible.size()));
 }
@@ -933,7 +925,7 @@ void ScopeWindow::paintContents(QPainter &p, bool waves) {
             p.setPen(QPen(QColor(previewValid_ ? "#a2e5d5" : "#f29595"), 2, Qt::DashLine)); p.setBrush(Qt::NoBrush);
             p.drawRoundedRect(target, 7, 7);
             const int channel = resizeChannel_ >= 0 ? resizeChannel_ : pressedChannel_;
-            const auto span = resizeChannel_ >= 0 ? resizeSpan_ : spans_[channel];
+            const auto span = resizeChannel_ >= 0 ? resizeSpan_ : cards_[channel].span;
             const QString label = previewValid_ ? QString("%1 x %2").arg(span.width()).arg(span.height()) : QString("Does not fit");
             p.setFont(QFont("Segoe UI", 9, QFont::DemiBold));
             const QRectF badge(target.left()+6, target.bottom()-28, p.fontMetrics().horizontalAdvance(label)+16, 23);

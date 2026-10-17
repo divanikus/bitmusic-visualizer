@@ -12,7 +12,6 @@
 #include <QMessageBox>
 #include <QPushButton>
 #include <QRegularExpression>
-#include <QSet>
 #include <QSignalBlocker>
 #include <QSpinBox>
 #include <QVBoxLayout>
@@ -86,11 +85,7 @@ ScopePreset ScopeWindow::currentPreset() const {
     ScopePreset preset; preset.configuration = state_.info.configuration;
     preset.rows = rows_->value(); preset.columns = columns_->value();
     preset.numbers = numbers_->isChecked(); preset.names = names_->isChecked(); preset.stereo = stereo_->isChecked();
-    for (int id : order_) {
-        const auto &card = cards_[id];
-        preset.cards.push_back({card.source == ScopeTheme::FullMix ? "mix" : preset.configuration.sources.value(card.source),
-            int(card.kind), spans_[id], !hidden_[id], card.spectrumBars, card.spectrumGrid,card.horizontal,card.commands,card.firstChannel,card.keyboardSize});
-    }
+    preset.cards = cards_.presetCards(preset.configuration);
     return preset;
 }
 void ScopeWindow::applyPreset(const ScopePreset &preset, const QString &file) {
@@ -100,19 +95,7 @@ void ScopeWindow::applyPreset(const ScopePreset &preset, const QString &file) {
     const QSignalBlocker r(rows_), c(columns_), n(numbers_), a(names_), s(stereo_);
     rows_->setValue(preset.rows); columns_->setValue(preset.columns);
     numbers_->setChecked(preset.numbers); names_->setChecked(preset.names); stereo_->setChecked(preset.stereo);
-    cards_.clear(); order_.clear();
-    for (int i = 0; i <= ScopeTheme::FullMix; ++i) cards_.push_back({i});
-    hidden_ = QVector<bool>(ScopeTheme::FullMix+1, true); spans_ = QVector<QSize>(ScopeTheme::FullMix+1, QSize(1, 1)); QSet<int> used;
-    for (const auto &card : preset.cards) {
-        const int source = card.source == "mix" ? ScopeTheme::FullMix : int(state_.info.configuration.sources.indexOf(card.source));
-        if (source < 0) continue;
-        int id = source;
-        if (used.contains(source)) { id = int(cards_.size()); cards_.push_back({source}); hidden_.push_back(true); spans_.push_back({1,1}); }
-        used.insert(source);
-        cards_[id] = {source, viewSupported(ViewKind(card.view))?ViewKind(card.view):ViewKind::Waveform,
-            card.bars, card.grid,card.horizontal,card.commands,std::clamp(card.firstChannel,0,int(state_.info.voices.size())-1),card.keyboardSize};
-        hidden_[id] = !card.visible; spans_[id] = card.span; order_.push_back(id);
-    }
+    cards_.loadPreset(preset, {bool(state_.info.noteRoll), bool(state_.info.patterns)});
     spectrumStates_ = {}; waveStates_ = {}; pitchStates_ = {};
     presetFile_ = file; savedPreset_ = file.isEmpty() ? QByteArray() : currentPreset().encode(); presetModified_ = false;
     rebuildList(); layoutChanged(); updateViewEditor();

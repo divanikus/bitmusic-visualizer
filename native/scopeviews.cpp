@@ -21,16 +21,10 @@ QString ScopeWindow::sourceName(int source) const {
     return source == ScopeTheme::FullMix ? QString("Full mix") : state_.info.voices.value(source);
 }
 QString ScopeWindow::viewName(ViewKind kind) const {
-    switch (kind) {
-    case ViewKind::Spectrum: return "Spectrum";
-    case ViewKind::Keyboard: return "Keyboard";
-    case ViewKind::PianoRoll: return "Piano roll";
-    case ViewKind::Pattern: return "Pattern";
-    default: return "Waveform";
-    }
+    return scopeViewName(kind);
 }
 bool ScopeWindow::viewSupported(ViewKind kind) const {
-    return kind==ViewKind::PianoRoll?bool(state_.info.noteRoll):kind==ViewKind::Pattern?bool(state_.info.patterns):true;
+    return ScopeViewSupport{bool(state_.info.noteRoll), bool(state_.info.patterns)}.supports(kind);
 }
 bool ScopeWindow::outputEnabled() const {
     if (newFile_) return false;
@@ -39,24 +33,22 @@ bool ScopeWindow::outputEnabled() const {
 }
 void ScopeWindow::cycleSourceView(int source) {
     if (!state_.valid || (source != ScopeTheme::FullMix && (source < 0 || source >= state_.info.voices.size()))) return;
-    int first = order_.contains(source) ? source : -1;
-    if (first < 0) for (int id : order_) if (sourceFor(id) == source) { first = id; break; }
+    int first = cards_.order().contains(source) ? source : -1;
+    if (first < 0) for (int id : cards_.order()) if (sourceFor(id) == source) { first = id; break; }
     if (first < 0) return;
     auto next = ViewKind((int(cards_[first].kind)+1)%5);
     while(!viewSupported(next)) next=ViewKind((int(next)+1)%5);
-    for (int id : order_) if (sourceFor(id) == source) cards_[id].kind = next;
+    for (int id : cards_.order()) if (sourceFor(id) == source) cards_[id].kind = next;
     layoutChanged(); updateViewEditor();
 }
 void ScopeWindow::toggleSourceVisibility(int source) {
     if (!state_.valid || (source != ScopeTheme::FullMix && (source < 0 || source >= state_.info.voices.size()))) return;
-    bool hide = false;
-    for (int id : order_) if (sourceFor(id) == source && !hidden_[id]) hide = true;
-    for (int id : order_) if (sourceFor(id) == source) hidden_[id] = hide;
+    cards_.toggleSourceVisibility(source);
     layoutChanged(); updateViewEditor();
 }
 void ScopeWindow::setAllViews(ViewKind kind) {
     if(!viewSupported(kind)) return;
-    for (int id : order_) cards_[id].kind = kind;
+    for (int id : cards_.order()) cards_[id].kind = kind;
     layoutChanged(); updateViewEditor();
 }
 void ScopeWindow::updateViewEditor() {
@@ -67,7 +59,7 @@ void ScopeWindow::updateViewEditor() {
     selectedCard_->setText(selectedName); selectedCard_->setToolTip(selectedName);
     QSignalBlocker block(cardView_);
     cardView_->clear();
-    for(auto kind:{ViewKind::Waveform,ViewKind::Spectrum,ViewKind::Keyboard,ViewKind::PianoRoll,ViewKind::Pattern})
+    for (auto kind : ScopeViews)
         if(viewSupported(kind)) cardView_->addItem(viewName(kind),int(kind));
     cardView_->setEnabled(valid); cardView_->setCurrentIndex(valid ? cardView_->findData(int(cards_[id].kind)) : 0);
     cardView_->setToolTip("Keyboard shows pitches from chip or MIDI data where available; other sources estimate one pitch from audio.");
@@ -95,12 +87,12 @@ void ScopeWindow::updateViewEditor() {
     }
     const bool hasHelp = valid && (cards_[id].kind == ViewKind::Keyboard || roll || pattern);
     viewHelp_->setVisible(hasHelp); keyboardHint_->setVisible(hasHelp && viewHelp_->isChecked());
-    addCard_->setEnabled(state_.valid && order_.size() < 512);
+    addCard_->setEnabled(state_.valid && cards_.order().size() < ScopeCards::Maximum);
     removeCard_->setEnabled(valid);
     removeCard_->setToolTip("Remove this card without muting its source. Add card... or Reset can bring it back.");
 }
 void ScopeWindow::addCard() {
-    if (!state_.valid || order_.size() >= 512) return;
+    if (!state_.valid || cards_.order().size() >= ScopeCards::Maximum) return;
     const auto selected = channelList_->currentItem();
     const int selectedId = selected ? selected->data(Qt::UserRole).toInt() : 0;
     QDialog dialog(this); dialog.setObjectName("addCardDialog"); dialog.setWindowTitle("Add visualization card");
@@ -111,7 +103,7 @@ void ScopeWindow::addCard() {
     source->addItem("Full mix", ScopeTheme::FullMix);
     source->setCurrentIndex(source->findData(sourceFor(selectedId))); form->addRow("Source", source);
     auto kind = new QComboBox; kind->setObjectName("newCardView"); styleCombo(kind);
-    for (auto type : {ViewKind::Waveform, ViewKind::Spectrum, ViewKind::Keyboard, ViewKind::PianoRoll, ViewKind::Pattern})
+    for (auto type : ScopeViews)
         if(viewSupported(type)) kind->addItem(viewName(type), int(type));
     kind->setCurrentIndex((sourceFor(selectedId) < VoiceMask::Capacity && (state_.info.tonalMask & (VoiceMask::bit(sourceFor(selectedId))))) ? 2 : 1);
     form->addRow("View", kind);
@@ -123,13 +115,9 @@ void ScopeWindow::addCard() {
     connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
     const auto path = state_.info.path;
     if (dialog.exec() != QDialog::Accepted || state_.info.path != path || newFile_) return;
-    int id = ScopeTheme::FullMix+1;
-    while (order_.contains(id)) ++id;
-    if (id >= cards_.size()) { cards_.resize(id+1); hidden_.resize(id+1); spans_.resize(id+1); }
-    cards_[id] = {source->currentData().toInt(), ViewKind(kind->currentData().toInt())};
-    hidden_[id] = false; spans_[id] = QSize(1, 1);
-    order_.insert(std::max(0, int(order_.indexOf(selectedId))+1), id);
-    rebuildList(); channelList_->setCurrentRow(order_.indexOf(id)); layoutChanged(); updateViewEditor();
+    const int id = cards_.add({source->currentData().toInt(), ViewKind(kind->currentData().toInt())}, selectedId);
+    if (id < 0) return;
+    rebuildList(); channelList_->setCurrentRow(cards_.order().indexOf(id)); layoutChanged(); updateViewEditor();
 }
 void ScopeWindow::paintSpectrumAxes(QPainter &p, int card, const QRectF &plot, bool stereo) {
     if (!cards_[card].spectrumGrid) return;

@@ -7,6 +7,7 @@
 #include "scopewave.h"
 #include "scopegrid.h"
 #include "scopepreset.h"
+#include "scopecards.h"
 #include <QWidget>
 #include <QSlider>
 #include <QHash>
@@ -41,7 +42,7 @@ private:
 class ScopeWindow : public FrameWindow {
 public:
     ScopeWindow();
-    enum class ViewKind { Waveform, Spectrum, Keyboard, PianoRoll, Pattern };
+    using ViewKind = ScopeView;
     void cycleSourceView(int source);
     void toggleSourceVisibility(int source);
     void setAllViews(ViewKind kind);
@@ -96,17 +97,9 @@ private:
     bool meterStereo(int card) const;
     void paintMeterTracks(QPainter &p, int card);
     QVector<ScopeMeter> meterFills() const;
-    struct Card {
-        int source = 0;
-        ViewKind kind = ViewKind::Waveform;
-        bool spectrumBars = false, spectrumGrid = true;
-        bool horizontal = false, commands = false;
-        int firstChannel = 0;
-        int keyboardSize = 25;
-    };
-    QVector<Card> cards_;
-    int sourceFor(int card) const { return card >= 0 && card < cards_.size() ? cards_[card].source : card; }
-    ViewKind viewFor(int card) const { return card >= 0 && card < cards_.size() ? cards_[card].kind : ViewKind::Waveform; }
+    ScopeCards cards_;
+    int sourceFor(int card) const { return cards_.sourceFor(card); }
+    ViewKind viewFor(int card) const { return cards_.viewFor(card); }
     QString sourceName(int source) const;
     QString viewName(ViewKind kind) const;
     bool viewSupported(ViewKind kind) const;
@@ -234,9 +227,6 @@ private:
     QCheckBox *keepGrid_, *numbers_, *names_, *stereo_;
     QListWidget *channelList_;
     QLabel *summary_;
-    QVector<int> order_;
-    QVector<bool> hidden_;
-    QVector<QSize> spans_;
     ScopeGrid gridLayout_, previewLayout_;
     ScopeTheme theme_;
     QComboBox *themes_;
