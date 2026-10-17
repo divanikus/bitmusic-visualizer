@@ -18,6 +18,9 @@ different startup/runtime messages. Seek clamping and the published endpoint
 share sample-to-millisecond ceiling conversion; ordinary positions still floor.
 Keep the existing initial metadata reads under the publication lock and dynamic
 reads before it. Cancellation does not introduce a new error or completion event.
+Freezing delivered output applies only to pause/seek commands within the existing
+30 ms tolerance. Load and unload never retain that frozen output; otherwise an
+early unload could leave Full mix history attached to an empty player.
 
 The private `ScopeWorker` in `enginescopes.cpp` owns the shared capture decoder,
 fallback per-voice decoders/history, resource identity and preparation pool.

@@ -327,7 +327,7 @@ void NativePlayer::submit(Command command) {
     pausedOutput_ = {};
     // Pause at the current playhead freezes the last delivered output. A seek
     // elsewhere has no delivered audio yet and must not display stale samples.
-    if (!command.load && !command.playing && state_.playing &&
+    if (!command.load && !command.unload && !command.playing && state_.playing &&
         std::abs(command.ms - int(playedFrame_.load() * 1000 / SampleRate)) <= 30) {
         auto captured = outputHistory_->read();
         if (captured.generation == generation_ && captured.token == outputToken_ && (captured.token & 1))

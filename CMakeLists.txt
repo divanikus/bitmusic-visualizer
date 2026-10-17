@@ -110,6 +110,7 @@ if(BITMUSIC_BUILD_TESTS)
     native/checks.cpp
     native/enginechecks.cpp
     native/scopeworkerchecks.cpp
+    native/capturechecks.cpp
     native/tapchecks.cpp
     native/gbschecks.cpp
     native/aychecks.cpp

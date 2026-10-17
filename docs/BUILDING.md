@@ -83,6 +83,11 @@ history retention across mask/FPS edits, empty-mask suspension, seek/revision
 cancellation, snapshot shape/immutability and scope-only decoder/task error
 recovery. These checks also run in the transport and full suites. Error probes remove/restore
 only private copies of authored fixtures while the audio decoder remains loaded.
+`--capture-only` checks idempotent controls, channel-mask filtering versus full
+visibility resets, independent chip/output capture, paused token invalidation,
+busy/paused seeks and unload. A private 20 ms NSFE copy checks unload inside the
+pause tolerance; unloading must never freeze Full mix history. These checks also
+run in the transport and full suites.
 
 For a focused frame-rate check after generating fixtures, run
 `build/native/bitmusic_checks --self-test test-output --fps-only`.
