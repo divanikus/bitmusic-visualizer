@@ -43,7 +43,10 @@ MidiControls::MidiControls(QWidget *parent) : QWidget(parent) {
             if (!midiPath_.isEmpty() && onReloadRequested) onReloadRequested(midiPath_);
         } catch (const std::exception &e) { QMessageBox::warning(window(), "SoundFont", QString::fromUtf8(e.what())); }
     });
-    connect(refresh_, &QToolButton::clicked, this, &MidiControls::refreshSoundFonts);
+    connect(refresh_, &QToolButton::clicked, this, [this] {
+        clearSoundFontBankCache();
+        refreshSoundFonts();
+    });
     connect(folder_, &QPushButton::clicked, this, [this] { if (onFolderRequested) onFolderRequested(); });
 }
 void MidiControls::prepareSource(const QString &path) {

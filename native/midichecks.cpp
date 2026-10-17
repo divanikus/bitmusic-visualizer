@@ -24,6 +24,7 @@
 
 void checkMidiSubsongErrors();
 void checkGmMetadata(const std::shared_ptr<const MidiResources> &resources, QTextStream &log);
+void checkSoundFontBankCache(const QString &directory,const QByteArray &fixture,QTextStream &log);
 
 namespace {
 void require(bool ok,const char *s) { if(!ok) throw std::runtime_error(s); }
@@ -88,6 +89,7 @@ int runMidiChecks(QApplication &app,const QStringList &args) {
         bool missing=false; try { openMusicTrack(midi); } catch(const std::exception &e) { missing=QByteArray(e.what()).startsWith("SoundFont required:"); if(!missing) log<<"Unexpected load error: "<<e.what()<<'\n'; }
         require(missing,"Missing SoundFont did not produce an actionable error.");
         write(resources.filePath("Test.sf2"),read(QDir(directory).filePath("fixture-gm.sf2")));
+        checkSoundFontBankCache(resources.path(),read(resources.filePath("Test.sf2")),log);
         selectSoundFont("Test.sf2"); require(selectedSoundFont()=="Test.sf2","SoundFont selection did not persist.");
         // SMF 2 patterns have independent tempo, ports, titles, notes and engine hints.
         auto patterns = smf(QByteArray::fromHex("00ff03014100ff51030f424000ff21010000903c648360803c0000ff2f00"));
@@ -227,9 +229,22 @@ int runMidiChecks(QApplication &app,const QStringList &args) {
             const auto savedDirectory=app.property("soundFontsDirectoryForTests");
             app.setProperty("soundFontsDirectoryForTests",QFileInfo(source).absolutePath());
             selectSoundFont(QFileInfo(source).fileName());
-            auto actual=openMusicTrack(midi); speed.restart();
+            speed.restart(); auto actual=openMusicTrack(midi);
+            log<<"User SoundFont initial load: "<<speed.elapsed()<<" ms\n"; log.flush();
+            speed.restart();
             require(pcm(*actual,SampleRate/2)!=QByteArray(SampleRate*2,0),"User SoundFont rendered silence.");
             advance(*actual,10*SampleRate); log<<"User SoundFont: 10s audio render "<<speed.elapsed()<<" ms PASS\n"; log.flush();
+            for(int pass=0;pass<3;++pass) {
+                speed.restart(); auto next=openMusicTrack(midi);
+                log<<"User SoundFont next track "<<pass+1<<": "<<speed.elapsed()<<" ms\n"; log.flush();
+                const auto &before=actual->info().midiResources->soundFonts;
+                const auto &after=next->info().midiResources->soundFonts;
+                require(before.size()==after.size(),"Next track lost SoundFont banks.");
+                for(int i=0;i<before.size();++i)
+                    require(before[i].bytes.constData()==after[i].bytes.constData(),"Next MIDI track reread unchanged SoundFont bytes.");
+                require(pcm(*next,SampleRate/2)!=QByteArray(SampleRate*2,0),"Next MIDI track rendered silence.");
+                actual=std::move(next);
+            }
             const int tune=args.indexOf("--midi");
             if(tune>=0&&tune+1<args.size()) {
                 const auto songCount=openMusicTrack(args[tune+1])->info().songs;
@@ -263,7 +278,10 @@ int runMidiChecks(QApplication &app,const QStringList &args) {
                 const auto engine=window.findChild<QComboBox*>("midiEngine");
                 require(engine!=nullptr,"MIDI engine selector missing.");
                 QMetaObject::invokeMethod(engine,"activated",Qt::DirectConnection,Q_ARG(int,engine->currentIndex()));
+                const auto retained=loadSoundFontBanks("Test.sf2");
                 window.findChild<QToolButton*>("refreshSoundFonts")->click();
+                const auto refreshed=loadSoundFontBanks("Test.sf2");
+                require(retained[0].bytes.constData()!=refreshed[0].bytes.constData(),"Refresh button kept cached bank input.");
                 const auto after=player.state();
                 require(after.generation==before.generation&&!after.busy&&after.playing==before.playing&&
                     (before.playing||after.positionMs==before.positionMs),"Reselecting the current MIDI option or refreshing banks restarted playback.");

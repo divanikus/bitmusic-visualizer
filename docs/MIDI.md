@@ -7,7 +7,8 @@ Open a Standard MIDI file (.mid or .midi, formats 0, 1 or 2) with a user-provide
 uncompressed SF2 SoundFont. The SoundFont row appears only for MIDI in the main
 player. Selection is saved and changing the bank restarts the current song.
 Selecting the current bank or MIDI engine again preserves playback and position.
-The folder button opens the resource directory; Refresh rereads the list.
+The folder button opens the resource directory; Refresh rereads the list and
+clears cached bank input for the next load, without interrupting playback.
 See [platform locations](../packaging/SOUNDFONTS.txt). No bank is downloaded or
 included at runtime. With no saved choice, the first available SF2 or SFLIST alphabetically
 is selected; a missing saved bank produces an error on MIDI load.
@@ -68,8 +69,13 @@ take time and is not interruptible inside FluidSynth's loader.
 
 The parsed sequence and bank bytes form one immutable resource snapshot shared
 by audio and scopes. Rewind uses that snapshot even if the original files have
-changed or disappeared. A new load reads the selected bank afresh. SoundFont
-sample-cache identity includes its content hash to prevent stale samples.
+changed or disappeared. New loads reuse the most recently loaded set's input
+bytes while each bank's canonical path, size and filesystem timestamps match.
+Files are still checked for availability, and SFLIST contents are reread so edits
+and bank ordering take effect. Changed banks are read and hashed again; unchanged
+banks skip that expensive work. If an external tool preserves file timestamps,
+use **Refresh** before reopening the MIDI to force a fresh read. SoundFont
+sample-cache identity includes the content hash of the loaded bytes.
 
 ## SoundFont sets (SFLIST)
 
@@ -93,7 +99,11 @@ supported. No bank files are bundled.
 
 Lists are limited to 32 banks / 64 KiB of text, with up to 2 GiB per bank and
 4 GiB of total SF2 input. Source bytes and decoded samples require additional RAM;
-large sets can take several seconds to load. Audio and scopes share the immutable
+large sets can take several seconds to load initially. Subsequent tracks reuse
+the unchanged bank input, while their synthesizers and MIDI state remain separate.
+The input cache retains only the latest set in memory, not every bank used during
+the session. Refresh clears the cache; active playback keeps its snapshot.
+Audio and scopes share the immutable
 bank snapshot; backward seeking does not reread the files.
 
 ## Limits
@@ -139,5 +149,8 @@ a read-only smoke check of a local bank or SFLIST set. These fixtures
 contain an authored sine SoundFont, short multichannel MIDI, an endpoint between
 sample frames and long seek/pedal cases, not game music. With `--soundfont`, optional
 `--midi <path>` measures each subsong's load and distant seeks without modifying it.
+The checks cover cache reuse across tracks, concurrent reads, replacement and
+missing banks, list ordering, bounded retention and Refresh without restarting
+playback. The local-bank smoke check reports initial and subsequent load times.
 Windows decoder and live results are recorded in the development handoff;
 Linux/macOS runtime and real collection listening remain separate validation.

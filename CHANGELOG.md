@@ -15,7 +15,8 @@ not published GitHub releases. Unreleased lists changes made after the latest ta
   switches all cards together and shows when their settings differ.
 - MIDI format 2 playback: independent patterns appear as separate playlist tracks.
 - Basic SFLIST sets for General MIDI: load several SF2 banks together, with later
-  banks taking priority for matching instruments.
+  banks taking priority for matching instruments. Unchanged banks are reused
+  between tracks to avoid repeated long loads.
 
 ### Changed
 
