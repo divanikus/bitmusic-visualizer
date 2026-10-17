@@ -1,6 +1,7 @@
 #include "playerwindow.h"
 #include "playersettings.h"
 #include "appsettings.h"
+#include "resourcestatus.h"
 #include <QApplication>
 #include <QCheckBox>
 #include <QComboBox>
@@ -8,6 +9,7 @@
 #include <QDir>
 #include <QElapsedTimer>
 #include <QFile>
+#include <QFileInfo>
 #include <QLabel>
 #include <QPushButton>
 #include <QSettings>
@@ -38,6 +40,43 @@ QByteArray fixture(bool pokey,bool loop) {
     data+=QByteArray::fromHex("6144ac66");word(4,data.size()-4);
     if(loop)word(0x1c,loopAt-0x1c);
     return data;
+}
+void checkResourceInspection(const QDir &scratch, QTextStream &log) {
+    auto rows = inspectPlayerResources();
+    const QStringList names{"MT32_CONTROL.ROM", "MT32_PCM.ROM", "kernal.rom", "basic.rom",
+                            "chargen.rom", "ym2608_adpcm_rom.bin", "SoundFonts (*.sf2)"};
+    require(rows.size() == names.size(), "Resource inspection changed the catalog size.");
+    for (int i = 0; i < rows.size(); ++i)
+        require(rows[i].file == names[i] && rows[i].status == "Missing" && !rows[i].found && rows[i].directory == (i == 6),
+            "Resource inspection changed catalog order, kind or missing status.");
+    require(!QFileInfo::exists(scratch.filePath("roms")) && !QFileInfo::exists(scratch.filePath("soundfonts")),
+        "Resource inspection created directories.");
+    const auto control = rows[0].path, kernal = rows[2].path, banks = rows[6].path;
+    require(QDir().mkpath(QFileInfo(control).absolutePath()) && QDir().mkpath(QFileInfo(kernal).absolutePath()) &&
+        QDir().mkpath(banks), "Resource-check directory failed.");
+    for (int size : {0, 1, 2 * 1024 * 1024, 2 * 1024 * 1024 + 1}) {
+        write(control, QByteArray(size, 'x'));
+        const auto status = inspectPlayerResources()[0];
+        const bool accepted = size > 0 && size <= 2 * 1024 * 1024;
+        require(status.found == accepted && status.status == (accepted ? "Found" : "Invalid size"),
+            "MT-32 presence check changed its size bounds.");
+        if (accepted) require(status.detail.contains("Munt checks ROM identity"), "MT-32 presence claimed content validation.");
+    }
+    write(kernal, QByteArray(8191, 'x'));
+    require(inspectPlayerResources()[2].status == "Invalid size", "Fixed-size ROM accepted a short image.");
+    const QByteArray contents(8192, 'x'); write(kernal, contents);
+    const auto fixed = inspectPlayerResources()[2];
+    require(fixed.found && fixed.status == "Found (size OK)" && fixed.detail.contains("Contents are not verified"),
+        "Fixed-size inspection changed status or claimed to validate arbitrary contents.");
+    QFile preserved(kernal); require(preserved.open(QIODevice::ReadOnly) && preserved.readAll() == contents,
+        "Inspection modified the resource file."); preserved.close();
+    const auto first = QDir(banks).filePath("First.sf2"), second = QDir(banks).filePath("Second.SF2"), ignored = QDir(banks).filePath("Ignore.txt");
+    write(first, {}); write(second, {}); write(ignored, {});
+    const auto bankStatus = inspectPlayerResources()[6];
+    require(bankStatus.directory && bankStatus.found && bankStatus.status == "2 found" && bankStatus.detail.contains("validated during playback"),
+        "SoundFont presence no longer counts filenames independently of content validation.");
+    for (const auto &path : {control, kernal, first, second, ignored}) require(QFile::remove(path), "Resource-check cleanup failed.");
+    log << "Resource catalog: order/kinds, read-only presence, fixed/MT-32 size bounds and SoundFont count versus validation PASS\n"; log.flush();
 }
 }
 void checkPlaybackBoundaries(QApplication &,const QDir &dir,QTextStream &log) {
@@ -73,6 +112,7 @@ void checkPlayerSettings(QApplication &app,const QDir &dir,QTextStream &log) {
     struct Restore {QApplication &app;QVariant settings,roms,banks;~Restore(){app.setProperty("settingsFileForTests",settings);app.setProperty("romsDirectoryForTests",roms);app.setProperty("soundFontsDirectoryForTests",banks);}} restore{app,previousSettings,previousRoms,previousBanks};
     app.setProperty("settingsFileForTests",scratch.filePath("settings.ini"));app.setProperty("romsDirectoryForTests",scratch.filePath("roms"));app.setProperty("soundFontsDirectoryForTests",scratch.filePath("soundfonts"));
     require(unknownTrackLimitPreference()==0,"Unknown duration default is not unlimited.");
+    checkResourceInspection(QDir(scratch.path()),log);
     {
         PlayerWindow window;window.player().setVolume(0);window.show();auto &player=window.player();
         auto gear=window.findChild<QPushButton *>("playerSettingsButton");require(gear,"Settings gear missing.");gear->click();

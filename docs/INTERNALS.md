@@ -45,6 +45,13 @@ and resource directory, retaining Auto's valid MT-32 snapshot/error fallback.
 Folder requests use a fresh player snapshot in the window. Settings refreshes
 the same bank list; actual resource validation/snapshots remain in the backends.
 
+`resourcestatus.*` builds the Settings resource catalog without widgets or
+playback changes. It checks ROM presence/readability/size and counts SoundFont
+filenames, retaining the existing ordering, size bounds and status text.
+Directory rows are explicit data rather than inferred from their display label.
+These checks never create folders or validate resource contents; backends still
+validate ROM identities/models and banks only when opening relevant music.
+
 `ScopeWindow` coordinates transport snapshots, capture requests, layout gestures
 and CPU/GPU presentation. It does not own playback or decode music in painting.
 

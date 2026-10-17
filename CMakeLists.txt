@@ -90,6 +90,7 @@ add_library(bitmusic_core OBJECT
   native/playlist.cpp
   native/playlistview.cpp
   native/playerplaylist.cpp
+  native/resourcestatus.cpp
   native/playersettings.cpp
 )
 target_link_libraries(bitmusic_core PUBLIC Qt6::Widgets Qt6::Multimedia Qt6::QuickWidgets
