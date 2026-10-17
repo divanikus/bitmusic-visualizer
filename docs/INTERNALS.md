@@ -1,5 +1,13 @@
 # Native code responsibilities
 
+`yamahastream.*` owns Yamaha command events, timed sample blocks and loop/duration
+facts parsed from a validated VGM. Sample-block reads and chip lookup share the
+existing bounds/errors, bank/instance rules and event limits. Declared duration
+remains distinct from the actual stream end: zero preserves unknown metadata.
+YamahaTrack keeps chip construction, resampling, captures and the playback cursor;
+rewind recreates cores/history and replays the same parsed stream. ROM snapshot
+resolution stays before parsing, and metadata/core initialization stays after it.
+
 `vgm.cpp` inspects header bounds, chip clocks, chip combinations and Yamaha extra
 tables in named phases, in their existing order. One private little-endian word
 reader serves these phases. Version/field bounds, unsupported-list order and

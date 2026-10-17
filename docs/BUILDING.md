@@ -190,6 +190,13 @@ compares every FM mute combination. Theme/preset checks cover expanded source
 counts and older 32-palette files. Synthetic maximum-size decoding is a stress
 check, not a guarantee of real-time performance for every combination.
 Optional additional Yamaha VGM/VGZ paths are read only.
+
+`--self-test test-output --yamaha-loading-only` checks exact constructor/error
+precedence, waits/loop overrides, sample-bank bounds, the block/event limit
+boundaries, GD3/Unicode fallbacks, selected-only metadata and stable identity.
+It also checks shared GD3 behavior through POKEY and runs in Yamaha/full suites.
+Authored bytes and an empty private rhythm snapshot keep this suite independent
+of music files, user resources and audio devices.
 The decoder portion also runs in `--tap-checks`. ymfm is a pinned static C++
 dependency; no new SDK or runtime DLL is required. Tests need no proprietary
 ROMs. Real YM2608 rhythm playback uses the user's optional ROM (see

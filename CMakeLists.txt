@@ -82,6 +82,7 @@ add_library(bitmusic_core OBJECT
   native/pokeytrack.cpp
   native/vgm.cpp
   native/yamahatrack.cpp
+  native/yamahastream.cpp
   native/ttttrack.cpp
   native/trackertrack.cpp
   native/xmp-taps/capture.cpp
@@ -130,6 +131,7 @@ if(BITMUSIC_BUILD_TESTS)
     native/sidchecks.cpp
     native/pokeychecks.cpp
     native/yamahachecks.cpp
+    native/yamahaloadchecks.cpp
     native/yamahasamplechecks.cpp
     native/yamahavoicechecks.cpp
     native/yamahaallvoicechecks.cpp

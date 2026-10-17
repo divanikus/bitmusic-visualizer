@@ -18,6 +18,7 @@
 void checkYamahaSamples(QApplication &app,const QString &directory,QTextStream &log,bool decoderOnly);
 void checkAllYamahaVoices(QApplication &app,const QString &directory,QTextStream &log,bool decoderOnly);
 void checkYamahaVoices(QApplication &app,const QString &directory,QTextStream &log,bool decoderOnly);
+void checkYamahaLoading(QApplication &app,const QString &directory,QTextStream &log);
 
 namespace {
 void require(bool ok,const char *message) { if(!ok)throw std::runtime_error(message); }
@@ -81,6 +82,7 @@ void reject(const QString &path,const QByteArray &data,const char *text) {
 }
 }
 void checkYamaha(QApplication &app,const QString &directory,QTextStream &log,bool decoderOnly) {
+    checkYamahaLoading(app,directory,log);
     checkAllYamahaVoices(app,directory,log,decoderOnly);
     QTemporaryDir temp(QDir(directory).filePath("yamaha-XXXXXX"));require(temp.isValid(),"No Yamaha fixture directory.");
     const auto path=temp.filePath("test.vgm");

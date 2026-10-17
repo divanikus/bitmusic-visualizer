@@ -1,5 +1,6 @@
 #include "yamahatrack.h"
 #include "vgm.h"
+#include "yamahastream.h"
 #include "romfiles.h"
 #include "ymfm-voices/ym2203.h"
 #include "ymfm-voices/voices.h"
@@ -21,13 +22,6 @@ void require(bool ok, const char *message) { if (!ok) throw std::runtime_error(m
 using Stereo = std::array<double, 2>;
 constexpr int Taps = 64, Phases = 128;
 constexpr double Pi = 3.14159265358979323846;
-constexpr quint32 MaxSampleMemory = 1u << 24; // ADPCM address bus, per bank.
-
-struct SampleBlock {
-    int bank; // 0 = ADPCM-A, 1 = ADPCM-B.
-    quint32 total, offset;
-    QByteArray bytes;
-};
 struct ChipFrame {
     Stereo mix{};
     std::array<Stereo,18> channels{};
@@ -38,7 +32,7 @@ public:
     virtual ~Chip() = default;
     virtual void write(int reg, int value) = 0;
     virtual ChipFrame sample(qint64 frame, uint32_t enabled) = 0;
-    virtual void load(const SampleBlock &block) = 0;
+    virtual void load(const YamahaSampleBlock &block) = 0;
 };
 
 template<class Core> class YamahaChip final : public Chip, public ymfm::ymfm_interface {
@@ -68,7 +62,7 @@ public:
         core_.write(2*(reg>>8), reg & 255);
         core_.write(2*(reg>>8)+1, value);
     }
-    void load(const SampleBlock &block) override {
+    void load(const YamahaSampleBlock &block) override {
         auto &memory = memory_[block.bank];
         memory.resize(block.total, 0xff);
         std::copy(block.bytes.begin(), block.bytes.end(), memory.begin()+block.offset);
@@ -160,7 +154,7 @@ private:
     }
     void ymfm_external_write(ymfm::access_class type, uint32_t offset, uint8_t value) override {
         if (type != ymfm::ACCESS_ADPCM_B) return; // Chip I/O pins have no host connection.
-        require(offset < MaxSampleMemory, "Yamaha sample-memory address is out of range.");
+        require(offset < YamahaSampleMemoryLimit, "Yamaha sample-memory address is out of range.");
         auto &memory = memory_[1];
         if (memory.size() <= offset) memory.resize(offset+1, 0xff);
         memory[offset] = value;
@@ -202,16 +196,14 @@ std::unique_ptr<Chip> makeChip(const VgmYamahaChip &spec, const std::shared_ptr<
 }
 
 struct YamahaTrack::Impl {
-    struct Event { qint64 tick; int chip, reg, value; };
     QVector<VgmYamahaChip> specs;
-    QVector<Event> events;
-    QVector<SampleBlock> blocks;
+    YamahaStream stream;
     std::shared_ptr<const YamahaRoms> roms;
     std::vector<std::unique_ptr<Chip>> chips;
     QVector<int> offsets;
     std::vector<std::array<std::array<float, ScopeFrames>,2>> history;
-    qsizetype next = 0, loopEvent = 0;
-    qint64 ticks = 0, loopTick = 0, loopDuration = 0, iteration = 0;
+    qsizetype next = 0;
+    qint64 iteration = 0;
     bool capture = false;
     double gain = 1;
     void reset() {
@@ -226,15 +218,15 @@ struct YamahaTrack::Impl {
     }
     bool writes(qint64 frame) {
         while (true) {
-            if (next == events.size()) {
-                if (frame < iteration+ticks) return true;
-                if (!loopDuration) return false;
-                iteration += loopDuration; next = loopEvent;
+            if (next == stream.events.size()) {
+                if (frame < iteration+stream.ticks) return true;
+                if (!stream.loopDuration) return false;
+                iteration += stream.loopDuration; next = stream.loopEvent;
             }
-            if (next == events.size()) return true; // Loop containing only waits.
-            const auto &e = events[next];
+            if (next == stream.events.size()) return true; // Loop containing only waits.
+            const auto &e = stream.events[next];
             if (e.tick+iteration > frame) return true;
-            if (e.reg < 0) chips[e.chip]->load(blocks[e.value]);
+            if (e.reg < 0) chips[e.chip]->load(stream.blocks[e.value]);
             else chips[e.chip]->write(e.reg, e.value);
             ++next;
         }
@@ -252,67 +244,8 @@ YamahaTrack::YamahaTrack(const QString &path, QByteArray data, int song, bool pl
     require(!d.specs.isEmpty(), "No supported Yamaha chip in VGM.");
     if (std::any_of(d.specs.begin(),d.specs.end(),[](const auto &s){return s.id == 7;}))
         info_.yamahaRoms = d.roms = roms ? std::move(roms) : loadYamahaRoms();
-    auto chipIndex = [&](int id, int instance) {
-        const auto it = std::find_if(d.specs.begin(),d.specs.end(),[&](const auto &s){return s.id == id && s.instance == instance;});
-        require(it != d.specs.end(), "VGM command targets an undeclared Yamaha chip.");
-        return int(it-d.specs.begin());
-    };
-    const quint64 loop = word(0x1c) ? 0x1cULL+word(0x1c) : 0;
-    bool loopFound = false, endFound = false;
-    int wait62 = 735, wait63 = 882;
-    std::array<int,2> loopWait{};
-    std::array<bool,2> loopOverride{}, loopUsesEntryWait{};
-    for (qsizetype pos = h.dataOffset; pos < data.size();) {
-        if (quint64(pos) == loop) {
-            d.loopTick = d.ticks; d.loopEvent = d.events.size(); loopFound = true;
-            loopWait = {wait62,wait63};
-        }
-        const int op = quint8(data[pos++]);
-        auto need = [&](int n) { require(data.size()-pos >= n, "Truncated Yamaha VGM command."); };
-        if (op == 0x66) { endFound = true; break; }
-        if (op == 0x61) { need(2); d.ticks += qFromLittleEndian<quint16>(data.constData()+pos); pos += 2; }
-        else if (op == 0x62 || op == 0x63) {
-            d.ticks += op == 0x62 ? wait62 : wait63;
-            if (loopFound && !loopOverride[op-0x62]) loopUsesEntryWait[op-0x62] = true;
-        }
-        else if (op >= 0x70 && op <= 0x7f) d.ticks += (op&15)+1;
-        else if (op == 0x64) {
-            need(3); const auto target = quint8(data[pos++]);
-            const int length = qFromLittleEndian<quint16>(data.constData()+pos); pos += 2;
-            require(target == 0x62 || target == 0x63, "Invalid VGM wait override.");
-            (target == 0x62 ? wait62 : wait63) = length;
-            if (loopFound) loopOverride[target-0x62] = true;
-        } else if (op == 0x67) {
-            need(6); require(quint8(data[pos++]) == 0x66, "Invalid VGM data-block marker.");
-            const auto type = quint8(data[pos++]);
-            const auto rawSize = word(pos); pos += 4;
-            const auto size = rawSize & 0x7fffffffu;
-            require(size >= 8 && quint64(size) <= quint64(data.size()-pos), "Truncated VGM sample block.");
-            const int id = type == 0x81 ? 7 : type == 0x82 || type == 0x83 ? 8 : type == 0x88 ? 11 : -1;
-            require(id >= 0, "Unsupported Yamaha VGM data-block type.");
-            const int chip = chipIndex(id,int(rawSize>>31));
-            const auto total = word(pos), offset = word(pos+4);
-            require(total && total <= MaxSampleMemory && offset <= total && size-8 <= total-offset,
-                    "Invalid Yamaha VGM sample-memory range (maximum 16 MiB per bank).");
-            require(d.blocks.size() < 65536 && d.events.size() < 2000000, "Yamaha VGM has too many sample blocks.");
-            d.events.push_back({d.ticks,chip,-1,int(d.blocks.size())});
-            d.blocks.push_back({type == 0x82 ? 0 : 1,total,offset,data.mid(pos+8,size-8)});
-            pos += size;
-        } else {
-            const auto command = yamahaRegisterCommand(op);
-            if (command.chipId < 0) throw std::runtime_error(QString("Unsupported command 0x%1 in Yamaha VGM.").arg(op,2,16,QLatin1Char('0')).toStdString());
-            need(2); const int reg = quint8(data[pos++]) + command.registerBase, value = quint8(data[pos++]);
-            require(d.events.size() < 2000000, "Yamaha VGM has too many register writes.");
-            d.events.push_back({d.ticks,chipIndex(command.chipId,command.instance),reg,value});
-        }
-    }
-    require(endFound, "Yamaha VGM has no end command.");
-    require(!loop || (loopFound && d.ticks > d.loopTick), "Invalid or zero-duration VGM loop.");
-    require(!(loopUsesEntryWait[0] && loopWait[0] != wait62) && !(loopUsesEntryWait[1] && loopWait[1] != wait63),
-            "Unsupported VGM loop with changing wait lengths.");
-    if (loop) d.loopDuration = d.ticks-d.loopTick;
-    const auto total = word(0x18);
-    require(!total || total == d.ticks, "VGM duration disagrees with its command stream.");
+    d.stream = readYamahaStream(data, h);
+    const auto total = d.stream.declaredTicks;
     info_.path = path; info_.songs = 1; info_.song = 0;
     info_.title = QFileInfo(path).completeBaseName(); info_.system = "Yamaha VGM";
     const quint64 gd3 = word(0x14) ? 0x14ULL+word(0x14) : 0;
@@ -327,7 +260,7 @@ YamahaTrack::YamahaTrack(const QString &path, QByteArray data, int song, bool pl
         }
     }
     if (total) info_.durationMs = int(quint64(total)*1000/SampleRate);
-    info_.loopStartMs = int(std::min<qint64>(d.loopTick*1000/SampleRate,std::numeric_limits<int>::max()));
+    info_.loopStartMs = int(std::min<qint64>(d.stream.loopTick*1000/SampleRate,std::numeric_limits<int>::max()));
     double weight = 0;
     for (const auto &s : d.specs) {
         const bool dual = std::count_if(d.specs.begin(),d.specs.end(),[&](const auto &v){return v.id==s.id;}) > 1;
@@ -344,7 +277,7 @@ YamahaTrack::YamahaTrack(const QString &path, QByteArray data, int song, bool pl
 }
 YamahaTrack::~YamahaTrack() = default;
 TrackBoundary YamahaTrack::boundary() const {
-    return {impl_->ticks,impl_->loopDuration?impl_->loopTick:-1};
+    return {impl_->stream.ticks,impl_->stream.loopDuration?impl_->stream.loopTick:-1};
 }
 bool YamahaTrack::hasTaps() const { return impl_->capture; }
 void YamahaTrack::render(short *out, int frames) {

@@ -42,6 +42,7 @@ void checkSid(QApplication &app, const QString &directory, QTextStream &log, boo
 void checkSidFiles(QApplication &app, const QStringList &paths, QTextStream &log);
 void checkPokey(QApplication &app, const QString &directory, QTextStream &log, bool decoderOnly);
 void checkYamaha(QApplication &app, const QString &directory, QTextStream &log, bool decoderOnly);
+void checkYamahaLoading(QApplication &app, const QString &directory, QTextStream &log);
 void checkYamahaFiles(QApplication &app, const QStringList &paths, QTextStream &log, bool decoderOnly);
 void checkPokeyFiles(QApplication &app, const QStringList &paths, QTextStream &log, bool decoderOnly);
 void checkWaves(QApplication &app, const QString &directory, QTextStream &log, const QStringList &musicPaths = {});
@@ -733,6 +734,7 @@ int runChecks(QApplication &app, const QStringList &arguments) {
         if (arguments.contains("--loading-only")) { checkMusicLoading(app, directory, log); return 0; }
         if (arguments.contains("--configuration-only")) { checkSoundConfigurations(app, directory, log); return 0; }
         if (arguments.contains("--vgm-only")) { checkVgm(app, directory, log); return 0; }
+        if (arguments.contains("--yamaha-loading-only")) { checkYamahaLoading(app, directory, log); return 0; }
         if (arguments.contains("--scope-worker-only")) { checkScopeWorker(app, directory, log); return 0; }
         if (arguments.contains("--engine-only")) { checkEngineCommands(app, directory, log); return 0; }
         if (arguments.contains("--presets-only")) { checkPresets(app, directory, log); return 0; }
