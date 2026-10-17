@@ -114,7 +114,7 @@ PokeyTrack::PokeyTrack(const QString &path, QByteArray data, int song, bool play
     if (total) info_.durationMs = int(quint64(total)*1000/SampleRate);
     info_.loopStartMs = int(std::min<qint64>(d.loopTick*1000/SampleRate, std::numeric_limits<int>::max()));
     info_.voices = {"POKEY 1", "POKEY 2", "POKEY 3", "POKEY 4"};
-    info_.configuration = soundConfiguration(data, info_.voices);
+    info_.configuration = vgmSoundConfiguration(data, info_.voices, h);
     if (playlist) info_.playlist.push_back({info_.title, info_.durationMs, info_.loopStartMs});
     d.reset();
 }

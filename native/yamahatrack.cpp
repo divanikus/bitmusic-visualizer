@@ -340,7 +340,7 @@ YamahaTrack::YamahaTrack(const QString &path, QByteArray data, int song, bool pl
         weight += std::max(s.gain,s.ssgGain);
     }
     d.gain = .5/std::max(1.0,weight); // Fixed headroom; never changes when muting a chip.
-    info_.configuration = soundConfiguration(data,info_.voices);
+    info_.configuration = vgmSoundConfiguration(data, info_.voices, h);
     require(info_.voices.size() <= VoiceMask::Capacity, "Too many Yamaha voices.");
     if (playlist) info_.playlist.push_back({info_.title,info_.durationMs,info_.loopStartMs});
     d.reset();

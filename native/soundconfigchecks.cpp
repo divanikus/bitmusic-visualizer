@@ -1,4 +1,5 @@
 #include "soundconfig.h"
+#include "vgm.h"
 #include <QApplication>
 #include <QTextStream>
 #include <QtEndian>
@@ -29,12 +30,15 @@ QByteArray vgmWith(std::initializer_list<std::pair<int, quint32>> clocks, quint3
 }
 void expect(const char *label, const QByteArray &data, const QStringList &voiceNames,
             const char *family, const char *name, const char *sources, const char *id) {
-    const auto actual = soundConfiguration(data, voiceNames);
     QStringList expectedSources;
     if (sources) expectedSources = QString::fromUtf8(sources).split('|', Qt::SkipEmptyParts);
     else for (int i = 0; i < voiceNames.size(); ++i) expectedSources << QString(id) + ':' + QString::number(i);
-    if (actual.id != id || actual.family != family || actual.name != name || actual.sources != expectedSources)
-        throw std::runtime_error((QString("Sound configuration changed: %1 (ID %2)").arg(label, actual.id)).toStdString());
+    auto verify = [&](const SoundConfiguration &actual) {
+        if (actual.id != id || actual.family != family || actual.name != name || actual.sources != expectedSources)
+            throw std::runtime_error((QString("Sound configuration changed: %1 (ID %2)").arg(label, actual.id)).toStdString());
+    };
+    verify(soundConfiguration(data, voiceNames));
+    if (data.startsWith("Vgm ")) verify(vgmSoundConfiguration(data, voiceNames, inspectVgm(data)));
 }
 }
 
@@ -199,6 +203,9 @@ void checkSoundConfigurations(QApplication &, const QString &, QTextStream &log)
     const auto changed = soundConfiguration(extra, voices(12));
     require(changed.id == original.id && changed.sources == original.sources && changed.name == original.name,
             "VGM extra clocks/gains affect preset identity.");
+    const auto reused = vgmSoundConfiguration(extra, voices(12), inspectVgm(extra));
+    require(reused.id == original.id && reused.sources == original.sources && reused.name == original.name,
+            "Reusing the VGM header affects preset identity.");
     const auto unknown = soundConfiguration(QByteArray("unrecognized"), voices(4));
     require(unknown.id.isEmpty() && unknown.family.isEmpty() && unknown.name.isEmpty() && unknown.sources.isEmpty(),
             "Unknown format acquired a sound configuration.");

@@ -102,7 +102,7 @@ GmeTrack::GmeTrack(const QString &path, int song, bool readPlaylist, bool captur
         }
         for (int i = 0; i < count; ++i) info_.voices << QString::fromUtf8(gme_voice_name(emu_, i));
         if (data.startsWith("ZXAYEMUL") && count == 4) info_.voices = {"AY A", "AY B", "AY C", "Beeper"};
-        info_.configuration = soundConfiguration(data, info_.voices);
+        info_.configuration = vgm ? vgmSoundConfiguration(data, info_.voices, header) : soundConfiguration(data, info_.voices);
         // Patched libgme exposes 8 voices for YM2612 and 10 for mono YM2413 + PSG.
         // NSF/NSFE stay mono; stereo-capable chips retain stereo during centered passages.
         info_.stereoOutput = data.startsWith("SNES-SPC700") || data.startsWith("GBS") ||

@@ -1,13 +1,18 @@
 # Native code responsibilities
 
-`soundconfig.cpp` derives preset identities and ordered hardware roles. Each
-VGM identification parses the header once, retaining Yamaha-before-POKEY-before-
-Sega precedence. Yamaha roles/identity use inspected chips; Sega identity keeps
-the original raw clock/version fields, including legacy/variant fallbacks.
-This identification does not add playback-support validation. Fixed ID/name/role
-checks cover recognized and opaque layouts; their hash inputs are compatibility
-data, independent of titles, filenames, container compression and display labels
-for verified roles. Unknown layouts retain voice-label-based opaque roles.
+`soundconfig.cpp` derives preset identities and ordered hardware roles. Concrete
+NES, Sega and Yamaha builders keep format rules separate from the shared source
+numbering and identity/opaque-layout finalization. `soundConfiguration` parses
+VGM once when needed; GME/POKEY/Yamaha decoders use `vgmSoundConfiguration` with
+their already inspected header from the same immutable bytes. Header reuse is
+local to construction; factory/backend support checks keep their boundaries.
+VGM selection still prefers Yamaha, then POKEY, then Sega. Yamaha identity uses
+inspected chips; Sega keeps original raw clock/version fields, including legacy/
+variant fallbacks. Identification does not add playback-support validation.
+Fixed ID/name/role checks cover standalone and reused-header paths. Exact UTF-8
+hash fields/separators/order and source roles are persisted compatibility data;
+titles, paths, compression and display labels for verified roles do not affect
+them. Unknown layouts retain voice-label-based opaque roles.
 
 `musicfile.cpp` owns bounded content-based file loading/gzip decoding and the
 concrete decoder factory. One GME signature predicate serves file admission and

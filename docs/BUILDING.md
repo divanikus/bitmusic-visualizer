@@ -150,7 +150,8 @@ It also runs in the complete native suite.
 IDs, names and ordered source roles captured before refactoring. Cases include
 NES expansions/NSFE, opaque UTF-8 layouts, legacy/variant Sega VGM, POKEY and all
 supported Yamaha types, dual/mixed/variant chips, extra clocks/gains and exact
-malformed-header errors. These pure checks also run in preset/full suites;
+malformed-header errors. Standalone and reused-header VGM paths must match the
+same expectations. These pure checks also run in preset/full suites;
 they do not open audio or use user presets/settings.
 
 `--self-test test-output --layout-only` checks card spans and editor tab navigation,
