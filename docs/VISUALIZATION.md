@@ -252,16 +252,9 @@ columns. Numbers are hexadecimal; notes/effects use libxmp's normalized format,
 so their octave labels or command codes can differ from the original tracker.
 This is a read-only display, not a pattern editor or a reconstruction from audio.
 
-On **Full mix**, Pattern shows the current instrument/sample names below its
-position and tempo, in channel order with duplicate names shown once. Names
-follow the audible playhead, including held samples, and wrap without ellipsis.
-They describe tracker activity even for muted channels, like the pattern rows.
-The name area reserves two lines to keep normal changes from moving the rows;
-longer text uses more space. Enlarge the card if the text and rows cannot fit.
-
-Pattern fits as many channel columns as the card allows. Enlarge it or change
-**First channel** to inspect later columns; the names still cover all channels.
-A voice card shows only that channel. Pattern is omitted for modules over two million cells;
+On **Full mix**, Pattern fits as many channel columns as the card allows.
+Enlarge it or change **First channel** to inspect later columns. A voice card
+shows only that channel. Pattern is omitted for modules over two million cells;
 playback is still available. See [tracker details](TRACKERS.md).
 
 In these two views, **Full mix** combines musical events from all sources.

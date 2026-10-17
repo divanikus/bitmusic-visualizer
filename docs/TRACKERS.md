@@ -38,9 +38,6 @@ bounded decompressor. ProWizard packed-module conversion is disabled.
   longer; they are cancellable. No approximate order-only seek is used.
 - Keyboards use the existing experimental signal estimator. A sample may be a
   drum, speech or a chord, so a pattern note is not necessarily its audible pitch.
-- **Full mix / Pattern** also shows complete current instrument/sample names,
-  wrapped in channel order with repeated names shown once. It follows playback,
-  including held samples; it does not assemble the module's entire sample list.
 - **Pattern** displays actual note/instrument rows and optional volume/effects,
   centered on the audible playback row. Use Full mix for multiple columns,
   resize it and select First channel when needed. Commands use libxmp's

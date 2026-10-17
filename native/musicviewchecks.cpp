@@ -103,16 +103,7 @@ int runMusicViewChecks(QApplication &app,const QStringList &args) {
         const auto gpu=dynamic_cast<ScopeGpu*>(scope.findChild<QQuickWidget*>("scopeGpu"));
         if(qEnvironmentVariableIsEmpty("BITMUSIC_SOFTWARE_SCOPES")) require(gpu&&gpu->isVisible(),"GPU music view unexpectedly fell back to CPU.");
         log<<"Music view renderer: "<<(gpu&&gpu->isVisible()?gpu->backend():QString("CPU"))<<'\n';
-        const auto originalNames=state.instruments;
-        state.instruments={"This is a sample-name message", "continued by another instrument", "This is a sample-name message", "and ending on the fourth channel"};
-        scope.present(state,{});auto named=capture(app,scope);
-        require(named!=first,"Pattern sample names did not update within the same row.");
-        named.save(dir.filePath("music-pattern-sample-names.png"));
-        scope.resize(520,480);capture(app,scope).save(dir.filePath("music-pattern-sample-names-wrapped.png"));scope.resize(1020,650);
-        state.instruments.clear();scope.present(state,{});
-        require(capture(app,scope)!=named,"Pattern retained sample names after silence.");
-        state.instruments=originalNames;state.pattern.row=16;scope.present(state,{});
-        require(first!=capture(app,scope),"Paused pattern cursor did not update.");
+        state.pattern.row=16;scope.present(state,{});require(first!=capture(app,scope),"Paused pattern cursor did not update.");
         scope.findChild<QPushButton*>("editLayout")->click();scope.findChild<QCheckBox*>("patternCommands")->setChecked(true);
         scope.findChild<QPushButton*>("applyLayout")->click();capture(app,scope).save(dir.filePath("music-pattern-commands.png"));
         preset.cards[0].firstChannel=1; QDir().mkpath(settings.filePath("presets"));

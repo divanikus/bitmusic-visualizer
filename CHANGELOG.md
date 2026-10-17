@@ -10,7 +10,6 @@ not published GitHub releases. Unreleased lists changes made after the latest ta
 
 ### Added
 
-- Full mix / Pattern shows complete names of the current tracker instruments and samples.
 - Settings window with Playback, Rendering and Resources tabs, opened with the gear.
   Set an optional limit for tracks with no known end and check ROM/SoundFont locations.
 - Playlist advancement at confirmed decoder end/loop boundaries, including VGM
