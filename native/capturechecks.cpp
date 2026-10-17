@@ -12,6 +12,26 @@
 
 namespace {
 void require(bool ok, const char *message) { if (!ok) throw std::runtime_error(message); }
+void checkChannelFiltering() {
+    ScopeFrame frame;
+    frame.generation = 9; frame.positionMs = 250;
+    frame.mask = VoiceMask::bit(0) | VoiceMask::bit(65) | VoiceMask::bit(255);
+    frame.channels.fill(QVector<float>{42}, VoiceMask::Capacity);
+    frame.left.fill(QVector<float>{11}, 2);
+    frame.right.fill(QVector<float>{22}, VoiceMask::Capacity + 1);
+    frame.noteHz.fill(QVector<float>{440}, VoiceMask::Capacity);
+    frame.instruments = {"Kept label"};
+    frame.retainChannels(VoiceMask::bit(65) | VoiceMask::bit(255) | VoiceMask::bit(1));
+    require(frame.mask == (VoiceMask::bit(65) | VoiceMask::bit(255)) && frame.channels[65] == QVector<float>{42} &&
+            frame.channels[255] == QVector<float>{42} && frame.channels[0].isEmpty() && frame.channels[1].isEmpty() &&
+            frame.left[0].isEmpty() && frame.left[1].isEmpty() && frame.right[65] == QVector<float>{22},
+            "Channel filtering changed readiness, wide masks or asymmetric PCM rows.");
+    frame.retainChannels(0);
+    require(!frame.mask && frame.channels[65].isEmpty() && frame.channels[255].isEmpty() &&
+            frame.channels.size() == VoiceMask::Capacity && frame.right.back() == QVector<float>{22} &&
+            frame.generation == 9 && frame.positionMs == 250 && frame.noteHz[65] == QVector<float>{440} &&
+            frame.instruments == QStringList{"Kept label"}, "Channel filtering changed metadata or rows beyond channel bounds.");
+}
 void pump(QApplication &app, int ms) {
     QEventLoop loop(&app);
     QTimer::singleShot(ms, &loop, &QEventLoop::quit);
@@ -143,6 +163,7 @@ void checkEarlyUnload(QApplication &app, const QString &directory, QTextStream &
 }
 
 void checkCaptureControls(QApplication &app, const QString &directory, QTextStream &log) {
+    checkChannelFiltering();
     const auto path = QDir(directory).filePath("demo.nsf");
     checkControlChanges(app, path);
     checkOutputControls(app, path);

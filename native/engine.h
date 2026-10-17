@@ -144,6 +144,7 @@ struct PlayerState {
     QStringList instruments;
 };
 struct ScopeFrame {
+    void retainChannels(VoiceMask visible);
     quint64 generation = 0;
     int positionMs = 0;
     QVector<QVector<float>> channels;

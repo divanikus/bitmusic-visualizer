@@ -22,6 +22,16 @@ Freezing delivered output applies only to pause/seek commands within the existin
 30 ms tolerance. Load and unload never retain that frozen output; otherwise an
 early unload could leave Full mix history attached to an empty player.
 
+`enginecapture.cpp` groups the public chip/output capture controls and snapshot
+readers. Visibility changes clear the whole channel snapshot; mask edits call
+`ScopeFrame::retainChannels` to intersect readiness and clear hidden mono/L/R
+rows together. Retention preserves metadata, row counts and the original channel
+iteration bounds even with shorter/longer physical-side arrays. Equal controls
+return before revision/reset/wake work. Keep the request mutex and snapshot mutex
+as separate phases, with the revision update before snapshot invalidation and
+notification after it. FPS only reschedules waiting; chip/output capture remain
+independent at this API boundary.
+
 The private `ScopeWorker` in `enginescopes.cpp` owns the shared capture decoder,
 fallback per-voice decoders/history, resource identity and preparation pool.
 It is created and destroyed within the existing normal-priority scope QThread.

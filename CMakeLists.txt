@@ -50,6 +50,7 @@ add_library(bitmusic_core OBJECT
   native/engine.cpp
   native/engineplayback.cpp
   native/enginescopes.cpp
+  native/enginecapture.cpp
   native/timeline.cpp
   native/midicontrols.cpp
   native/playerchannels.cpp
