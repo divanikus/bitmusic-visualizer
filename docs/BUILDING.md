@@ -148,6 +148,8 @@ views/Levels, source mute/Solo,
 hidden-card restoration, Card settings, focus guards and reset/file lifecycle.
 Movement checks include four directions, held keys, grid edges, hidden/overflow
 list entries, stable selection and preserved source audio/transport.
+Grid shortcut checks cover F9/F10 and Shift + F9/F10 counters without selection,
+limits/repeat, overflow/refill, span clamping, fullscreen and input/dialog guards.
 Run with and without `--software-scopes` to exercise CPU and GPU selection chrome.
 Override events claim commands without executing them; modified V must not act as
 plain V. The dedicated `--gpu-checks` suite also retains accumulated trail history

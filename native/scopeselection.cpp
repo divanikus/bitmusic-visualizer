@@ -105,6 +105,10 @@ ScopeWindow::CardAction ScopeWindow::decodeCardShortcut(const QKeyEvent &event) 
     const int key = event.key();
     const bool arrow = key == Qt::Key_Left || key == Qt::Key_Right || key == Qt::Key_Up || key == Qt::Key_Down;
     const auto modifiers = event.modifiers() & ~Qt::KeypadModifier;
+    if (key == Qt::Key_F9 || key == Qt::Key_F10) {
+        if (modifiers == Qt::NoModifier) return CardAction::GridColumns;
+        if (modifiers == Qt::ShiftModifier) return CardAction::GridRows;
+    }
     if (arrow && modifiers == Qt::ShiftModifier) return CardAction::Resize;
     if (arrow && modifiers == Qt::AltModifier) return CardAction::Move;
     if (modifiers != Qt::NoModifier) return CardAction::None;
@@ -126,6 +130,7 @@ bool ScopeWindow::handleCardShortcut(QKeyEvent *event, QWidget *target) {
     if ((target != this && !inList(target)) || (focus && focus != this && !inList(focus))) return false;
     const auto action = decodeCardShortcut(*event);
     if (action == CardAction::None) return false;
+    const bool grid = action == CardAction::GridColumns || action == CardAction::GridRows;
     if ((action == CardAction::Resize || action == CardAction::Move) && !cardSelectionActive_) return false;
     if (action == CardAction::Navigate && inList(focus)) {
         // Native list navigation/scrolling, even at an edge where the row stays the same.
@@ -134,16 +139,25 @@ bool ScopeWindow::handleCardShortcut(QKeyEvent *event, QWidget *target) {
     }
     if (action == CardAction::ClearSelection && (!cardSelectionActive_ || presentationFullscreen())) return false;
     if (cardGestureActive()) return false;
-    const bool repeatable = action == CardAction::Navigate || action == CardAction::Resize || action == CardAction::Move;
+    const bool repeatable = grid || action == CardAction::Navigate || action == CardAction::Resize || action == CardAction::Move;
     if (!repeatable && !cardSelectionActive_) return false;
     event->accept();
     if (event->type() == QEvent::ShortcutOverride || (event->isAutoRepeat() && !repeatable)) return true;
     if (action == CardAction::ClearSelection) { clearCardSelection(); return true; }
+    if (grid) {
+        if (!state_.busy) executeCardAction(action, event->key());
+        return true;
+    }
     if (!state_.valid || state_.busy || newFile_) return true;
     executeCardAction(action, event->key());
     return true;
 }
 void ScopeWindow::executeCardAction(CardAction action, int key) {
+    if (action == CardAction::GridColumns || action == CardAction::GridRows) {
+        auto counter = action == CardAction::GridColumns ? columns_ : rows_;
+        counter->setValue(counter->value()+(key == Qt::Key_F10 ? 1 : -1));
+        return;
+    }
     if (action == CardAction::Navigate) { moveCardSelection(key); return; }
     const int id = selectedCardId();
     if (id < 0 || !cards_.order().contains(id)) return;

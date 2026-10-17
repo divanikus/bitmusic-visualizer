@@ -71,6 +71,14 @@ reset, preset application and a new file clear it. Card edits retain the normal
 preset behavior. Duplicate cards keep independent view/visibility/Levels/size
 settings, while mute/Solo still affects their shared source.
 
+**F9/F10** decrease/increase the grid's column count; **Shift + F9/F10**
+decrease/increase its row count. They work on the canvas or in the Cards list,
+without selecting a card, and simply change the corresponding counter by one.
+Holding repeats within the editor's existing limits. Reducing the grid keeps all
+cards in the list, clamps their spans to the new bounds and puts cards that cannot
+fit into overflow, just like changing Rows/Columns in the editor. Expanding the
+grid admits overflow cards again. The existing preset and Keep grid rules apply.
+
 Digits refer to audio channel numbers, not grid slots. If several cards share
 a channel, a digit cycles them together based on its original card's current
 view (or the first remaining card if the original was removed). Alt+digit hides

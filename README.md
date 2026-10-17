@@ -176,6 +176,9 @@ channel-number limit. **Alt + arrows** move the selected card toward a neighbor,
 reflowing the grid like mouse dragging. **Shift + arrows** resize it by one grid
 cell: Right/Down grow, Left/Up shrink. These edits affect only the selected card.
 
+On the visualizer canvas or in the Cards list, **F9/F10** decrease/increase columns;
+**Shift + F9/F10** decrease/increase rows. No card selection is required.
+
 | Key | Action |
 | --- | --- |
 | 1–9 | Cycle a channel's available views, including Piano roll / Pattern |

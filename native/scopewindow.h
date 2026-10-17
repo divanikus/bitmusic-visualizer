@@ -97,7 +97,7 @@ private:
     struct MusicImage { QByteArray key; QImage image; };
     QHash<int, MusicImage> musicImages_;
     int selectedCardId() const;
-    enum class CardAction { None, Navigate, Resize, Move, ClearSelection, CycleView, Mute, Solo, Visibility, Levels, Settings };
+    enum class CardAction { None, Navigate, Resize, Move, GridColumns, GridRows, ClearSelection, CycleView, Mute, Solo, Visibility, Levels, Settings };
     static CardAction decodeCardShortcut(const QKeyEvent &event);
     void executeCardAction(CardAction action, int key);
     void selectCard(int id);

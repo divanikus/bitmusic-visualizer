@@ -307,7 +307,9 @@ requested direction; hidden/overflow entries can move vertically in list order.
 gesture/fullscreen Escape priority, override claiming and repeat policy before
 dispatching. `decodeCardShortcut` maps keys/modifiers to private actions without
 reading UI state; `executeCardAction` applies admitted commands. Only navigation,
-moving and resizing repeat. `cardGestureActive` is shared with Escape cancellation.
+moving, resizing and grid counters repeat. `cardGestureActive` is shared with Escape cancellation.
+Grid shortcuts require no selection and set the existing row/column spin boxes;
+their signals retain layout, capture, span-clamping and preset behavior.
 Card settings entry points, inspector callbacks and hit regions use settings
 names; the shared appearance-dialog guard also covers the background picker.
 Existing widget object names and saved settings/preset fields are unchanged.

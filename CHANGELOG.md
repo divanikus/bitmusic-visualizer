@@ -14,6 +14,7 @@ not published GitHub releases. Unreleased lists changes made after the latest ta
   then change its view, mute/Solo, hide/show, toggle Levels, resize with
   Shift + arrows, move with Alt + arrows or open Card settings.
   The F1 guide lists the new keys; existing channel shortcuts still work.
+- F9/F10 adjust grid columns; Shift + F9/F10 adjust rows, without selecting a card.
 - Card settings from each card's pencil: view, its options and colors in one dialog.
 - Independent Levels for each card, saved in layout presets; the toolbar still
   switches all cards together and shows when their settings differ.

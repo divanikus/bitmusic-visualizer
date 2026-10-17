@@ -91,6 +91,14 @@ void showShortcutsHelp(QWidget *owner) {
       moving/resizing; the grid size stays fixed. Moving reorders and packs cards as
       with mouse dragging. For hidden/overflow cards, Alt + Up/Down moves one list
       position. Ctrl + Left/Right still toggle audio outputs. On macOS, Alt is Option.</p>
+      <h3>Grid</h3>
+      <table cellspacing="8">
+      <tr><td><b>F9 / F10</b></td><td>Decrease / increase columns</td></tr>
+      <tr><td><b>Shift + F9 / F10</b></td><td>Decrease / increase rows</td></tr>
+      </table>
+      <p>On the visualizer canvas or in the Cards list; no selection needed.
+      Each press changes the counter by one. Hold to repeat. Cards that no longer
+      fit remain in the list and return when space is available.</p>
       <h3>Channels</h3>
       <table cellspacing="8">
       <tr><td><b>1–9</b></td><td>Cycle available views: Waveform, Spectrum, Keyboard, Piano roll or Pattern</td></tr>

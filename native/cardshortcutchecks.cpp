@@ -44,6 +44,62 @@ void mouse(QWidget &scope, QEvent::Type type, QPointF point) {
         type == QEvent::MouseButtonRelease ? Qt::NoButton : Qt::LeftButton,Qt::NoModifier);
     QApplication::sendEvent(&scope,&event);
 }
+void checkGridShortcuts(QApplication &app, PlayerWindow &window, QTextStream &log) {
+    auto &scope=window.scopeWindow(); auto &player=window.player(); const auto state=player.state();
+    auto rows=scope.findChild<QSpinBox *>("gridRows"), columns=scope.findChild<QSpinBox *>("gridColumns");
+    auto list=scope.findChild<QListWidget *>("scopeChannelList");
+    auto edit=scope.findChild<QPushButton *>("editLayout");
+    scope.resetLayout(); rows->setValue(4); columns->setValue(4);
+    scope.activateWindow(); pump(app); scope.setFocus(); key(scope,Qt::Key_Escape);
+    QKeyEvent claim(QEvent::ShortcutOverride,Qt::Key_F9,Qt::NoModifier); claim.setAccepted(false);
+    QApplication::sendEvent(&scope,&claim);
+    require(claim.isAccepted() && columns->value()==4,"Grid override failed or changed the counter.");
+    key(scope,Qt::Key_F9); require(columns->value()==3 && rows->value()==4,"F9 did not reduce columns without selection.");
+    key(scope,Qt::Key_F10); key(scope,Qt::Key_F9,Qt::ShiftModifier);
+    require(columns->value()==4 && rows->value()==3,"Shift+F9 changed the wrong grid counter.");
+    key(scope,Qt::Key_F10,Qt::ShiftModifier); key(scope,Qt::Key_F10,{},true);
+    require(columns->value()==5 && rows->value()==4,"Grid increment/repeat failed.");
+    key(scope,Qt::Key_F9,Qt::ControlModifier); key(scope,Qt::Key_F10,Qt::AltModifier);
+    require(columns->value()==5 && rows->value()==4,"Unassigned modifiers changed the grid.");
+    columns->setValue(columns->maximum()); rows->setValue(rows->maximum());
+    key(scope,Qt::Key_F10,{},true); key(scope,Qt::Key_F10,Qt::ShiftModifier,true);
+    require(columns->value()==columns->maximum() && rows->value()==rows->maximum(),"Grid shortcuts exceeded maximum bounds.");
+    edit->setChecked(true); columns->setValue(2); rows->setValue(2);
+    list->setCurrentRow(0); scope.setFocus();
+    key(scope,Qt::Key_Right,Qt::ShiftModifier); key(scope,Qt::Key_Down,Qt::ShiftModifier);
+    const int count=list->count(); list->item(1)->setCheckState(Qt::Unchecked);
+    // A selected card's position/size must not determine which grid counter changes.
+    list->setCurrentRow(15); key(scope,Qt::Key_F9); key(scope,Qt::Key_F9,Qt::ShiftModifier);
+    key(scope,Qt::Key_F9,{},true); key(scope,Qt::Key_F9,Qt::ShiftModifier,true);
+    require(columns->value()==1 && rows->value()==1 && list->count()==count && list->currentRow()==15 &&
+        list->item(0)->toolTip().contains("Size: 1 x 1 cells") && scope.visibleChannels()==QVector<int>{0},
+        "Grid shrink lost cards/selection, ignored bounds or failed to clamp spans.");
+    columns->setValue(4); rows->setValue(3); key(scope,Qt::Key_F10,Qt::ShiftModifier);
+    require(scope.visibleChannels().contains(15) && list->item(1)->checkState()==Qt::Unchecked,
+        "Grid growth failed to refill overflow or changed manual visibility.");
+    list->setFocus(); key(*list,Qt::Key_Escape); key(*list,Qt::Key_F9);
+    require(columns->value()==3,"Grid counter required a selected card in the list.");
+    rows->findChild<QLineEdit *>()->setFocus(); key(scope,Qt::Key_F10); key(scope,Qt::Key_F10,Qt::ShiftModifier);
+    require(columns->value()==3 && rows->value()==4,"Grid shortcuts escaped a focused input.");
+    scope.setFocus(); key(window,Qt::Key_F10);
+    require(columns->value()==3,"Grid shortcut acted from the main player.");
+    QDialog dialog(&scope); dialog.setModal(true); dialog.show(); pump(app);
+    key(scope,Qt::Key_F10); key(scope,Qt::Key_F9,Qt::ShiftModifier);
+    require(columns->value()==3 && rows->value()==4,"Grid shortcut escaped a modal dialog.");
+    dialog.close(); pump(app); scope.activateWindow(); scope.setFocus();
+    scope.toggleFullscreen(); scope.setFocus(); key(scope,Qt::Key_F10); key(scope,Qt::Key_F9,Qt::ShiftModifier);
+    require(columns->value()==4 && rows->value()==3,"Fullscreen grid shortcuts failed.");
+    scope.toggleFullscreen(); edit->setChecked(true); scope.setFocus();
+    const auto point=scope.panelRect(0).topLeft()+QPointF(36,15);
+    mouse(scope,QEvent::MouseButtonPress,point); key(scope,Qt::Key_F9);
+    require(columns->value()==4,"Grid shortcut interfered with a mouse gesture.");
+    key(scope,Qt::Key_Escape);
+    require(player.state().generation==state.generation && player.state().muteMask==state.muteMask &&
+        player.state().outputMask==state.outputMask,"Grid shortcuts changed audio or transport.");
+    scope.resetLayout(); edit->setChecked(false);
+    log << "Grid shortcuts: counters without selection, overrides/repeat/bounds, span clamping, overflow/refill, list/field/modal/gesture guards and fullscreen PASS\n";
+    log.flush();
+}
 void checkCardMovement(QApplication &app, PlayerWindow &window, QTextStream &log) {
     auto &scope=window.scopeWindow(); auto &player=window.player();
     const auto state=player.state();
@@ -153,11 +209,15 @@ void checkSelectedCardShortcuts(QApplication &app, const QString &directory, QTe
     app.setProperty("soundFontsDirectoryForTests",temp.path()); app.setProperty("themesDirectoryForTests",temp.filePath("themes"));
     require(QFile::copy(QDir(directory).filePath("fixture-gm.sf2"),temp.filePath("Test.sf2")),"Cannot copy authored bank.");
     PlayerWindow window; auto &scope = window.scopeWindow(); auto &player = window.player();
-    player.setVolume(0); window.show(); window.loadFile(QDir(directory).filePath("demo.mid"));
+    player.setVolume(0); window.show(); scope.show(); scope.activateWindow(); pump(app); scope.setFocus();
+    auto emptyColumns=scope.findChild<QSpinBox *>("gridColumns"); emptyColumns->setValue(3);
+    key(scope,Qt::Key_F10); require(emptyColumns->value()==4,"Grid shortcut failed before loading music.");
+    window.loadFile(QDir(directory).filePath("demo.mid"));
     until(app,[&] { return player.state().valid && !player.state().busy; }); window.refresh();
     player.seek(200,false); until(app,[&] { return !player.state().busy; }); window.refresh();
     log << "Selected-card checks: 16-channel MIDI ready\n"; log.flush();
     checkCardMovement(app, window, log);
+    checkGridShortcuts(app, window, log);
     scope.show(); scope.resize(1250,850); scope.activateWindow(); scope.setFocus(); pump(app);
     auto edit = scope.findChild<QPushButton *>("editLayout");
     edit->setChecked(true);
