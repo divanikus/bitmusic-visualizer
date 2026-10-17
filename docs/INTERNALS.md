@@ -67,6 +67,13 @@ the primary error. Ordinary validation errors remain in status text. The window
 retains the existing warning generation gate, plain text, dialog name and lifetime;
 dismissing a warning never makes it eligible again until a different generation.
 
+C64 and YM2608 ROM snapshots share a private bounded fixed-size reader in
+`romfiles.cpp`. It retains missing/unreadable/exact-size diagnostics, reads only
+the expected size plus one byte, and records optional failures without throwing.
+Backends still decide when the tune actually needs those bytes. GM/MT-32 keep
+their distinct read-size, content and compatibility checks; there is no generic
+resource loader or eager validation path.
+
 `ScopeWindow` coordinates transport snapshots, capture requests, layout gestures
 and CPU/GPU presentation. It does not own playback or decode music in painting.
 

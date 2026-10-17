@@ -3,6 +3,7 @@
 #include "appsettings.h"
 #include "resourcestatus.h"
 #include "resourceerror.h"
+#include "romfiles.h"
 #include "miditrack.h"
 #include "mt32track.h"
 #include <QApplication>
@@ -131,6 +132,48 @@ void checkResourceInspection(const QDir &scratch, QTextStream &log) {
     for (const auto &path : {control, kernal, first, second, ignored}) require(QFile::remove(path), "Resource-check cleanup failed.");
     log << "Resource catalog: order/kinds, read-only presence, fixed/MT-32 size bounds and SoundFont count versus validation PASS\n"; log.flush();
 }
+void checkRomSnapshots(QTextStream &log) {
+    const auto absentSid=loadSidRoms(); const auto absentYamaha=loadYamahaRoms();
+    auto errorText=[](const auto &request) {
+        try { request(); } catch(const std::exception &e) { return QString::fromUtf8(e.what()); }
+        throw std::runtime_error("Missing ROM did not produce its required-resource error.");
+    };
+    const QStringList names{"kernal.rom","basic.rom","chargen.rom"};
+    const std::array<int,4> sizes{8192,8192,4096,8192};
+    QStringList paths;
+    for(int i=0;i<3;++i) {
+        const auto path=QDir(absentSid->directory).filePath(names[i]);paths<<path;
+        require(absentSid->bytes[i].isEmpty() && absentSid->problem[i]=="File is missing.","Missing C64 ROM snapshot changed.");
+        const QString expected=QString("C64 ROM required: %1\nFile is missing.\nPlace your %2-byte ROM at:\n%3\nThen reopen the music file.")
+            .arg(names[i]).arg(sizes[i]).arg(QDir::toNativeSeparators(path));
+        require(errorText([&]{missingSidRom(*absentSid,i);})==expected,"C64 required-resource message changed.");
+    }
+    paths<<absentYamaha->path;
+    require(absentYamaha->rhythm.isEmpty() && absentYamaha->problem=="File is missing.","Missing YM2608 ROM snapshot changed.");
+    const QString yamahaError="YM2608 ROM required: ym2608_adpcm_rom.bin\nFile is missing.\n"
+        "This track uses the chip's rhythm samples. Place your 8192-byte ROM at:\n"+
+        QDir::toNativeSeparators(absentYamaha->path)+"\nThen reopen the music file.";
+    require(errorText([&]{missingYamahaRom(*absentYamaha);})==yamahaError,"YM2608 required-resource message changed.");
+    QVector<QByteArray> contents;
+    for(int i=0;i<4;++i) {
+        require(QDir().mkpath(QFileInfo(paths[i]).absolutePath()),"ROM snapshot directory failed.");
+        for(int size:{0,sizes[i]-1,sizes[i],sizes[i]+1}) {
+            write(paths[i],QByteArray(size,char('A'+i)));
+            const auto sid=loadSidRoms(); const auto yamaha=loadYamahaRoms();
+            const auto bytes=i<3?sid->bytes[i]:yamaha->rhythm;
+            const auto problem=i<3?sid->problem[i]:yamaha->problem;
+            require(size==sizes[i] ? (bytes.size()==size && problem.isEmpty()) :
+                (bytes.isEmpty() && problem==QString("Expected exactly %1 bytes.").arg(sizes[i])),
+                "Fixed ROM read changed size acceptance, bytes or diagnostic text.");
+        }
+        contents<<QByteArray(sizes[i],char('A'+i));write(paths[i],contents.last());
+    }
+    const auto sid=loadSidRoms(); const auto yamaha=loadYamahaRoms();
+    for(const auto &path:paths)require(QFile::remove(path),"ROM snapshot cleanup failed.");
+    for(int i=0;i<3;++i)require(sid->bytes[i]==contents[i] && loadSidRoms()->bytes[i].isEmpty(),"C64 snapshot changed after file removal or reopen reused old bytes.");
+    require(yamaha->rhythm==contents[3] && loadYamahaRoms()->rhythm.isEmpty(),"YM2608 snapshot changed after file removal or reopen reused old bytes.");
+    log<<"ROM reads: exact C64/YM2608 errors, short/exact/oversize files, optional failures and immutable snapshots after removal PASS\n";log.flush();
+}
 void checkSettingsCallbacks(QApplication &app, const QDir &scratch, QTextStream &log) {
     const auto previous = app.property("settingsFileForTests");
     struct Restore { QApplication &app; QVariant path; ~Restore() { app.setProperty("settingsFileForTests", path); } } restore{app, previous};
@@ -200,6 +243,7 @@ void checkPlayerSettings(QApplication &app,const QDir &dir,QTextStream &log) {
     require(unknownTrackLimitPreference()==0,"Unknown duration default is not unlimited.");
     checkResourceMessages(log);
     checkResourceInspection(QDir(scratch.path()),log);
+    checkRomSnapshots(log);
     checkSettingsCallbacks(app,QDir(scratch.path()),log);
     checkResourceWarnings(app,dir,log);
     {

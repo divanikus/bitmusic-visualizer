@@ -7,6 +7,16 @@
 namespace {
 const std::array<const char *, 3> names{"kernal.rom", "basic.rom", "chargen.rom"};
 const std::array<int, 3> sizes{8192, 8192, 4096};
+struct RomRead { QByteArray bytes; QString problem; };
+RomRead readFixedRom(const QString &path, int size) {
+    QFile file(path);
+    if (!file.exists()) return {{}, "File is missing."};
+    if (!file.open(QIODevice::ReadOnly)) return {{}, "File cannot be read."};
+    const auto bytes = file.read(size + 1);
+    if (bytes.size() != size || file.error() != QFile::NoError)
+        return {{}, QString("Expected exactly %1 bytes.").arg(size)};
+    return {bytes, {}};
+}
 }
 QString playerRomsDirectory() {
     const auto testPath = QCoreApplication::instance()->property("romsDirectoryForTests").toString();
@@ -17,14 +27,9 @@ std::shared_ptr<const SidRoms> loadSidRoms() {
     auto result = std::make_shared<SidRoms>();
     result->directory = QDir(playerRomsDirectory()).filePath("c64");
     for (int i = 0; i < 3; ++i) {
-        QFile file(QDir(result->directory).filePath(names[i]));
-        if (!file.exists()) result->problem[i] = "File is missing.";
-        else if (!file.open(QIODevice::ReadOnly)) result->problem[i] = "File cannot be read.";
-        else {
-            auto bytes = file.read(sizes[i] + 1);
-            if (bytes.size() == sizes[i] && file.error() == QFile::NoError) result->bytes[i] = bytes;
-            else result->problem[i] = QString("Expected exactly %1 bytes.").arg(sizes[i]);
-        }
+        const auto rom = readFixedRom(QDir(result->directory).filePath(names[i]), sizes[i]);
+        result->bytes[i] = rom.bytes;
+        result->problem[i] = rom.problem;
     }
     return result;
 }
@@ -38,14 +43,9 @@ void missingSidRom(const SidRoms &roms, int index) {
 std::shared_ptr<const YamahaRoms> loadYamahaRoms() {
     auto result = std::make_shared<YamahaRoms>();
     result->path = QDir(playerRomsDirectory()).filePath("ymfm/ym2608_adpcm_rom.bin");
-    QFile file(result->path);
-    if (!file.exists()) result->problem = "File is missing.";
-    else if (!file.open(QIODevice::ReadOnly)) result->problem = "File cannot be read.";
-    else {
-        auto bytes = file.read(8193);
-        if (bytes.size() == 8192 && file.error() == QFile::NoError) result->rhythm = bytes;
-        else result->problem = "Expected exactly 8192 bytes.";
-    }
+    const auto rom = readFixedRom(result->path, 8192);
+    result->rhythm = rom.bytes;
+    result->problem = rom.problem;
     return result;
 }
 void missingYamahaRom(const YamahaRoms &roms) {

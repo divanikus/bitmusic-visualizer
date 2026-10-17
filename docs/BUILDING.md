@@ -66,6 +66,9 @@ through natural queue advancement, replay and repeat.
 Settings checks also cover the resource catalog's size/count bounds without
 content validation, selection/path and MIDI-bank refresh, and saved-limit
 callbacks suppressed after a write failure.
+Resource-error checks cover exact required-message prefixes/titles, one warning
+per load generation, retry/recovery, ordinary validation errors without a popup,
+and bounded ROM reads with unchanged snapshots after file removal.
 Add `--decoder-only` for headless model/import/boundary checks. The live check saves a
 player screenshot and runs with isolated settings and silent audio.
 `--self-test test-output --transport-only` runs the existing transport, scope
