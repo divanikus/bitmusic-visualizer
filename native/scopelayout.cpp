@@ -146,6 +146,7 @@ QRectF ScopeWindow::gestureTarget() const {
     return dropSlot_ >= 0 ? cardRect(dropSlot_) : QRectF();
 }
 void ScopeWindow::mousePressEvent(QMouseEvent *event) {
+    selectionBeforeClick_.reset();
     if (event->button() == Qt::LeftButton && event->modifiers() == Qt::ShiftModifier) {
         const int card = panelAt(event->position());
         if (card >= 0) {
@@ -155,9 +156,12 @@ void ScopeWindow::mousePressEvent(QMouseEvent *event) {
         }
     }
     if (event->button() == Qt::LeftButton && event->modifiers() == Qt::NoModifier) {
+        ClickSelection before{selectedCardId(), cardSelectionActive_, cardRevision_, {}};
+        before.time.start();
         const int id = panelAt(event->position());
         if (id >= 0) { setFocus(); selectCard(id); }
         else clearCardSelection();
+        if (!edit_->isChecked()) selectionBeforeClick_ = before;
     }
     if (edit_->isChecked() && event->button() == Qt::LeftButton) {
         const int channel = panelAt(event->position());
@@ -191,6 +195,15 @@ void ScopeWindow::mousePressEvent(QMouseEvent *event) {
 }
 void ScopeWindow::mouseDoubleClickEvent(QMouseEvent *event) {
     if (event->button() == Qt::LeftButton && event->modifiers() == Qt::NoModifier && !edit_->isChecked()) {
+        // Qt delivers the first press/release before the double-click event.
+        // Keep single clicks immediate, but undo their selection for fullscreen.
+        const auto before = selectionBeforeClick_;
+        selectionBeforeClick_.reset();
+        if (before && before->revision == cardRevision_ && before->time.elapsed() <= QApplication::doubleClickInterval()) {
+            channelList_->setCurrentRow(cards_.order().indexOf(before->id));
+            cardSelectionActive_ = before->active && selectedCardId() >= 0;
+            updateViewEditor(); updateCardSelection();
+        }
         toggleFullscreen(); event->accept(); return;
     }
     FrameWindow::mouseDoubleClickEvent(event);
@@ -270,13 +283,7 @@ void ScopeWindow::mouseReleaseEvent(QMouseEvent *event) {
     FrameWindow::mouseReleaseEvent(event);
 }
 void ScopeWindow::keyPressEvent(QKeyEvent *event) {
-    if (event->modifiers() == Qt::NoModifier && event->key() == Qt::Key_Escape && presentationFullscreen()) {
-        if (!event->isAutoRepeat()) toggleFullscreen();
-        event->accept(); return;
-    }
-    if (event->key() == Qt::Key_Escape && cardGestureActive()) {
-        const auto from = panelPositions(); cancelDrag(); animateLayout(from); update(); event->accept(); return;
-    }
+    if (handleEscapeShortcut(event)) return;
     FrameWindow::keyPressEvent(event);
 }
 void ScopeWindow::leaveEvent(QEvent *event) {

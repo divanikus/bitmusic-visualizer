@@ -9,6 +9,7 @@
 #include <tuple>
 
 void ScopeWindow::selectCard(int id) {
+    selectionBeforeClick_.reset();
     const int row = cards_.order().indexOf(id);
     if (row < 0) return;
     cardSelectionActive_ = true;
@@ -17,6 +18,7 @@ void ScopeWindow::selectCard(int id) {
     updateCardSelection();
 }
 void ScopeWindow::clearCardSelection() {
+    selectionBeforeClick_.reset();
     cardSelectionActive_ = false;
     updateCardSelection();
 }
@@ -114,7 +116,6 @@ ScopeWindow::CardAction ScopeWindow::decodeCardShortcut(const QKeyEvent &event) 
     if (modifiers != Qt::NoModifier) return CardAction::None;
     if (arrow) return CardAction::Navigate;
     switch (key) {
-    case Qt::Key_Escape: return CardAction::ClearSelection;
     case Qt::Key_V: return CardAction::CycleView;
     case Qt::Key_M: return CardAction::Mute;
     case Qt::Key_S: return CardAction::Solo;
@@ -137,19 +138,30 @@ bool ScopeWindow::handleCardShortcut(QKeyEvent *event, QWidget *target) {
         if (event->type() == QEvent::KeyPress && state_.valid && !state_.busy && !newFile_) selectCard(selectedCardId());
         return false;
     }
-    if (action == CardAction::ClearSelection && (!cardSelectionActive_ || presentationFullscreen())) return false;
     if (cardGestureActive()) return false;
     const bool repeatable = grid || action == CardAction::Navigate || action == CardAction::Resize || action == CardAction::Move;
     if (!repeatable && !cardSelectionActive_) return false;
     event->accept();
     if (event->type() == QEvent::ShortcutOverride || (event->isAutoRepeat() && !repeatable)) return true;
-    if (action == CardAction::ClearSelection) { clearCardSelection(); return true; }
     if (grid) {
         if (!state_.busy) executeCardAction(action, event->key());
         return true;
     }
     if (!state_.valid || state_.busy || newFile_) return true;
     executeCardAction(action, event->key());
+    return true;
+}
+bool ScopeWindow::handleEscapeShortcut(QKeyEvent *event) {
+    if (event->key() != Qt::Key_Escape || (event->modifiers() & ~Qt::KeypadModifier) != Qt::NoModifier)
+        return false;
+    if (!cardGestureActive() && !cardSelectionActive_ && !presentationFullscreen()) return false;
+    event->accept();
+    if (event->type() == QEvent::ShortcutOverride || event->isAutoRepeat()) return true;
+    // One action per press, from the most local interaction to the window mode.
+    if (cardGestureActive()) {
+        const auto from = panelPositions(); cancelDrag(); animateLayout(from); update();
+    } else if (cardSelectionActive_) clearCardSelection();
+    else toggleFullscreen();
     return true;
 }
 void ScopeWindow::executeCardAction(CardAction action, int key) {

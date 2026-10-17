@@ -11,7 +11,7 @@ class FullscreenButton : public QPushButton {
 public:
     explicit FullscreenButton(bool exit = false, QWidget *parent = nullptr) : QPushButton(parent), exit_(exit) {
         setObjectName(exit ? "exitFullscreen" : "scopeFullscreen"); setFixedSize(30, 26);
-        setToolTip(exit ? "Exit full screen (Esc / F11 / double-click visualization)"
+        setToolTip(exit ? "Exit full screen (F11 / double-click; Esc clears selection first)"
             : "Full screen (F11 / double-click visualization outside edit mode)");
         setAccessibleName(toolTip()); setCursor(Qt::PointingHandCursor);
     }

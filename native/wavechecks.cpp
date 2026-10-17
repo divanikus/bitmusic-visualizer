@@ -317,6 +317,11 @@ void checkPresentation(QApplication &app, const QString &directory) {
     scope.present(state, frame); scope.findChild<QCheckBox *>("scopeStereo")->setChecked(true); pump(app);
     scope.findChild<QPushButton *>("editLayout")->setChecked(true); pump(app);
     scope.grab().save(QDir(directory).filePath("native-presentation-editor.png"));
+    const auto cardPoint = scope.panelRect(0).center();
+    QMouseEvent select(QEvent::MouseButtonPress, cardPoint, scope.mapToGlobal(cardPoint.toPoint()), Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
+    QApplication::sendEvent(&scope, &select);
+    QMouseEvent release(QEvent::MouseButtonRelease, cardPoint, scope.mapToGlobal(cardPoint.toPoint()), Qt::LeftButton, Qt::NoButton, Qt::NoModifier);
+    QApplication::sendEvent(&scope, &release);
     const auto geometry = scope.geometry(); const auto saved = scope.windowedGeometry();
     scope.findChild<QPushButton *>("scopeFullscreen")->click(); pump(app, 1800);
     require(scope.presentationFullscreen() && !scope.findChild<QWidget *>("titleBar")->isVisible() &&
@@ -332,6 +337,8 @@ void checkPresentation(QApplication &app, const QString &directory) {
     QApplication::sendEvent(&scope, &move);
     require(scope.findChild<QPushButton *>("exitFullscreen")->isVisible(), "Top edge did not reveal the full-screen exit.");
     QKeyEvent escape(QEvent::KeyPress, Qt::Key_Escape, Qt::NoModifier); QApplication::sendEvent(&scope, &escape); pump(app);
+    require(scope.presentationFullscreen(), "Standalone scope Escape skipped selection clearing.");
+    QKeyEvent exitFullscreen(QEvent::KeyPress, Qt::Key_Escape, Qt::NoModifier); QApplication::sendEvent(&scope, &exitFullscreen); pump(app);
     require(!scope.presentationFullscreen() && scope.geometry() == geometry && scope.findChild<QWidget *>("scopeEditor")->isVisible(),
         "Escape did not restore geometry and editor state.");
     scope.showMaximized(); pump(app);
@@ -348,8 +355,12 @@ void checkPresentation(QApplication &app, const QString &directory) {
     require(!scope.presentationFullscreen(), "Full-screen exit button failed.");
     auto doubleClick = [&](Qt::MouseButton button = Qt::LeftButton) {
         const auto point = scope.panelRect(0).center();
-        QMouseEvent click(QEvent::MouseButtonDblClick, point, scope.mapToGlobal(point.toPoint()), button, button, Qt::NoModifier);
-        QApplication::sendEvent(&scope, &click); pump(app);
+        for (auto type : {QEvent::MouseButtonPress, QEvent::MouseButtonRelease, QEvent::MouseButtonDblClick, QEvent::MouseButtonRelease}) {
+            QMouseEvent click(type, point, scope.mapToGlobal(point.toPoint()), button,
+                type == QEvent::MouseButtonRelease ? Qt::NoButton : button, Qt::NoModifier);
+            QApplication::sendEvent(&scope, &click);
+        }
+        pump(app);
     };
     scope.findChild<QPushButton *>("editLayout")->setChecked(true); pump(app);
     doubleClick(); require(!scope.presentationFullscreen(), "Editor double-click unexpectedly entered fullscreen.");

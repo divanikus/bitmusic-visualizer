@@ -44,6 +44,56 @@ void mouse(QWidget &scope, QEvent::Type type, QPointF point) {
         type == QEvent::MouseButtonRelease ? Qt::NoButton : Qt::LeftButton,Qt::NoModifier);
     QApplication::sendEvent(&scope,&event);
 }
+void checkSelectionGestures(QApplication &app, PlayerWindow &window, QTextStream &log) {
+    auto &scope=window.scopeWindow();
+    scope.resetLayout(); scope.resize(1250,850);
+    scope.findChild<QSpinBox *>("gridRows")->setValue(4);
+    scope.findChild<QSpinBox *>("gridColumns")->setValue(4);
+    scope.findChild<QPushButton *>("editLayout")->setChecked(false);
+    auto list=scope.findChild<QListWidget *>("scopeChannelList");
+    auto view=scope.findChild<QComboBox *>("cardView");
+    scope.activateWindow(); pump(app); scope.setFocus();
+    const auto selected=[&] { return list->currentItem()->data(Qt::UserRole).toInt(); };
+    const auto click=[&](int id, bool twice=false) {
+        const auto point=scope.panelRect(id).center();
+        require(!scope.panelRect(id).isEmpty(),"Gesture test card is not visible.");
+        // Native double-click order includes a completed first click.
+        mouse(scope,QEvent::MouseButtonPress,point); mouse(scope,QEvent::MouseButtonRelease,point);
+        if (twice) {
+            pump(app);
+            mouse(scope,QEvent::MouseButtonDblClick,point); mouse(scope,QEvent::MouseButtonRelease,point);
+        }
+        pump(app); scope.setFocus();
+    };
+    click(1,true); require(scope.presentationFullscreen(),"Double-click did not enter fullscreen.");
+    key(scope,Qt::Key_V); require(view->currentData().toInt()==0,"Double-click activated a card selection.");
+    key(scope,Qt::Key_Escape); require(!scope.presentationFullscreen(),"Unselected fullscreen needed two Esc presses.");
+    click(0); key(scope,Qt::Key_V); require(view->currentData().toInt()==1,"Single-click selection was delayed or lost.");
+    click(1,true);
+    require(scope.presentationFullscreen() && selected()==0 && view->currentData().toInt()==1,"Double-click changed the previous selection.");
+    key(scope,Qt::Key_V); require(view->currentData().toInt()==2,"Double-click cleared the previous selection.");
+    click(2,true);
+    require(!scope.presentationFullscreen() && selected()==0 && view->currentData().toInt()==2,"Fullscreen exit double-click changed selection.");
+    key(scope,Qt::Key_F11);
+    QKeyEvent claim(QEvent::ShortcutOverride,Qt::Key_Escape,Qt::NoModifier); claim.setAccepted(false);
+    QApplication::sendEvent(&scope,&claim);
+    require(claim.isAccepted() && scope.presentationFullscreen(),"Esc override executed instead of claiming the key.");
+    key(scope,Qt::Key_V); require(view->currentData().toInt()==3,"Esc override cleared selection.");
+    key(scope,Qt::Key_Escape); key(scope,Qt::Key_V);
+    require(scope.presentationFullscreen() && view->currentData().toInt()==3,"First Esc did not only clear selection.");
+    key(scope,Qt::Key_Escape,{},true);
+    require(scope.presentationFullscreen(),"Held Esc left fullscreen after clearing selection.");
+    key(scope,Qt::Key_Escape); require(!scope.presentationFullscreen(),"Second Esc did not exit fullscreen.");
+    // A focused fullscreen control must obey the same selection-first priority.
+    click(0); key(scope,Qt::Key_F11);
+    auto exit=scope.findChild<QPushButton *>("exitFullscreen"); exit->setFocus(); key(*exit,Qt::Key_Escape);
+    require(scope.presentationFullscreen(),"Esc on a fullscreen button skipped selection clearing.");
+    scope.setFocus(); key(scope,Qt::Key_V); require(view->currentData().toInt()==3,"Button-focused Esc retained selection.");
+    key(scope,Qt::Key_Escape); require(!scope.presentationFullscreen(),"Esc after button-focused clearing did not exit.");
+    scope.resetLayout();
+    log << "Selection gestures: complete double-click sequence, previous/no selection, immediate single click, fullscreen entry/exit, Esc priority/override/repeat/button focus PASS\n";
+    log.flush();
+}
 void checkGridShortcuts(QApplication &app, PlayerWindow &window, QTextStream &log) {
     auto &scope=window.scopeWindow(); auto &player=window.player(); const auto state=player.state();
     auto rows=scope.findChild<QSpinBox *>("gridRows"), columns=scope.findChild<QSpinBox *>("gridColumns");
@@ -218,6 +268,7 @@ void checkSelectedCardShortcuts(QApplication &app, const QString &directory, QTe
     log << "Selected-card checks: 16-channel MIDI ready\n"; log.flush();
     checkCardMovement(app, window, log);
     checkGridShortcuts(app, window, log);
+    checkSelectionGestures(app, window, log);
     scope.show(); scope.resize(1250,850); scope.activateWindow(); scope.setFocus(); pump(app);
     auto edit = scope.findChild<QPushButton *>("editLayout");
     edit->setChecked(true);
@@ -362,8 +413,9 @@ void checkSelectedCardShortcuts(QApplication &app, const QString &directory, QTe
     scope.toggleFullscreen(); focus(); key(scope,Qt::Key_V); require(view->currentData().toInt()==2,"Fullscreen selected-card view failed.");
     key(scope,Qt::Key_Right,Qt::ShiftModifier); require(hasSpan(15,3,2),"Fullscreen keyboard resize failed.");
     key(scope,Qt::Key_Left,Qt::ShiftModifier);
-    key(scope,Qt::Key_Escape); require(!scope.presentationFullscreen(),"Escape selection intercepted fullscreen exit.");
-    key(scope,Qt::Key_Escape); key(scope,Qt::Key_V); require(view->currentData().toInt()==2,"Second Escape failed to clear selection.");
+    key(scope,Qt::Key_Escape); key(scope,Qt::Key_V);
+    require(scope.presentationFullscreen() && view->currentData().toInt()==2,"First Escape failed to clear selection within fullscreen.");
+    key(scope,Qt::Key_Escape); require(!scope.presentationFullscreen(),"Second Escape failed to exit fullscreen.");
     require(player.state().generation==generation && player.state().outputMask==3 && !player.state().busy,"Card commands restarted playback or changed transport.");
     edit->setChecked(true); list->setCurrentItem(item(duplicate)); scope.findChild<QPushButton *>("removeScopeCard")->click();
     require(!item(duplicate),"Selected card removal failed.");

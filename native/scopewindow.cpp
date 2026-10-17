@@ -240,6 +240,7 @@ ScopeWindow::ScopeWindow() {
     };
     cardInspector_->onSettingsRequested = [this] { editCardSettings(); };
     connect(channelList_, &QListWidget::currentRowChanged, this, [this] {
+        selectionBeforeClick_.reset();
         cardSelectionActive_ = selectedCardId() >= 0; updateViewEditor(); updateCardSelection();
     });
     connect(channelList_, &QListWidget::itemClicked, this, [this](QListWidgetItem *item) {

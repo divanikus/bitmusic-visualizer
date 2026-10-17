@@ -170,8 +170,9 @@ Press **F1** or click the keyboard icon in the visualizer title bar for the in-a
 Click a card to select it, or use **arrow keys** on the visualization canvas.
 The selected card has a highlighted border. **V** cycles its view, **M** toggles
 its source's sound, **S** toggles Solo, **H** hides/shows the card, **L** toggles
-its Levels, and **Enter** opens Card settings. **Esc** clears selection after
-leaving fullscreen. These commands also work in the Cards list and have no
+its Levels, and **Enter** opens Card settings. **Esc** clears selection; press it
+again to leave fullscreen. Double-clicking toggles fullscreen without changing
+selection. These commands also work in the Cards list and have no
 channel-number limit. **Alt + arrows** move the selected card toward a neighbor,
 reflowing the grid like mouse dragging. **Shift + arrows** resize it by one grid
 cell: Right/Down grow, Left/Up shrink. These edits affect only the selected card.

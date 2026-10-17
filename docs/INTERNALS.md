@@ -304,10 +304,15 @@ identity and rejects proposals that lose the visible card or move it against the
 requested direction; hidden/overflow entries can move vertically in list order.
 
 `handleCardShortcut` admits canvas/list input and preserves native list navigation,
-gesture/fullscreen Escape priority, override claiming and repeat policy before
+gesture guards, override claiming and repeat policy before
 dispatching. `decodeCardShortcut` maps keys/modifiers to private actions without
 reading UI state; `executeCardAction` applies admitted commands. Only navigation,
-moving, resizing and grid counters repeat. `cardGestureActive` is shared with Escape cancellation.
+moving, resizing and grid counters repeat. `handleEscapeShortcut` shares one path
+between the player filter and standalone scope window: cancel a gesture, clear
+selection, or exit fullscreen, in that order, one action per press without repeat.
+Double-click fullscreen restores the selection from before its first press;
+ordinary single clicks remain immediate. The short-lived snapshot is invalidated
+by selection changes and checked against the card revision and double-click interval.
 Grid shortcuts require no selection and set the existing row/column spin boxes;
 their signals retain layout, capture, span-clamping and preset behavior.
 Card settings entry points, inspector callbacks and hit regions use settings

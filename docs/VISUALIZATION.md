@@ -62,7 +62,7 @@ it can also select hidden or overflowing cards.
   Hold to repeat. The grid stays fixed; a visible card cannot grow beyond the
   available space. Neighboring cards reflow as with mouse resizing. Hidden/overflow
   cards can also be resized from the list. Ctrl + Left/Right still toggle audio outputs.
-- **Esc:** clear selection; first leave fullscreen or cancel an active drag if applicable.
+- **Esc:** cancel an active drag, then clear selection, then leave fullscreen — one action per press.
 
 These commands work only on the canvas or in the Cards list. Fields, dropdowns,
 buttons and dialogs keep their normal keys. View/mute/Solo/visibility/Levels keys
@@ -191,9 +191,11 @@ Defaults in Waves preserves Levels and the separate application frame rate.
 The full-screen icon beside the pencil, or **F11** from either player window,
 expands the visualizer on its current display and hides the title bar/editor.
 The themed window background fills the screen edges without an outer window border.
-Double-click the visualization outside edit mode to toggle fullscreen. Editor
+Double-click the visualization outside edit mode to toggle fullscreen without
+changing the selected card. Editor
 controls keep their normal behavior; double-clicking the title bar still maximizes.
-**Esc/F11** restores the previous window size, position, maximized state and editor.
+**F11** restores the previous window size, position, maximized state and editor.
+**Esc** first clears any card selection; another press exits fullscreen.
 Move the pointer to the top edge to reveal a temporary exit button. Playback
 shortcuts remain available; fullscreen does not change audio or the card layout.
 Closing the application while fullscreen preserves the previous window geometry;

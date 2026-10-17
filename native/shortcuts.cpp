@@ -82,7 +82,7 @@ void showShortcutsHelp(QWidget *owner) {
       <tr><td><b>H</b></td><td>Hide / show this card; press again to restore</td></tr>
       <tr><td><b>L</b></td><td>Toggle this card's level meters</td></tr>
       <tr><td><b>Enter</b></td><td>Open this card's settings</td></tr>
-      <tr><td><b>Esc</b></td><td>Clear selection (leave full screen first)</td></tr>
+      <tr><td><b>Esc</b></td><td>Clear selection; press again to leave full screen</td></tr>
       </table>
       <p>These keys work on the canvas or in the Cards list. The list keeps its
       normal arrow navigation, including hidden cards. View, visibility, Levels
@@ -158,12 +158,12 @@ bool PlayerWindow::eventFilter(QObject *object, QEvent *event) {
     const auto modifiers = keyEvent->modifiers() & ~Qt::KeypadModifier;
     const int key = keyEvent->key();
     const bool help = key == Qt::Key_F1 && modifiers == Qt::NoModifier;
-    const bool fullscreen = modifiers == Qt::NoModifier &&
-        (key == Qt::Key_F11 || (key == Qt::Key_Escape && scopes_.presentationFullscreen()));
+    const bool fullscreen = modifiers == Qt::NoModifier && key == Qt::Key_F11;
     // Unhandled keys bubble to parents. Keep protecting the focused editor there too.
     const auto focus = QApplication::focusWidget();
     if (!help && (editing(widget) || (focus && focus->window() == widget->window() && editing(focus))))
         return FrameWindow::eventFilter(object, event);
+    if ((widget->window() == &scopes_ || scopes_.presentationFullscreen()) && scopes_.handleEscapeShortcut(keyEvent)) return true;
     if (widget->window() == &scopes_ && scopes_.handleCardShortcut(keyEvent, widget)) return true;
     const bool digit = key >= Qt::Key_1 && key <= Qt::Key_9 &&
         (modifiers == Qt::NoModifier || modifiers == Qt::ControlModifier || modifiers == Qt::AltModifier);

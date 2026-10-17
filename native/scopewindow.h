@@ -8,6 +8,7 @@
 #include "scopecards.h"
 #include <QHash>
 #include <QElapsedTimer>
+#include <optional>
 
 class QLabel;
 class QComboBox;
@@ -33,6 +34,7 @@ public:
     void resetLayout();
     // Called by the player's window-local shortcut filter after focus/dialog guards.
     bool handleCardShortcut(QKeyEvent *event, QWidget *target);
+    bool handleEscapeShortcut(QKeyEvent *event);
     void toggleFullscreen();
     bool presentationFullscreen() const { return !fullscreenGeometry_.isEmpty(); }
     QByteArray windowedGeometry() const;
@@ -97,7 +99,7 @@ private:
     struct MusicImage { QByteArray key; QImage image; };
     QHash<int, MusicImage> musicImages_;
     int selectedCardId() const;
-    enum class CardAction { None, Navigate, Resize, Move, GridColumns, GridRows, ClearSelection, CycleView, Mute, Solo, Visibility, Levels, Settings };
+    enum class CardAction { None, Navigate, Resize, Move, GridColumns, GridRows, CycleView, Mute, Solo, Visibility, Levels, Settings };
     static CardAction decodeCardShortcut(const QKeyEvent &event);
     void executeCardAction(CardAction action, int key);
     void selectCard(int id);
@@ -107,6 +109,13 @@ private:
     int cardInDirection(int current, int key) const;
     void moveSelectedCard(int key);
     bool cardSelectionActive_ = false;
+    struct ClickSelection {
+        int id;
+        bool active;
+        quint64 revision;
+        QElapsedTimer time;
+    };
+    std::optional<ClickSelection> selectionBeforeClick_;
     QLabel *cardSelectionHint_ = nullptr;
     void updateViewEditor();
     void updateLevelsControl();
