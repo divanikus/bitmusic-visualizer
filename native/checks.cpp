@@ -51,6 +51,7 @@ void checkLayoutSpans(QApplication &app, const QString &directory, QTextStream &
 void checkShortcuts(QApplication &app, const QString &directory, QTextStream &log);
 void checkPresets(QApplication &app, const QString &directory, QTextStream &log);
 void checkEngineCommands(QApplication &app, const QString &directory, QTextStream &log);
+void checkScopeWorker(QApplication &app, const QString &directory, QTextStream &log);
 
 namespace {
 void require(bool condition, const char *message) { if (!condition) throw std::runtime_error(message); }
@@ -724,6 +725,7 @@ int runChecks(QApplication &app, const QStringList &arguments) {
     app.setProperty("settingsFileForTests", settingsDirectory.filePath("BitMusicVisualizer.ini"));
     app.setProperty("themesDirectoryForTests", settingsDirectory.filePath("themes"));
     try {
+        if (arguments.contains("--scope-worker-only")) { checkScopeWorker(app, directory, log); return 0; }
         if (arguments.contains("--engine-only")) { checkEngineCommands(app, directory, log); return 0; }
         if (arguments.contains("--presets-only")) { checkPresets(app, directory, log); return 0; }
         if (arguments.contains("--shortcuts-only")) { checkShortcuts(app, directory, log); return 0; }
@@ -803,6 +805,7 @@ int runChecks(QApplication &app, const QStringList &arguments) {
         }
         checkRing(); log << "Concurrent PCM ring: 500000 samples, variable callback sizes, exact order PASS\n"; log.flush();
         checkEngineCommands(app, directory, log);
+        checkScopeWorker(app, directory, log);
         QStringList paths;
         for (const auto &extension : {"nsf", "vgm", "spc", "vgz"}) paths << QDir(directory).filePath(QString("demo.%1").arg(extension));
         std::array<short, BlockFrames * 2> output{}, reference{};

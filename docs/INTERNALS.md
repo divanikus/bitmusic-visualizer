@@ -19,6 +19,14 @@ share sample-to-millisecond ceiling conversion; ordinary positions still floor.
 Keep the existing initial metadata reads under the publication lock and dynamic
 reads before it. Cancellation does not introduce a new error or completion event.
 
+The private `ScopeWorker` in `enginescopes.cpp` owns the shared capture decoder,
+fallback per-voice decoders/history, resource identity and preparation pool.
+It is created and destroyed within the existing normal-priority scope QThread.
+Pool size/priority and the semaphore join after each bounded batch are unchanged;
+all tasks finish before request-local references or worker storage are destroyed.
+Audio decoders and the real-time callback remain independent. Public capture
+controls, revision/state storage and published snapshots stay in `NativePlayer`.
+
 The UI headers follow ownership: `playerwindow.h` includes `scopewindow.h`
 because the player owns that window; scope code has no dependency on the player
 or playlist UI. `timeline.h` contains the transport slider and time label helper.

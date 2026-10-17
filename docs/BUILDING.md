@@ -78,6 +78,11 @@ Both also exercise command failures and cancellation; `--engine-only` runs just
 those checks. They cover empty seeks, exact load errors and retained metadata,
 recovery, paused/clamped positions, long seeks superseded by a seek, failed load
 or unload, and shutdown cancellation with silent audio and isolated settings.
+`--scope-worker-only` focuses on fallback NSF and shared SPC capture: paused
+history retention across mask/FPS edits, empty-mask suspension, seek/revision
+cancellation, snapshot shape and scope-only decoder/task error recovery. These
+checks also run in the transport and full suites. Error probes remove/restore
+only private copies of authored fixtures while the audio decoder remains loaded.
 
 For a focused frame-rate check after generating fixtures, run
 `build/native/bitmusic_checks --self-test test-output --fps-only`.

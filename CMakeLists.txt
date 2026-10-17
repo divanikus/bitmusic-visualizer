@@ -49,6 +49,7 @@ option(BITMUSIC_BUILD_TESTS "Build the separate developer check runner" ON)
 add_library(bitmusic_core OBJECT
   native/engine.cpp
   native/engineplayback.cpp
+  native/enginescopes.cpp
   native/timeline.cpp
   native/midicontrols.cpp
   native/playerchannels.cpp
@@ -108,6 +109,7 @@ if(BITMUSIC_BUILD_TESTS)
   add_executable(bitmusic_checks native/checkmain.cpp
     native/checks.cpp
     native/enginechecks.cpp
+    native/scopeworkerchecks.cpp
     native/tapchecks.cpp
     native/gbschecks.cpp
     native/aychecks.cpp

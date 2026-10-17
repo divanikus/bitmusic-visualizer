@@ -184,6 +184,7 @@ public:
     void shutdown();
 private:
     class AudioWorker;
+    class ScopeWorker;
     struct Command { quint64 generation; QString path; int song, ms; bool load, playing; bool unload = false; };
     static int playbackEndMs(qint64 frame);
     void submit(Command command);
