@@ -150,6 +150,9 @@ Movement checks include four directions, held keys, grid edges, hidden/overflow
 list entries, stable selection and preserved source audio/transport.
 Grid shortcut checks cover F9/F10 and Shift + F9/F10 counters without selection,
 limits/repeat, overflow/refill, span clamping, fullscreen and input/dialog guards.
+They also verify registered row-shortcut activation on the canvas and Cards list.
+On Windows, smoke-test Shift + F9/F10 with native keyboard input: synthetic Qt
+key events bypass the platform's special handling of Shift + F10.
 Gesture checks assert selection immediately on the first press and send complete
 double-click sequences to retain the clicked card across fullscreen entry/exit.
 They also cover two ordinary clicks, immediate click-then-keyboard commands and

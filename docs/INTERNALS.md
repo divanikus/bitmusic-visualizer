@@ -316,6 +316,10 @@ press's selection. No selection delay, pending-click timer or rollback snapshot
 is needed. Escape clears selection while retaining fullscreen on the first press.
 Grid shortcuts require no selection and set the existing row/column spin boxes;
 their signals retain layout, capture, span-clamping and preset behavior.
+The canvas and Cards list register Shift + F9/F10 as widget-local `QShortcut`s:
+Qt on Windows otherwise reserves Shift + F10 for a native context menu before
+delivering key events. Both activation paths reuse `handleCardShortcut`; fields
+keep their own context menus, and modal/popup/gesture/busy guards still apply.
 Card settings entry points, inspector callbacks and hit regions use settings
 names; the shared appearance-dialog guard also covers the background picker.
 Existing widget object names and saved settings/preset fields are unchanged.

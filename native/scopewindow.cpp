@@ -5,6 +5,7 @@
 #include "appsettings.h"
 #include "renderersettings.h"
 #include "spectrum.h"
+#include <QApplication>
 #include <QCheckBox>
 #include <QCloseEvent>
 #include <QDialog>
@@ -14,6 +15,7 @@
 #include <QHBoxLayout>
 #include <QGridLayout>
 #include <QLabel>
+#include <QKeyEvent>
 #include <QListWidget>
 #include <QMessageBox>
 #include <QSettings>
@@ -21,6 +23,7 @@
 #include <QPainterPath>
 #include <QPushButton>
 #include <QSignalBlocker>
+#include <QShortcut>
 #include <QScrollArea>
 #include <QSpinBox>
 #include <QVBoxLayout>
@@ -296,6 +299,20 @@ ScopeWindow::ScopeWindow() {
     });
     connect(rows_, &QSpinBox::valueChanged, this, [this] { automaticGrid_ = false; layoutChanged(); });
     connect(columns_, &QSpinBox::valueChanged, this, [this] { automaticGrid_ = false; layoutChanged(); });
+    // Windows delivers Shift+F10 as a Qt key only when a matching shortcut exists.
+    // Widget scope preserves context menus in editor fields; both dispatch paths
+    // use the same card-action guards (including busy state and mouse gestures).
+    for (QWidget *owner : {static_cast<QWidget *>(this), static_cast<QWidget *>(channelList_)}) {
+        for (const auto key : {Qt::Key_F9, Qt::Key_F10}) {
+            auto shortcut = new QShortcut(QKeySequence(QKeyCombination(Qt::ShiftModifier, key)), owner);
+            shortcut->setContext(Qt::WidgetShortcut);
+            connect(shortcut, &QShortcut::activated, this, [this, owner, key] {
+                if (QApplication::activeModalWidget() || QApplication::activePopupWidget()) return;
+                QKeyEvent event(QEvent::KeyPress, key, Qt::ShiftModifier);
+                handleCardShortcut(&event, owner);
+            });
+        }
+    }
     connect(numbers_, &QCheckBox::toggled, this, [this] { presetEdited(); update(); });
     connect(names_, &QCheckBox::toggled, this, [this] { presetEdited(); update(); });
     connect(stereo_, &QCheckBox::toggled, this, [this] { presetEdited(); analysis_.clearWaves(); update(); });

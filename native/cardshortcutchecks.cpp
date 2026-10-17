@@ -13,6 +13,7 @@
 #include <QListWidget>
 #include <QMouseEvent>
 #include <QPushButton>
+#include <QShortcut>
 #include <QSpinBox>
 #include <QTemporaryDir>
 #include <QTextStream>
@@ -107,6 +108,25 @@ void checkGridShortcuts(QApplication &app, PlayerWindow &window, QTextStream &lo
     auto edit=scope.findChild<QPushButton *>("editLayout");
     scope.resetLayout(); rows->setValue(4); columns->setValue(4);
     scope.activateWindow(); pump(app); scope.setFocus(); key(scope,Qt::Key_Escape);
+    // Windows does not deliver a raw Shift+F10 key without a registered shortcut.
+    // Exercise that registration/activation path as well as the raw event filter.
+    const auto rowShortcut = [&](QWidget &owner, Qt::Key code) {
+        const QKeySequence sequence(QKeyCombination(Qt::ShiftModifier, code));
+        QShortcut *match = nullptr;
+        for (auto shortcut : owner.findChildren<QShortcut *>(QString(), Qt::FindDirectChildrenOnly))
+            if (shortcut->key() == sequence) { require(!match, "Duplicate row shortcut."); match=shortcut; }
+        require(match && match->isEnabled() && match->autoRepeat() && match->context()==Qt::WidgetShortcut,
+            "Row shortcuts must be registered for canvas/list focus and support repeat.");
+        QShortcutEvent event(sequence, match); QApplication::sendEvent(match,&event);
+    };
+    rowShortcut(scope,Qt::Key_F9); require(rows->value()==3,"Registered canvas row decrement failed.");
+    rowShortcut(scope,Qt::Key_F10); require(rows->value()==4,"Registered canvas row increment failed.");
+    edit->setChecked(true); list->setFocus();
+    rowShortcut(*list,Qt::Key_F9); require(rows->value()==3,"Registered list row decrement failed.");
+    rowShortcut(*list,Qt::Key_F10); require(rows->value()==4,"Registered list row increment failed.");
+    rows->findChild<QLineEdit *>()->setFocus(); rowShortcut(scope,Qt::Key_F9);
+    require(rows->value()==4 && columns->value()==4,"Registered row shortcut escaped field focus.");
+    edit->setChecked(false); scope.setFocus();
     QKeyEvent claim(QEvent::ShortcutOverride,Qt::Key_F9,Qt::NoModifier); claim.setAccepted(false);
     QApplication::sendEvent(&scope,&claim);
     require(claim.isAccepted() && columns->value()==4,"Grid override failed or changed the counter.");
@@ -153,7 +173,7 @@ void checkGridShortcuts(QApplication &app, PlayerWindow &window, QTextStream &lo
     require(player.state().generation==state.generation && player.state().muteMask==state.muteMask &&
         player.state().outputMask==state.outputMask,"Grid shortcuts changed audio or transport.");
     scope.resetLayout(); edit->setChecked(false);
-    log << "Grid shortcuts: counters without selection, overrides/repeat/bounds, span clamping, overflow/refill, list/field/modal/gesture guards and fullscreen PASS\n";
+    log << "Grid shortcuts: registered canvas/list row commands and field guard, counters without selection, overrides/repeat/bounds, span clamping, overflow/refill, list/field/modal/gesture guards and fullscreen PASS\n";
     log.flush();
 }
 void checkCardMovement(QApplication &app, PlayerWindow &window, QTextStream &log) {
