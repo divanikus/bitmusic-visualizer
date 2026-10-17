@@ -1,5 +1,13 @@
 # Native code responsibilities
 
+`midimetadata.*` shares MIDI title fallback, the existing sample-rounded two-second
+release-tail duration and bounded instrument-name history. Unchanged names still
+prune, the state preceding the strict cutoff is retained, and equal-frame lookup
+chooses the last state. GM keeps its event-position label sampling; MT-32 keeps
+its native-rendered-position sampling. Stable engine-specific voice/source lists,
+configuration hashes, resource pointers, masks and roll construction stay in the
+backends. Titles/models retain their original trimming policy.
+
 `yamahastream.*` owns Yamaha command events, timed sample blocks and loop/duration
 facts parsed from a validated VGM. Sample-block reads and chip lookup share the
 existing bounds/errors, bank/instance rules and event limits. Declared duration

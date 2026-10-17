@@ -1,4 +1,5 @@
 #include "miditrack.h"
+#include "midimetadata.h"
 #include "appsettings.h"
 #include "resourceerror.h"
 #include <fluidsynth.h>
@@ -8,12 +9,11 @@
 #include <algorithm>
 #include <cmath>
 #include <cstring>
-#include <deque>
 #include <stdexcept>
 
 namespace {
 void require(bool ok,const char *s) { if (!ok) throw std::runtime_error(s); }
-constexpr int Polyphony=256, Chunk=64, TailSeconds=2;
+constexpr int Polyphony=256, Chunk=64;
 constexpr qint64 SeekPreroll=2*SampleRate;
 thread_local std::shared_ptr<const MidiResources> loading;
 struct Cursor { std::shared_ptr<const MidiResources> resource; qint64 pos=0; };
@@ -84,17 +84,14 @@ struct MidiTrack::Impl {
     std::array<std::array<float,Chunk>,64> effects{};
     std::vector<std::array<std::array<float,ScopeFrames>,2>> history;
     qsizetype event=0; bool released=false, capture=false;
-    struct Names { qint64 frame; QStringList channels; };
-    std::deque<Names> names;
+    MidiInstrumentHistory names{SampleRate};
     void rememberNames(qint64 frame) {
         QStringList channels;
         for(int ch=0;ch<16;++ch) {
             auto *preset=fluid_synth_get_channel_preset(synth.get(),ch);
             channels<< (preset ? QString::fromUtf8(fluid_preset_get_name(preset)).trimmed() : QString());
         }
-        if(names.empty() || channels!=names.back().channels) names.push_back({frame,channels});
-        // Only the audio ring's read-ahead needs history. Keep its preceding state too.
-        while(names.size()>1 && names[1].frame<frame-SampleRate) names.pop_front();
+        names.remember(frame, channels);
     }
     void reset() {
         synth.reset(); settings.reset(new_fluid_settings()); require(bool(settings),"Cannot create MIDI settings.");
@@ -241,9 +238,8 @@ MidiTrack::MidiTrack(const QString &path,QByteArray data,int song,bool playlist,
     auto &d=*impl_; d.resources=resources?std::move(resources):loadResources(data); d.capture=capture;
     info_.midiResources=d.resources; info_.path=path; info_.songs=1; info_.system="General MIDI";
     info_.noteRoll=d.resources->noteRoll;
-    info_.title=d.resources->sequence.title;
-    if(info_.title.isEmpty()) info_.title=QFileInfo(path).completeBaseName();
-    info_.durationMs=int((d.resources->sequence.endFrame+TailSeconds*SampleRate)*1000/SampleRate);
+    info_.title=midiTrackTitle(d.resources->sequence,path);
+    info_.durationMs=midiTrackDurationMs(d.resources->sequence);
     info_.stereoOutput=true; info_.tonalMask=VoiceMask(0xffffu & ~(1u<<9));
     info_.emptyVoices=VoiceMask::first(16) & ~VoiceMask(d.resources->sequence.noteChannels);
     auto &c=info_.configuration; c.family="midi-gm"; c.name="FluidSynth";
@@ -305,11 +301,7 @@ bool MidiTrack::seek(qint64 target,const std::function<bool()> &cancelled) {
     while(frame_<target) { if(cancelled()) return false; render(scratch.data(),int(std::min<qint64>(BlockFrames,target-frame_))); }
     return !cancelled();
 }
-QStringList MidiTrack::instrumentNames(qint64 frame) const {
-    const auto &names=impl_->names;
-    auto at=std::upper_bound(names.begin(),names.end(),frame,[](qint64 f,const Impl::Names &n){return f<n.frame;});
-    return at==names.begin() ? QStringList{} : std::prev(at)->channels;
-}
+QStringList MidiTrack::instrumentNames(qint64 frame) const { return impl_->names.at(frame); }
 bool MidiTrack::readTap(int channel,QVector<float>&left,QVector<float>&right) const {
     if(!impl_->capture || channel<0 || channel>=16) return false;
     left.fill(0,ScopeFrames); right.fill(0,ScopeFrames);

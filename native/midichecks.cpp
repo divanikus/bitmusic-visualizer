@@ -21,6 +21,9 @@
 #include <algorithm>
 #include <stdexcept>
 
+void checkMidiSubsongErrors();
+void checkGmMetadata(const std::shared_ptr<const MidiResources> &resources, QTextStream &log);
+
 namespace {
 void require(bool ok,const char *s) { if(!ok) throw std::runtime_error(s); }
 QByteArray read(const QString &path) { QFile f(path); require(f.open(QIODevice::ReadOnly),"Missing MIDI fixture."); return f.readAll(); }
@@ -47,6 +50,7 @@ int runMidiChecks(QApplication &app,const QStringList &args) {
         app.setProperty("themesDirectoryForTests",resources.filePath("themes"));
         app.setProperty("soundFontsDirectoryForTests",resources.path());
         const QString midi=QDir(directory).filePath("demo.mid"); const auto bytes=read(midi);
+        checkMidiSubsongErrors();
         const auto sequence=MidiSequence::parse(bytes,SampleRate);
         require(sequence.endFrame==66150 && sequence.title=="MIDI test song","MIDI tempo/title parsing failed.");
         auto rejects=[&](QByteArray b) { try { MidiSequence::parse(b,SampleRate); return false; } catch(const std::exception &) { return true; } };
@@ -92,6 +96,7 @@ int runMidiChecks(QApplication &app,const QStringList &args) {
         require(openMusicTrack("missing.mid",0,false,true,{}, {},sparseTrack->info().midiResources)->info().emptyVoices==sparseTrack->info().emptyVoices,
             "MIDI snapshot lost empty-channel hints.");
         auto audio=openMusicTrack(midi); auto capture=openMusicTrack(midi,0,true,true,{}, {},audio->info().midiResources);
+        checkGmMetadata(audio->info().midiResources,log);
         require(audio->info().songs==1 && audio->info().voices.size()==16 && audio->info().stereoOutput &&
                 audio->info().durationMs==3500 && capture->hasTaps(),"General MIDI metadata/capture incorrect.");
         advance(*audio,SampleRate/5); advance(*capture,SampleRate/5);

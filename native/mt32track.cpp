@@ -1,19 +1,18 @@
 #include "mt32track.h"
+#include "midimetadata.h"
 #include "miditrack.h"
 #include "romfiles.h"
 #include "appsettings.h"
 #include "resourceerror.h"
 #include <mt32emu/mt32emu.h>
 #include <QFile>
-#include <QFileInfo>
 #include <QCryptographicHash>
 #include <algorithm>
 #include <cmath>
-#include <deque>
 #include <stdexcept>
 
 namespace {
-constexpr int Rate=32000, Chunk=64, Taps=64, Phases=128, TailSeconds=2;
+constexpr int Rate=32000, Chunk=64, Taps=64, Phases=128;
 constexpr double Pi=3.14159265358979323846;
 using Sample=std::array<float,20>; // Master L/R, then nine dry stereo parts.
 void require(bool ok,const char *message) { if(!ok) throw std::runtime_error(message); }
@@ -94,8 +93,7 @@ struct Mt32Track::Impl : MT32Emu::ReportHandler {
     qsizetype event=0;
     bool capture=false,resetReported=false;
     MT32Emu::Bit32u captureStart=0;
-    struct Names { qint64 frame; QStringList parts; };
-    std::deque<Names> names;
+    MidiInstrumentHistory names{SampleRate};
     void printDebug(const char *,va_list) override {}
     void showLCDMessage(const char *) override {}
     void onDeviceReset() override { resetReported=true; }
@@ -103,8 +101,7 @@ struct Mt32Track::Impl : MT32Emu::ReportHandler {
         QStringList parts;
         for(int i=0;i<8;++i) parts<<QString::fromLatin1(synth->getPatchName(i)).trimmed();
         parts<<"Rhythm";
-        if(names.empty()||names.back().parts!=parts) names.push_back({frame,parts});
-        while(names.size()>1 && names[1].frame<frame-SampleRate) names.pop_front();
+        names.remember(frame, parts);
     }
     static void partSample(void *ctx,unsigned part,MT32Emu::Bit32u timestamp,float left,float right) {
         auto &d=*static_cast<Impl *>(ctx); const auto at=timestamp-d.captureStart;
@@ -228,8 +225,8 @@ Mt32Track::Mt32Track(const QString &path,QByteArray data,int song,bool playlist,
     require(song==0,"MIDI contains one song; its tracks play together.");
     auto &d=*impl_; d.resources=resources?std::move(resources):loadResources(data); d.capture=capture;
     info_.mt32Resources=d.resources; info_.path=path; info_.songs=1; info_.system=d.resources->model;
-    info_.title=d.resources->sequence.title; if(info_.title.isEmpty()) info_.title=QFileInfo(path).completeBaseName();
-    info_.durationMs=int((d.resources->sequence.endFrame+TailSeconds*SampleRate)*1000/SampleRate);
+    info_.title=midiTrackTitle(d.resources->sequence,path);
+    info_.durationMs=midiTrackDurationMs(d.resources->sequence);
     info_.stereoOutput=true; info_.tonalMask=VoiceMask(255);
     auto &c=info_.configuration; c.family="midi-mt32"; c.name="LA32";
     for(int i=0;i<9;++i) { info_.voices<< (i==8?"Rhythm":QString("Part %1").arg(i+1)); c.sources<<QString("mt32.part:%1").arg(i); }
@@ -271,11 +268,7 @@ bool Mt32Track::seek(qint64 target,const std::function<bool()> &cancelled) {
     while(frame_<target) { if(cancelled()) return false; render(scratch.data(),int(std::min<qint64>(BlockFrames,target-frame_))); }
     return !cancelled();
 }
-QStringList Mt32Track::instrumentNames(qint64 frame) const {
-    const auto &names=impl_->names;
-    const auto at=std::upper_bound(names.begin(),names.end(),frame,[](qint64 f,const Impl::Names &n){return f<n.frame;});
-    return at==names.begin()?QStringList{}:std::prev(at)->parts;
-}
+QStringList Mt32Track::instrumentNames(qint64 frame) const { return impl_->names.at(frame); }
 bool Mt32Track::readTap(int channel,QVector<float> &left,QVector<float> &right) const {
     if(!impl_->capture||channel<0||channel>=9) return false;
     left.fill(0,ScopeFrames); right.fill(0,ScopeFrames);

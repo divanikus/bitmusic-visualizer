@@ -20,6 +20,9 @@
 #include <cmath>
 #include <stdexcept>
 
+void checkMidiSubsongErrors();
+void checkMt32Metadata(const std::shared_ptr<const Mt32Resources> &resources, QTextStream &log);
+
 namespace {
 void require(bool ok,const char *message) { if(!ok) throw std::runtime_error(message); }
 QByteArray read(const QString &path) { QFile f(path); require(f.open(QIODevice::ReadOnly),"Cannot read MT-32 test input."); return f.readAll(); }
@@ -111,6 +114,7 @@ int runMt32Checks(QApplication &app,const QStringList &args) {
         app.setProperty("soundFontsDirectoryForTests",temp.filePath("soundfonts"));
         app.setProperty("romsDirectoryForTests",temp.filePath("roms"));
         const auto midi=temp.filePath("test.mid"); write(midi,fixture());
+        checkMidiSubsongErrors();
         selectMidiEngine("mt32"); require(selectedMidiEngine()=="mt32","MIDI engine not saved.");
         selectMidiEngine("auto"); require(selectedMidiEngine()=="auto","Auto engine not saved.");
         auto rejects=[&](const QByteArray &bytes,const char *reason) {
@@ -141,6 +145,7 @@ int runMt32Checks(QApplication &app,const QStringList &args) {
         write(midi,fixture()); selectMidiEngine("auto");
         auto audio=openMusicTrack(midi);
         const auto resources=audio->info().mt32Resources;
+        checkMt32Metadata(resources,log);
         require(resources && audio->info().voices.size()==9 && audio->info().durationMs==6000 && audio->info().stereoOutput,"MT-32 metadata incorrect.");
         require(!audio->info().emptyVoices,"Used MT-32 parts were marked empty.");
         auto capture=openMusicTrack(midi,0,true,true,{}, {},{},resources);

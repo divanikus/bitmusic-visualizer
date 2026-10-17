@@ -89,6 +89,7 @@ add_library(bitmusic_core OBJECT
   native/mt32track.cpp
   native/midisequence.cpp
   native/miditrack.cpp
+  native/midimetadata.cpp
   native/musicevents.cpp
   native/midiroll.cpp
   native/scopemusic.cpp
@@ -139,6 +140,7 @@ if(BITMUSIC_BUILD_TESTS)
     native/trackerchecks.cpp
     native/mt32checks.cpp
     native/midichecks.cpp
+    native/midibackendchecks.cpp
     native/musicviewchecks.cpp
     native/presetchecks.cpp
     native/soundconfigchecks.cpp
