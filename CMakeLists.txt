@@ -55,6 +55,7 @@ add_library(bitmusic_core OBJECT
   native/scopecolors.cpp
   native/scopetheme.cpp
   native/chrome.cpp
+  native/scopeanalysis.cpp
   native/scopewave.cpp
   native/scopecontrols.cpp
   native/scopepresentation.cpp

@@ -16,7 +16,7 @@ struct WaveOptions {
     bool meters = false;
 };
 
-// Presentation only: never changes PCM. One instance per card, shared by CPU/GPU.
+// Presentation only: never changes PCM. One instance per source, shared by its cards and CPU/GPU.
 // Call once per new scope frame, not once per repaint or resize.
 class ScopeWave {
 public:

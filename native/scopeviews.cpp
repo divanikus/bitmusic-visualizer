@@ -175,9 +175,9 @@ QVector<float> ScopeWindow::keyboardPitches(int card) const {
     if (!channelReady(card)) return {-1};
     const int source = sourceFor(card);
     if (source < VoiceMask::Capacity && (state_.info.tonalMask & (VoiceMask::bit(source)))) return frame_.noteHz.value(source, QVector<float>{-1});
-    const auto& estimate = pitchStates_[source];
-    if (estimate.generation != state_.generation || estimate.hz < 0) return {-1};
-    return estimate.hz > 0 ? QVector<float>{estimate.hz} : QVector<float>{};
+    const float estimate = analysis_.pitch(source, state_.generation);
+    if (estimate < 0) return {-1};
+    return estimate > 0 ? QVector<float>{estimate} : QVector<float>{};
 }
 void ScopeWindow::updateKeyboardNotes() {
     for (int card : displayedChannels()) {
@@ -185,16 +185,10 @@ void ScopeWindow::updateKeyboardNotes() {
         if (viewFor(card) != ViewKind::Keyboard || !channelReady(card) ||
             (source < VoiceMask::Capacity && (state_.info.tonalMask & (VoiceMask::bit(source))))) continue;
         const bool mix = source == ScopeTheme::FullMix;
-        const int position = mix ? output_.positionMs : frame_.positionMs;
-        const quint64 sequence = mix ? output_.sequence : 0;
-        auto& estimate = pitchStates_[source];
-        if (estimate.generation == state_.generation && estimate.position >= 0 && position >= estimate.position &&
-            (position-estimate.position < 33 || (position == estimate.position && sequence == estimate.sequence))) continue;
         // Analysis is bounded to ~30 Hz per source, reused by all its cards.
         // Read actual stereo sides even when the visual Stereo checkbox is off.
         const auto& left = mix ? output_.left : frame_.left.value(source, frame_.channels[source]);
         const auto& right = mix ? output_.right : frame_.right.value(source);
-        estimate.hz = scopePitch(left, right);
-        estimate.generation = state_.generation; estimate.position = position; estimate.sequence = sequence;
+        analysis_.estimatePitch(source, analysisKey(source), left, right);
     }
 }

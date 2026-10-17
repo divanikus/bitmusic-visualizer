@@ -8,6 +8,14 @@ Implementation files include the header they use, without an umbrella window hea
 `ScopeWindow` coordinates transport snapshots, capture requests, layout gestures
 and CPU/GPU presentation. It does not own playback or decode music in painting.
 
+`ScopeAnalysis` owns waveform trigger/envelope state, FFT bins and estimated
+pitch caches per source, including Full mix. Generation, position, output sequence
+and stereo display identify snapshots. Waveforms preserve history within a
+stream; spectra update for a changed key; pitch keeps its existing ~30 Hz cadence
+and bypasses the throttle on rewind/generation changes. File/layout/visibility
+resets clear all analysis; wave controls/stereo reset waves only. Painting and
+source snapshot selection remain in the window; PCM is never modified.
+
 `ScopeCards` owns session card state: stable IDs, source/view options, visibility,
 cell spans and active order. Removing a card removes its ID from the active order;
 hiding preserves it. Duplicates share a source, audio mutes, theme colors and

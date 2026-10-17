@@ -3,7 +3,7 @@
 #include "chrome.h"
 #include "scopetheme.h"
 #include "scopegpu.h"
-#include "scopewave.h"
+#include "scopeanalysis.h"
 #include "scopegrid.h"
 #include "scopecards.h"
 #include <QHash>
@@ -102,19 +102,8 @@ private:
     void paintSpectrumAxes(QPainter &p, int card, const QRectF &plot, bool stereo);
     ScopeCardInspector *cardInspector_;
     QPushButton *addCard_, *removeCard_;
-    struct SpectrumState {
-        quint64 generation = 0, sequence = 0;
-        int position = -1;
-        bool stereo = false;
-        QVector<float> left, right;
-    };
-    std::array<SpectrumState, VoiceMask::Capacity+1> spectrumStates_{};
-    struct PitchState {
-        quint64 generation = 0, sequence = 0;
-        int position = -1;
-        float hz = -1;
-    };
-    std::array<PitchState, VoiceMask::Capacity+1> pitchStates_{};
+    ScopeAnalysis analysis_;
+    ScopeAnalysisKey analysisKey(int source, bool stereo = false) const;
     void editEffects();
     void restoreEffects();
     void rememberEffects();
@@ -124,13 +113,6 @@ private:
     int frameRate_ = ScopePacing::DefaultFps;
     QChronoTimer *presentationTimer_;
     WaveOptions waveOptions_;
-    struct WaveState {
-        ScopeWave wave;
-        quint64 generation = 0, sequence = 0;
-        int position = -1;
-        bool stereo = false;
-    };
-    std::array<WaveState, VoiceMask::Capacity+1> waveStates_{};
     ScopeGpu *gpu_ = nullptr;
     bool gpuFailed_ = false;
     QImage chromeImage_;

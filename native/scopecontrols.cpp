@@ -90,7 +90,7 @@ void ScopeWindow::editWaves() {
         waveOptions_ = {WaveOptions::Scale(scale->currentIndex()), WaveOptions::Trigger(trigger->currentIndex()),
             hold->value(), release->value(), waveOptions_.output, float(width->value()), waveOptions_.meters};
         hold->setEnabled(waveOptions_.scale == WaveOptions::Smooth); release->setEnabled(hold->isEnabled());
-        waveStates_ = {}; if (gpu_) gpu_->suspend();
+        analysis_.clearWaves(); if (gpu_) gpu_->suspend();
         explain();
         update();
     };

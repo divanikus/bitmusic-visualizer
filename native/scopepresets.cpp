@@ -96,7 +96,7 @@ void ScopeWindow::applyPreset(const ScopePreset &preset, const QString &file) {
     rows_->setValue(preset.rows); columns_->setValue(preset.columns);
     numbers_->setChecked(preset.numbers); names_->setChecked(preset.names); stereo_->setChecked(preset.stereo);
     cards_.loadPreset(preset, {bool(state_.info.noteRoll), bool(state_.info.patterns)});
-    spectrumStates_ = {}; waveStates_ = {}; pitchStates_ = {};
+    analysis_.clear();
     presetFile_ = file; savedPreset_ = file.isEmpty() ? QByteArray() : currentPreset().encode(); presetModified_ = false;
     rebuildList(); layoutChanged(); updateViewEditor();
     applyingPreset_ = false; refreshPresets();

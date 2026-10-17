@@ -38,6 +38,67 @@ void add(ScopeWindow& scope, int source, int view) {
     });
     scope.findChild<QPushButton*>("addScopeCard")->click();
 }
+void checkAnalysisCache(QTextStream &log) {
+    ScopeAnalysis analysis;
+    QVector<float> low(ScopeFrames), high(ScopeFrames);
+    for (int i = 0; i < ScopeFrames; ++i) {
+        low[i] = float(4000 * std::sin(2 * 3.141592653589793 * 20 * i / 2048));
+        high[i] = float(16000 * std::sin(2 * 3.141592653589793 * 40 * i / 2048));
+    }
+    ScopeAnalysisKey key{7, 0, 100, false};
+    WaveOptions options; options.scale = WaveOptions::Instant; options.trigger = WaveOptions::Off;
+    const auto firstWave = analysis.waveform(0, key, low, low, options);
+    require(analysis.waveform(0, key, high, high, options).peak == firstWave.peak,
+            "A repaint/duplicate recalculated waveform analysis for the same snapshot.");
+    const auto firstBins = analysis.spectrum(0, key, low, low).left;
+    require(analysis.spectrum(0, key, high, high).left == firstBins,
+            "A repaint/duplicate recalculated spectrum analysis for the same snapshot.");
+    const auto mixBins = analysis.spectrum(VoiceMask::Capacity, key, high, high).left;
+    require(mixBins != firstBins && analysis.spectrum(0, key, low, low).left == firstBins,
+            "Full mix analysis aliases a voice cache.");
+    ++key.sequence;
+    require(analysis.waveform(0, key, high, high, options).peak > firstWave.peak * 3 &&
+            analysis.spectrum(0, key, high, high).left == mixBins,
+            "A new output sequence at the same position did not update analysis.");
+    key.stereo = true;
+    const auto stereo = analysis.spectrum(0, key, low, high);
+    require(stereo.left == firstBins && stereo.right == mixBins, "Stereo analysis did not retain independent sides.");
+    require(analysis.waveform(0, key, low, low, options).peak == firstWave.peak,
+            "Changing stereo mode retained the old waveform state at the same position.");
+    ++key.generation;
+    require(analysis.waveform(0, key, high, high, options).peak > firstWave.peak * 3,
+            "Changing generation retained the old waveform state at the same position.");
+    require(analysis.spectrum(0, key, high, low).left == mixBins,
+            "A new generation at the same position retained old analysis.");
+    analysis.clearWave(0);
+    require(analysis.waveform(0, key, low, low, options).peak == firstWave.peak,
+            "Wave invalidation failed to discard old envelope/trigger state.");
+
+    QVector<float> a(ScopeFrames), b(ScopeFrames);
+    for (int i = 0; i < ScopeFrames; ++i) {
+        a[i] = float(6000 * std::sin(2 * 3.141592653589793 * 440 * i / SampleRate));
+        b[i] = float(6000 * std::sin(2 * 3.141592653589793 * 880 * i / SampleRate));
+    }
+    key = {9, 1, 100, false}; analysis.estimatePitch(69, key, a, {});
+    const float pitch = analysis.pitch(69, key.generation);
+    require(std::abs(pitch - 440) < 4, "Pitch cache missed its initial signal.");
+    key.position = 132; ++key.sequence; analysis.estimatePitch(69, key, b, {});
+    require(analysis.pitch(69, key.generation) == pitch, "Pitch analysis exceeded its established cadence.");
+    key.position = 133; analysis.estimatePitch(69, key, b, {});
+    require(std::abs(analysis.pitch(69, key.generation) - 880) < 8, "Pitch did not update at the cadence boundary.");
+    key.position = 50; analysis.estimatePitch(69, key, a, {});
+    require(std::abs(analysis.pitch(69, key.generation) - 440) < 4, "A rewind retained a future pitch estimate.");
+    ++key.generation; analysis.estimatePitch(69, key, b, {});
+    require(std::abs(analysis.pitch(69, key.generation) - 880) < 8 && analysis.pitch(69, key.generation - 1) < 0,
+            "Pitch generations were mixed or a generation change was throttled.");
+    analysis.clearWaves();
+    require(analysis.pitch(69, key.generation) > 0 && analysis.spectrum(0, {8, 1, 100, true}, low, high).left == mixBins,
+            "Wave-only invalidation discarded unrelated analysis.");
+    analysis.clear();
+    require(analysis.pitch(69, key.generation) < 0 && analysis.spectrum(0, {8, 1, 100, true}, low, high).left == firstBins,
+            "Full invalidation retained source analysis.");
+    log << "Source analysis cache: duplicate reuse, source/mix isolation, sequence/stereo/generation invalidation, pitch cadence/rewind and scoped resets PASS\n";
+}
 void checkSpectrum(QTextStream& log) {
     QVector<float> pcm(ScopeFrames);
     for (int i = 0; i < pcm.size(); ++i) pcm[i] = 16384*std::sin(2*3.141592653589793*20*i/2048);
@@ -200,6 +261,7 @@ void checkNotes(const QString& directory, QTextStream& log) {
 }
 void checkViews(QApplication& app, const QString& directory, QTextStream& log) {
     checkGbAyNotes(app, directory, log);
+    checkAnalysisCache(log);
     checkSpectrum(log); checkSpectrumControls(app, directory, log); checkPitch(log); checkNotes(directory, log);
     checkPsgNotes(app, directory, log);
     PlayerWindow player; player.player().setVolume(0); player.show(); player.loadFile(QDir(directory).filePath("demo.nsf"));

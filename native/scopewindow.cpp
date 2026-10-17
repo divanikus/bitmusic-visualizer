@@ -289,7 +289,7 @@ ScopeWindow::ScopeWindow() {
     connect(columns_, &QSpinBox::valueChanged, this, [this] { layoutChanged(); });
     connect(numbers_, &QCheckBox::toggled, this, [this] { presetEdited(); update(); });
     connect(names_, &QCheckBox::toggled, this, [this] { presetEdited(); update(); });
-    connect(stereo_, &QCheckBox::toggled, this, [this] { presetEdited(); waveStates_ = {}; update(); });
+    connect(stereo_, &QCheckBox::toggled, this, [this] { presetEdited(); analysis_.clearWaves(); update(); });
     connect(reset, &QPushButton::clicked, this, [this] { resetLayout(); });
     connect(apply, &QPushButton::clicked, this, [this] { edit_->setChecked(false); });
     connect(showAll, &QPushButton::clicked, this, [this] { cards_.showAll(); layoutChanged(); });
@@ -324,7 +324,7 @@ ScopeWindow::ScopeWindow() {
 
 void ScopeWindow::beginFile() {
     if (gpu_) gpu_->suspend();
-    newFile_ = true; frame_ = {}; output_ = {}; waveStates_ = {}; spectrumStates_ = {}; pitchStates_ = {}; cancelDrag();
+    newFile_ = true; frame_ = {}; output_ = {}; analysis_.clear(); cancelDrag();
     musicImages_.clear();
     updatePresetStatus();
     if (onChannelsChanged) onChannelsChanged(0);
@@ -382,7 +382,7 @@ void ScopeWindow::resetGrid() {
 void ScopeWindow::resetChannels(bool grid) {
     if (colorDialog_) colorDialog_->reject();
     cards_.reset(int(state_.info.voices.size()), waveOptions_.output, state_.info.emptyVoices);
-    spectrumStates_ = {}; waveStates_ = {}; pitchStates_ = {};
+    analysis_.clear();
     cancelDrag();
     if (grid) resetGrid();
     rebuildList(); layoutChanged(); updateViewEditor();
@@ -430,7 +430,7 @@ void ScopeWindow::layoutChanged() {
     if (onChannelsChanged) onChannelsChanged(request.channels);
     const bool capture = request.output;
     if (capture != outputCapturing_) {
-        outputCapturing_ = capture; output_ = {}; outputMono_.clear(); waveStates_[ScopeTheme::FullMix] = {};
+        outputCapturing_ = capture; output_ = {}; outputMono_.clear(); analysis_.clearWave(ScopeTheme::FullMix);
         if (onOutputChanged) onOutputChanged(capture);
     }
     presetEdited(); update();
@@ -477,7 +477,7 @@ void ScopeWindow::updateVisibility() {
     if (presentationTimer_->isActive() == renderingVisible()) { update(); return; }
     if (renderingVisible()) presentationTimer_->start(); else presentationTimer_->stop();
     if (gpu_) { gpu_->suspend(); gpu_->setVisible(renderingVisible() && !gpuFailed_); }
-    frame_ = {}; output_ = {}; waveStates_ = {}; spectrumStates_ = {}; pitchStates_ = {}; cancelDrag();
+    frame_ = {}; output_ = {}; analysis_.clear(); cancelDrag();
     if (onVisibilityChanged) onVisibilityChanged(renderingVisible());
     update();
 }
@@ -583,6 +583,10 @@ QByteArray ScopeWindow::chromeKey(bool dynamic) const {
     }
     return key;
 }
+ScopeAnalysisKey ScopeWindow::analysisKey(int source, bool stereo) const {
+    const bool mix = source == ScopeTheme::FullMix;
+    return {state_.generation, mix ? output_.sequence : 0, mix ? output_.positionMs : frame_.positionMs, stereo};
+}
 QVector<ScopeLane> ScopeWindow::waveLanes() {
     QVector<ScopeLane> lanes;
     if (state_.busy) return lanes;
@@ -596,26 +600,17 @@ QVector<ScopeLane> ScopeWindow::waveLanes() {
         const bool muted = !mix && (state_.muteMask & (VoiceMask::bit(source)));
         const auto &left = mix ? (stereo ? output_.left : outputMono_) : (stereo ? frame_.left[source] : frame_.channels[source]);
         const auto &right = mix ? (stereo ? output_.right : outputMono_) : (stereo ? frame_.right[source] : frame_.channels[source]);
-        const int position = mix ? output_.positionMs : frame_.positionMs;
-        const quint64 sequence = mix ? output_.sequence : 0;
-        auto &wave = waveStates_[source];
-        auto &spectrum = spectrumStates_[source];
-        if (kind == ViewKind::Waveform) {
-            if (wave.generation != state_.generation || wave.stereo != stereo) wave = {};
-            if (wave.position != position || wave.sequence != sequence) {
-                wave.wave.update(left, right, position, waveOptions_);
-                wave.generation = state_.generation; wave.position = position; wave.sequence = sequence; wave.stereo = stereo;
-            }
-        } else if (spectrum.generation != state_.generation || spectrum.stereo != stereo || spectrum.position != position || spectrum.sequence != sequence) {
-            spectrum.left = scopeSpectrum(left); spectrum.right = stereo ? scopeSpectrum(right) : spectrum.left;
-            spectrum.generation = state_.generation; spectrum.position = position; spectrum.sequence = sequence; spectrum.stereo = stereo;
-        }
+        const auto key = analysisKey(source, stereo);
+        const ScopeWave *wave = nullptr;
+        const ScopeAnalysis::Spectrum *spectrum = nullptr;
+        if (kind == ViewKind::Waveform) wave = &analysis_.waveform(source, key, left, right, waveOptions_);
+        else spectrum = &analysis_.spectrum(source, key, left, right);
         for (int side = 0; side < (stereo ? 2 : 1); ++side) {
             ScopeLane lane; lane.id = card*2+side; lane.clip = plot; lane.color = theme_.colors(source).waveform;
             lane.lineWidth = waveOptions_.lineWidth;
             if (muted || !state_.outputMask || (stereo && !(state_.outputMask & (1u << side)))) lane.color.setAlpha(115);
             if (kind == ViewKind::Spectrum) {
-                const auto &bins = side ? spectrum.right : spectrum.left;
+                const auto &bins = side ? spectrum->right : spectrum->left;
                 const double top = plot.top()+plot.height()*side/(stereo ? 2 : 1);
                 const double bottom = top+plot.height()/(stereo ? 2 : 1)-(cards_[card].spectrumGrid ? 16 : 2);
                 if (bottom-top <= 5) continue;
@@ -637,13 +632,13 @@ QVector<ScopeLane> ScopeWindow::waveLanes() {
                     lane.points.push_back({plot.left()+plot.width()*j/(points-1), bottom-height*(db+80)/80});
                 }
             } else {
-                const float scale = float(plot.height() * (stereo ? .21 : .44)) / wave.wave.peak;
+                const float scale = float(plot.height() * (stereo ? .21 : .44)) / wave->peak;
                 const int points = std::max(2, std::min(2048, int(plot.width()*2)));
                 const auto &row = side ? right : left;
                 const double middle = stereo ? plot.top()+plot.height()*(.25+.5*side) : plot.center().y();
                 lane.points.reserve(points);
                 for (int j = 0; j < points; ++j) {
-                    const float index = wave.wave.start + float(j)*2047/(points-1);
+                    const float index = wave->start + float(j)*2047/(points-1);
                     lane.points.push_back({plot.left()+plot.width()*j/(points-1), middle-ScopeWave::sample(row, index)*scale});
                 }
             }
