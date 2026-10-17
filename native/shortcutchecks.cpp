@@ -1,4 +1,5 @@
 #include "playerwindow.h"
+#include "playerchannels.h"
 #include <QApplication>
 #include <QCheckBox>
 #include <QComboBox>
@@ -46,6 +47,32 @@ void click(QWidget &target, Qt::KeyboardModifiers modifiers = {}) {
     QApplication::sendEvent(&target, &press);
     QMouseEvent release(QEvent::MouseButtonRelease, point, global, Qt::LeftButton, Qt::NoButton, modifiers);
     QApplication::sendEvent(&target, &release);
+}
+void checkChannelPresentation(QTextStream &log) {
+    PlayerChannels channels;
+    int requests = 0, requestedSource = -1;
+    bool requestedAudible = true;
+    channels.onAudibleChanged = [&](int source, bool audible) { ++requests; requestedSource = source; requestedAudible = audible; };
+    PlayerState state; state.valid = true;
+    for (int i = 0; i < 70; ++i) { state.info.voices << QString("Source %1").arg(i); state.instruments << QString(); }
+    state.muteMask = ~VoiceMask::bit(65); state.soloChannel = 65;
+    channels.rebuild(state);
+    auto high = channels.findChild<QToolButton *>("voice65");
+    require(channels.count() == 70 && high && high->isChecked() && high->property("solo").toBool() && requests == 0,
+        "Channel snapshot emitted a mute request or lost a high source index.");
+    state.instruments[65] = "Lead"; state.muteMask = VoiceMask::bit(69); state.soloChannel = -1;
+    channels.present(state);
+    require(channels.findChild<QToolButton *>("voice65") == high && high->text() == "66  Source 65 · Lead" &&
+        high->toolTip().startsWith("Source 65 / Lead\n") && high->accessibleName() == high->text() &&
+        high->isChecked() && !high->property("solo").toBool() && requests == 0,
+        "Instrument/mute refresh rebuilt channel buttons, emitted a request or left stale labels.");
+    high->click();
+    require(requests == 1 && requestedSource == 65 && !requestedAudible, "High channel request used another source or audible state.");
+    state.busy = true; channels.present(state);
+    require(!high->isEnabled() && requests == 1, "Busy snapshot enabled a channel or emitted a mute request.");
+    state.info.voices.clear(); channels.rebuild(state);
+    require(channels.count() == 0 && !channels.findChild<QToolButton *>("voice65"), "Channel rebuild retained obsolete source buttons.");
+    log << "Channel controls: high source IDs, snapshot signal suppression, stable instrument labels and busy/rebuild state PASS\n"; log.flush();
 }
 void checkCardSolo(QApplication &app, PlayerWindow &window, QTextStream &log) {
     auto &player = window.player(); auto &scope = window.scopeWindow();
@@ -215,6 +242,7 @@ void checkSolo(QApplication &app, PlayerWindow &window, const QString &directory
 }
 
 void checkShortcuts(QApplication &app, const QString &directory, QTextStream &log) {
+    checkChannelPresentation(log);
     PlayerWindow window; auto &player = window.player(); auto &scope = window.scopeWindow();
     player.setVolume(0); window.show();
     auto help = scope.findChild<QPushButton *>("keyboardShortcuts");

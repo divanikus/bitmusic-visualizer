@@ -12,7 +12,7 @@ class PlaylistView;
 class PlayerTransport;
 class QTabWidget;
 class QComboBox;
-class QGridLayout;
+class PlayerChannels;
 
 class PlayerWindow : public FrameWindow {
 public:
@@ -37,7 +37,6 @@ private:
     void refreshControls();
     void togglePlayback();
     void refreshScopes();
-    void rebuildChannels(const PlayerState &state);
     void setScopesVisible(bool visible);
     void playSong(int song);
     void setupShortcuts();
@@ -76,7 +75,7 @@ private:
     QWidget *midiControls_;
     QComboBox *soundFont_, *midiEngine_;
     QString midiPath_;
-    QGridLayout *channels_;
+    PlayerChannels *channels_;
     QString shownPath_;
     int shownSong_ = -1;
     bool openedOnce_ = false;

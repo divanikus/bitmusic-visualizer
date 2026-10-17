@@ -28,6 +28,14 @@ range and volume-mute restoration. The window retains track selection and engine
 commands: Play may start a selected paused entry, whereas F7 resumes the actual
 current entry. The shared vector-icon implementation stays in `playercontrols.*`.
 
+`PlayerChannels` owns the Channels page, button painting and snapshot presentation.
+One label/tooltip path handles initial and changing instrument names. Snapshot
+updates block mute feedback and keep source IDs/buttons stable; rebuilds still
+occur only at the window's existing file/channel-count boundaries. The page
+reports mute, Solo and all-channel requests; PlayerWindow applies them to the
+current engine state. Source masks and saved card/theme/preset identities stay
+independent of channel labels.
+
 `ScopeWindow` coordinates transport snapshots, capture requests, layout gestures
 and CPU/GPU presentation. It does not own playback or decode music in painting.
 

@@ -1,5 +1,6 @@
 #include "playerwindow.h"
 #include "playercontrols.h"
+#include "playerchannels.h"
 #include "playlistview.h"
 #include "shortcuts.h"
 #include "appsettings.h"
@@ -14,65 +15,19 @@
 #include <QCloseEvent>
 #include <QDragEnterEvent>
 #include <QFileInfo>
-#include <QGridLayout>
-#include <QKeyEvent>
 #include <QLabel>
 #include <QListWidget>
 #include <QMimeData>
-#include <QMouseEvent>
 #include <QMessageBox>
-#include <QPainter>
 #include <QPushButton>
-#include <QScrollArea>
 #include <QShortcut>
 #include <QSignalBlocker>
 #include <QSettings>
-#include <QStylePainter>
-#include <QStyleOptionToolButton>
 #include <QTabWidget>
 #include <QTimer>
 #include <QToolButton>
 #include <QVBoxLayout>
 #include <algorithm>
-
-namespace {
-class ChannelButton : public QToolButton {
-public:
-    std::function<void()> onSolo;
-    void setSolo(bool solo) {
-        if (property("solo").toBool() == solo) return;
-        setProperty("solo", solo); update();
-    }
-    QSize minimumSizeHint() const override { return {40, 32}; }
-protected:
-    void mouseReleaseEvent(QMouseEvent *event) override {
-        if (event->button() == Qt::LeftButton && event->modifiers() == Qt::ShiftModifier && isDown()) {
-            setDown(false);
-            if (isEnabled() && rect().contains(event->position().toPoint()) && onSolo) onSolo();
-            event->accept();
-            return;
-        }
-        QToolButton::mouseReleaseEvent(event);
-    }
-    void paintEvent(QPaintEvent *) override {
-        const bool solo = property("solo").toBool();
-        QStyleOptionToolButton option; initStyleOption(&option);
-        option.text = fontMetrics().elidedText(text(), Qt::ElideRight, std::max(0, width() - (solo ? 62 : 20)));
-        const auto label = option.text;
-        if (solo) option.text.clear();
-        QStylePainter painter(this); painter.drawComplexControl(QStyle::CC_ToolButton, option);
-        if (solo) {
-            painter.setPen(QColor(isEnabled() ? "#b4eddf" : "#647078"));
-            painter.drawText(rect().adjusted(10, 0, -51, 0), Qt::AlignLeft | Qt::AlignVCenter, label);
-            const QRect badge(width() - 43, (height() - 18) / 2, 37, 18);
-            painter.setRenderHint(QPainter::Antialiasing);
-            painter.setPen(Qt::NoPen); painter.setBrush(QColor("#f2c878")); painter.drawRoundedRect(badge, 4, 4);
-            auto badgeFont = font(); badgeFont.setPointSizeF(7); badgeFont.setBold(true); painter.setFont(badgeFont);
-            painter.setPen(QColor("#30250f")); painter.drawText(badge, Qt::AlignCenter, "SOLO");
-        }
-    }
-};
-}
 
 PlayerWindow::PlayerWindow() {
     setWindowTitle("Bit Music"); setAcceptDrops(true); resize(430, 430); setMinimumSize(400, 330);
@@ -127,12 +82,15 @@ PlayerWindow::PlayerWindow() {
     transport_->onSeek = [this](int position) { player_.seek(position, player_.state().playing); };
     tabs_ = new QTabWidget; tabs_->setObjectName("tabs");
     setupPlaylistUi();
-    auto channelPage = new QWidget; auto channelLayout = new QVBoxLayout(channelPage); channelLayout->setContentsMargins(8, 8, 8, 8); channelLayout->setSpacing(6);
-    auto scroll = new QScrollArea; scroll->setWidgetResizable(true); auto channelContents = new QWidget; channels_ = new QGridLayout(channelContents); channels_->setContentsMargins(0, 0, 0, 0); channels_->setSpacing(6); channels_->setAlignment(Qt::AlignTop); scroll->setWidget(channelContents); channelLayout->addWidget(scroll, 1);
-    auto all = new QPushButton(QString::fromUtf8("Enable all")); auto none = new QPushButton(QString::fromUtf8("Disable all"));
-    all->setObjectName("enableAllChannels"); none->setObjectName("disableAllChannels");
-    auto channelActions = new QHBoxLayout; channelActions->addWidget(all); channelActions->addWidget(none); channelActions->addStretch(); channelLayout->addLayout(channelActions);
-    tabs_->addTab(channelPage, QString::fromUtf8("Channels")); root->addWidget(tabs_, 1);
+    channels_ = new PlayerChannels;
+    channels_->onAudibleChanged = [this](int source, bool audible) {
+        auto mask = player_.state().muteMask;
+        if (audible) mask &= ~VoiceMask::bit(source); else mask |= VoiceMask::bit(source);
+        player_.setMuteMask(mask);
+    };
+    channels_->onSoloRequested = [this](int source) { player_.toggleSolo(source); refresh(); };
+    channels_->onAllAudibleChanged = [this](bool audible) { player_.setMuteMask(audible ? VoiceMask{} : ~VoiceMask{}); };
+    tabs_->addTab(channels_, QString::fromUtf8("Channels")); root->addWidget(tabs_, 1);
     midiControls_=new QWidget; midiControls_->setObjectName("midiControls");
     auto midiRow=new QHBoxLayout(midiControls_); midiRow->setContentsMargins(0,0,0,0);
     midiEngine_=new QComboBox; midiEngine_->setObjectName("midiEngine");
@@ -170,8 +128,6 @@ PlayerWindow::PlayerWindow() {
     status_ = new QLabel; status_->setObjectName("status"); status_->setWordWrap(true); status_->hide(); root->addWidget(status_);
     connect(open, &QPushButton::clicked, this, [this] { chooseMusic(true); });
     connect(showScopes_, &QPushButton::clicked, this, [this] { setScopesVisible(!scopes_.renderingVisible()); });
-    connect(all, &QPushButton::clicked, this, [this] { player_.setMuteMask(0); });
-    connect(none, &QPushButton::clicked, this, [this] { player_.setMuteMask(~VoiceMask{}); });
     connect(songs_, &QListWidget::itemActivated, this, [this](QListWidgetItem *item) { playSong(songs_->row(item)); });
     auto openShortcut = new QShortcut(QKeySequence::Open, this); connect(openShortcut, &QShortcut::activated, open, &QPushButton::click);
     auto playShortcut = new QShortcut(QKeySequence(Qt::Key_Space), this); connect(playShortcut, &QShortcut::activated, transport_, &PlayerTransport::clickPlay);
@@ -251,19 +207,6 @@ void PlayerWindow::dropEvent(QDropEvent *event) {
     QStringList paths;for(const auto &url:event->mimeData()->urls())if(url.isLocalFile())paths<<url.toLocalFile();
     if(!paths.isEmpty()){addFiles(paths);event->acceptProposedAction();}
 }
-void PlayerWindow::rebuildChannels(const PlayerState &state) {
-    while (auto item = channels_->takeAt(0)) { delete item->widget(); delete item; }
-    for (int i = 0; i < state.info.voices.size(); ++i) {
-        auto button = new ChannelButton; button->setText(QString("%1  %2").arg(i + 1, 2, 10, QLatin1Char('0')).arg(state.info.voices[i]));
-        button->setObjectName(QString("voice%1").arg(i)); button->setCheckable(true); button->setChecked(true); button->setMinimumHeight(32); button->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
-        button->setToolTip(state.info.voices[i] + "\nPressed: channel is audible\nShift+click: Solo / restore previous channels"); channels_->addWidget(button, i / 2, i % 2);
-        if (i < 9) button->setToolTip(button->toolTip() + '\n' + channelShortcutHint(i));
-        button->onSolo = [this, i] { player_.toggleSolo(i); refresh(); };
-        connect(button, &QToolButton::toggled, this, [this, i](bool audible) {
-            auto mask = player_.state().muteMask; if (audible) mask &= ~(VoiceMask::bit(i)); else mask |= VoiceMask::bit(i); player_.setMuteMask(mask);
-        });
-    }
-}
 void PlayerWindow::togglePlayback() {
     const auto state = player_.state();
     const int selected = songs_->currentRow();
@@ -280,7 +223,7 @@ void PlayerWindow::refreshControls() {
     if (changed) {
         const bool fileChanged = shownPath_ != s.info.path;
         shownPath_ = s.info.path; shownSong_ = s.info.song; transport_->resetTimelineRange();
-        if (fileChanged || channels_->count()!=s.info.voices.size()) rebuildChannels(s);
+        if (fileChanged || channels_->count()!=s.info.voices.size()) channels_->rebuild(s);
         player_.setRepeat(playlistRepeat_==PlaylistRepeat::Track);
     }
     if (s.valid) {
@@ -294,25 +237,12 @@ void PlayerWindow::refreshControls() {
     if (!s.valid && !s.busy && playlist_.entries.isEmpty()) {title_->setText("Open music");title_->setToolTip({});subtitle_->clear();}
     transport_->present(s, playlist_, playlistRepeat_);
     songs_->setEnabled(true);
-    const bool ready = s.valid && !s.busy;
     const bool mt32=midiEngine_->currentData()=="mt32" || (midiEngine_->currentData()=="auto" && ((s.valid && s.info.mt32Resources) || s.error.contains("MT-32")));
     soundFont_->setVisible(!mt32);
     findChild<QToolButton *>("refreshSoundFonts")->setVisible(!mt32);
     findChild<QPushButton *>("soundFontFolder")->setToolTip(mt32?"Open MT-32 ROM folder":"Open SoundFonts folder");
     songs_->presentPlayback(s.valid ? playlist_.current : 0, !s.busy && s.playing);
-    for (int i = 0; i < channels_->count(); ++i) {
-        auto button = static_cast<ChannelButton *>(channels_->itemAt(i)->widget()); QSignalBlocker block(button);
-        const auto instrument = s.instruments.value(i);
-        const auto name = instrument.isEmpty() ? s.info.voices.value(i) : s.info.voices.value(i) + " · " + instrument;
-        button->setText(QString("%1  %2").arg(i + 1, 2, 10, QLatin1Char('0')).arg(name));
-        QString tip = s.info.voices.value(i) + (instrument.isEmpty() ? QString() : " / " + instrument)
-            + "\nPressed: channel is audible\nShift+click: Solo / restore previous channels";
-        if (i < 9) tip += '\n' + channelShortcutHint(i);
-        button->setToolTip(tip);
-        button->setChecked(!(s.muteMask & (VoiceMask::bit(i)))); button->setEnabled(ready);
-        button->setSolo(s.soloChannel == i);
-        button->setAccessibleName(button->text() + (s.soloChannel == i ? "; Solo" : QString()));
-    }
+    channels_->present(s);
     const auto message = !s.error.isEmpty() ? s.error : !s.scopeError.isEmpty() ? s.scopeError : s.busy ? QString::fromUtf8("Loading…") : playlistMessage_;
     status_->setText(message.section('\n', 0, 0)); status_->setToolTip(message); status_->setVisible(!message.isEmpty());
     if ((s.error.startsWith("C64 ROM required:") || s.error.startsWith("YM2608 ROM required:") || s.error.startsWith("SoundFont required:") || s.error.startsWith("MT-32 ROM required:")) && romWarningGeneration_ != s.generation) {
