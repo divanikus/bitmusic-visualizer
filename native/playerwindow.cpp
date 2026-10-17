@@ -110,6 +110,12 @@ PlayerWindow::PlayerWindow() {
     };
     scopes_.onChannelsChanged = [this](VoiceMask mask) { player_.setScopeMask(mask); };
     scopes_.onSoloRequested = [this](int source) { player_.toggleSolo(source); refresh(); };
+    scopes_.onMuteRequested = [this](int source) {
+        const auto state = player_.state();
+        if (state.valid && !state.busy && source >= 0 && source < state.info.voices.size()) {
+            player_.setMuteMask(state.muteMask ^ VoiceMask::bit(source)); refresh();
+        }
+    };
     scopes_.onOutputChanged = [this](bool enabled) { player_.setOutputScopesEnabled(enabled && scopes_.renderingVisible()); };
     scopes_.onRefreshRequested = [this] { refreshScopes(); };
     scopes_.onFrameRateChanged = [this](int fps) { player_.setScopeFrameRate(fps); };
@@ -130,6 +136,7 @@ PlayerWindow::PlayerWindow() {
 PlayerWindow::~PlayerWindow() {
     // scopes_ is a top-level value member; detach callbacks capturing this before teardown.
     scopes_.onSoloRequested = {};
+    scopes_.onMuteRequested = {};
     scopes_.onVisibilityChanged = {}; scopes_.onChannelsChanged = {}; scopes_.onOutputChanged = {};
     scopes_.onRefreshRequested = {}; scopes_.onFrameRateChanged = {}; player_.shutdown();
 }

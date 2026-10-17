@@ -167,6 +167,13 @@ changes apply live, while saving a preset or theme remains explicit.
 
 Press **F1** or click the keyboard icon in the visualizer title bar for the in-app guide.
 
+Click a card to select it, or use **arrow keys** on the visualization canvas.
+The selected card has a highlighted border. **V** cycles its view, **M** toggles
+its source's sound, **S** toggles Solo, **H** hides/shows the card, **L** toggles
+its Levels, and **Enter** opens Card settings. **Esc** clears selection after
+leaving fullscreen. These commands also work in the Cards list and have no
+channel-number limit. View/visibility/Levels affect only the selected card.
+
 | Key | Action |
 | --- | --- |
 | 1–9 | Cycle a channel's available views, including Piano roll / Pattern |
@@ -181,7 +188,7 @@ Press **F1** or click the keyboard icon in the visualizer title bar for the in-a
 | F11 / Esc | Toggle fullscreen / exit fullscreen |
 | Ctrl+Shift+R | Reset cards/layout and enable all voices and L/R outputs |
 
-Shortcuts work in either window; digits use original channel numbers and also
+The shortcuts in the table work in either window; digits use original channel numbers and also
 work on the numpad with Num Lock. On macOS, use **Command** for Ctrl and **Option**
 for Alt. Text fields, dropdowns and dialogs keep their normal keys.
 

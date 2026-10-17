@@ -19,6 +19,8 @@
 #include <QToolButton>
 #include <stdexcept>
 
+void checkSelectedCardShortcuts(QApplication &app, const QString &directory, QTextStream &log);
+
 namespace {
 void require(bool condition, const char *message) { if (!condition) throw std::runtime_error(message); }
 void pump(QApplication &app, int ms = 30) {
@@ -242,6 +244,7 @@ void checkSolo(QApplication &app, PlayerWindow &window, const QString &directory
 }
 
 void checkShortcuts(QApplication &app, const QString &directory, QTextStream &log) {
+    checkSelectedCardShortcuts(app, directory, log);
     checkChannelPresentation(log);
     PlayerWindow window; auto &player = window.player(); auto &scope = window.scopeWindow();
     player.setVolume(0); window.show();

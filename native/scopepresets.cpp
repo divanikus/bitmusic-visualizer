@@ -89,6 +89,7 @@ ScopePreset ScopeWindow::currentPreset() const {
     return preset;
 }
 void ScopeWindow::applyPreset(const ScopePreset &preset, const QString &file) {
+    clearCardSelection();
     applyingPreset_ = true; automaticGrid_ = false;
     ++cardRevision_;
     if (colorDialog_) colorDialog_->reject();

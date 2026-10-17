@@ -69,6 +69,23 @@ void showShortcutsHelp(QWidget *owner) {
     auto text = new QTextBrowser; text->setObjectName("shortcutsGuide");
     text->setStyleSheet("QTextBrowser { background: #1b252b; color: #dce5e8; border: none; padding: 8px; }");
     text->setHtml(QString(R"(
+      <h3>Selected card</h3>
+      <p>In the visualizer, click a card or use the arrow keys to select it.
+      A highlighted border marks the selection. This works for every channel,
+      including channels beyond 9 and Full mix.</p>
+      <table cellspacing="8">
+      <tr><td><b>Arrow keys</b></td><td>Select a neighboring visible card</td></tr>
+      <tr><td><b>V</b></td><td>Cycle this card's available views</td></tr>
+      <tr><td><b>M / S</b></td><td>Mute / Solo its source channel</td></tr>
+      <tr><td><b>H</b></td><td>Hide / show this card; press again to restore</td></tr>
+      <tr><td><b>L</b></td><td>Toggle this card's level meters</td></tr>
+      <tr><td><b>Enter</b></td><td>Open this card's settings</td></tr>
+      <tr><td><b>Esc</b></td><td>Clear selection (leave full screen first)</td></tr>
+      </table>
+      <p>These keys work on the canvas or in the Cards list. The list keeps its
+      normal arrow navigation, including hidden cards. View, visibility and Levels
+      affect only the selected card; mute/Solo affect its sound source and all
+      copies. Full mix cannot be muted or soloed.</p>
       <h3>Channels</h3>
       <table cellspacing="8">
       <tr><td><b>1–9</b></td><td>Cycle available views: Waveform, Spectrum, Keyboard, Piano roll or Pattern</td></tr>
@@ -89,7 +106,7 @@ void showShortcutsHelp(QWidget *owner) {
       <tr><td><b>F1</b></td><td>This guide</td></tr>
       <tr><td><b>F11 / Esc</b></td><td>Toggle full-screen visualizer / leave full screen</td></tr>
       </table>
-      <p>Works in either player window. Use the number row or the numpad with
+      <p>Number and playback shortcuts work in either player window. Use the number row or the numpad with
       Num Lock on. Numbers refer to the original channel numbers, even after
       reordering. Multiple cards of one channel change together.</p>
       <p>Solo temporarily plays only one voice. Shift-click another channel to
@@ -134,6 +151,7 @@ bool PlayerWindow::eventFilter(QObject *object, QEvent *event) {
     const auto focus = QApplication::focusWidget();
     if (!help && (editing(widget) || (focus && focus->window() == widget->window() && editing(focus))))
         return FrameWindow::eventFilter(object, event);
+    if (widget->window() == &scopes_ && scopes_.handleCardShortcut(keyEvent, widget)) return true;
     const bool digit = key >= Qt::Key_1 && key <= Qt::Key_9 &&
         (modifiers == Qt::NoModifier || modifiers == Qt::ControlModifier || modifiers == Qt::AltModifier);
     const bool mix = key == Qt::Key_0 && (modifiers == Qt::NoModifier || modifiers == Qt::AltModifier);

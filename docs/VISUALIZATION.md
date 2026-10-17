@@ -43,6 +43,25 @@ edit and fullscreen modes. Full mix is not a voice and cannot be soloed.
 Unmodified editor clicks still drag, resize, hide cards or open Card settings.
 
 The keyboard icon in the visualizer title bar or **F1** opens the [shortcut guide](../README.md#keyboard-shortcuts).
+Click a card or use **arrow keys** on the canvas to select it. The border highlights
+the selected card; arrows follow grid positions, including resized/reordered cards,
+and skip hidden/overflow cards. The Cards list keeps normal list navigation, so
+it can also select hidden or overflowing cards.
+
+- **V:** cycle this card's available views.
+- **M / S:** mute or Solo its source, including channels beyond 9. Full mix has no voice mute/Solo.
+- **H:** hide/show only this card; a hidden-selection hint explains how to restore it.
+- **L:** toggle only this card's Levels.
+- **Enter:** open Card settings, including view-specific options and colors.
+- **Esc:** clear selection; first leave fullscreen or cancel an active drag if applicable.
+
+These commands work only on the canvas or in the Cards list. Fields, dropdowns,
+buttons and dialogs keep their normal keys. Holding an action key does not repeat
+it; holding an arrow continues navigation. Selection is temporary: reset, preset
+application and a new file clear it. Other card edits retain the normal preset
+behavior. Duplicate cards keep independent view/visibility/Levels settings, while
+mute/Solo still affects their shared source.
+
 Digits refer to audio channel numbers, not grid slots. If several cards share
 a channel, a digit cycles them together based on its original card's current
 view (or the first remaining card if the original was removed). Alt+digit hides

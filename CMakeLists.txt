@@ -73,6 +73,7 @@ add_library(bitmusic_core OBJECT
   native/scopecards.cpp
   native/scopegrid.cpp
   native/scopelayout.cpp
+  native/scopeselection.cpp
   native/spectrum.cpp
   native/scopeviews.cpp
   native/shortcuts.cpp
@@ -131,6 +132,7 @@ if(BITMUSIC_BUILD_TESTS)
     native/psgnoteschecks.cpp
     native/chipnoteschecks.cpp
     native/shortcutchecks.cpp
+    native/cardshortcutchecks.cpp
     native/sidchecks.cpp
     native/pokeychecks.cpp
     native/yamahachecks.cpp

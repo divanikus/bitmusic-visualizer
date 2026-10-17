@@ -139,6 +139,10 @@ the visualizer help button and F1 guide in both windows, saving screenshots with
 preferences and silent playback. It is included in the complete native suite.
 Channel-control checks additionally cover high source IDs, snapshot feedback
 suppression and instrument-label changes without rebuilding buttons.
+Selected-card checks use an authored 16-channel MIDI: spatial navigation through
+reordered/spanning cards, independent duplicate views/Levels, source mute/Solo,
+hidden-card restoration, Card settings, focus guards and reset/file lifecycle.
+Run with and without `--software-scopes` to exercise CPU and GPU selection chrome.
 
 `--self-test test-output --presets-only` checks preset serialization/validation,
 hardware identities, same-platform transfer, default assignment/removal/restart,

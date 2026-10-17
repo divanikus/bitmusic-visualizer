@@ -31,6 +31,8 @@ public:
     void toggleSourceVisibility(int source);
     void setAllViews(ViewKind kind);
     void resetLayout();
+    // Called by the player's window-local shortcut filter after focus/dialog guards.
+    bool handleCardShortcut(QKeyEvent *event, QWidget *target);
     void toggleFullscreen();
     bool presentationFullscreen() const { return !fullscreenGeometry_.isEmpty(); }
     QByteArray windowedGeometry() const;
@@ -39,6 +41,7 @@ public:
     std::function<void(bool)> onVisibilityChanged;
     std::function<void(VoiceMask)> onChannelsChanged;
     std::function<void(int)> onSoloRequested;
+    std::function<void(int)> onMuteRequested;
     std::function<void(bool)> onOutputChanged;
     std::function<void()> onRefreshRequested;
     std::function<void(int)> onFrameRateChanged;
@@ -94,6 +97,12 @@ private:
     struct MusicImage { QByteArray key; QImage image; };
     QHash<int, MusicImage> musicImages_;
     int selectedCardId() const;
+    void selectCard(int id);
+    void clearCardSelection();
+    void updateCardSelection();
+    void moveCardSelection(int key);
+    bool cardSelectionActive_ = false;
+    QLabel *cardSelectionHint_ = nullptr;
     void updateViewEditor();
     void updateLevelsControl();
     void updateKeyboardNotes();

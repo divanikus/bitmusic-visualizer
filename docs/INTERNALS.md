@@ -291,6 +291,14 @@ file or preset replacement. Levels belongs to each card; the old global key is
 retained as the default for newly created cards and legacy presets. Optional
 Levels fields keep version-1 preset compatibility.
 
+`scopeselection.cpp` owns temporary canvas selection, grid-neighbor navigation and
+selected-card actions. It reuses the Cards list's stable ID instead of inventing
+a second selection model. The player shortcut filter applies text/dialog/popup
+guards; selected-card commands additionally require canvas/list focus. Source
+mute/Solo use callbacks into the player, while view/visibility/Levels update only
+one card. Selection changes refresh chrome without invalidating the GPU trace
+history key or touching audio/capture. Reset, presets and new files clear selection.
+
 Preset card conversion belongs to `ScopeCards`; `ScopePreset` retains the
 versioned INI format, validation and hardware compatibility/adaptation. The window
 coordinates grid/label controls, explicit saves and default assignments. Themes,

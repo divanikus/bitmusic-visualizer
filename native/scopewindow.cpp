@@ -99,6 +99,7 @@ protected:
 
 ScopeWindow::ScopeWindow() {
     setWindowTitle("Bit Music - Visualizations"); setAttribute(Qt::WA_QuitOnClose, false);
+    setFocusPolicy(Qt::StrongFocus);
     setMouseTracking(true);
     restoreEffects();
     restoreWaves();
@@ -238,7 +239,12 @@ ScopeWindow::ScopeWindow() {
         if (const int id = selectedCardId(); id >= 0) { cards_[id].levels = enabled; layoutChanged(); }
     };
     cardInspector_->onColorsRequested = [this] { editColors(); };
-    connect(channelList_, &QListWidget::currentRowChanged, this, [this] { updateViewEditor(); });
+    connect(channelList_, &QListWidget::currentRowChanged, this, [this] {
+        cardSelectionActive_ = selectedCardId() >= 0; updateViewEditor(); updateCardSelection();
+    });
+    connect(channelList_, &QListWidget::itemClicked, this, [this](QListWidgetItem *item) {
+        selectCard(item->data(Qt::UserRole).toInt()); // Also reselect the same row after Escape.
+    });
     connect(addCard_, &QPushButton::clicked, this, [this] { addCard(); });
     connect(removeCard_, &QPushButton::clicked, this, [this] {
         if (!channelList_->currentItem()) return;
@@ -326,6 +332,7 @@ ScopeWindow::ScopeWindow() {
 }
 
 void ScopeWindow::beginFile() {
+    clearCardSelection();
     ++cardRevision_;
     if (colorDialog_) colorDialog_->reject();
     if (gpu_) gpu_->suspend();
@@ -394,6 +401,7 @@ void ScopeWindow::resetGrid() {
     rows_->setValue(std::clamp((count + columns - 1) / columns, 1, count > 32 ? 8 : 16));
 }
 void ScopeWindow::resetChannels(bool grid) {
+    clearCardSelection();
     ++cardRevision_;
     if (colorDialog_) colorDialog_->reject();
     cards_.reset(int(state_.info.voices.size()), waveOptions_.output, state_.info.emptyVoices, waveOptions_.meters);
@@ -465,7 +473,7 @@ void ScopeWindow::layoutChanged() {
         outputCapturing_ = capture; output_ = {}; outputMono_.clear(); analysis_.clearWave(ScopeTheme::FullMix);
         if (onOutputChanged) onOutputChanged(capture);
     }
-    presetEdited(); update();
+    presetEdited(); updateCardSelection();
 }
 void ScopeWindow::rebuildList() {
     const int selected = channelList_->currentItem() ? channelList_->currentItem()->data(Qt::UserRole).toInt() : 0;
@@ -587,11 +595,13 @@ void ScopeWindow::updateEditorGeometry() {
 }
 void ScopeWindow::resizeEvent(QResizeEvent *event) {
     FrameWindow::resizeEvent(event); cancelDrag(); updateEditorGeometry();
+    updateCardSelection();
     if (gpu_ && gpu_->checkHealth()) gpu_->setGeometry(rect());
 }
 void ScopeWindow::closeEvent(QCloseEvent *event) { hide(); event->ignore(); }
 QByteArray ScopeWindow::chromeKey(bool dynamic) const {
     QByteArray key; QDataStream s(&key, QIODevice::WriteOnly);
+    if (dynamic) s << cardSelectionActive_ << selectedCardId(); // Selection must not reset GPU trails.
     s << size() << devicePixelRatioF() << theme_.windowBackground << rows_->value() << columns_->value()
       << edit_->isChecked() << windowSize_->isChecked() << numbers_->isChecked() << names_->isChecked() << stereo_->isChecked()
       << presentationFullscreen() << waveOptions_.lineWidth << waveOptions_.meters
@@ -773,7 +783,8 @@ void ScopeWindow::paintContents(QPainter &p, bool waves) {
         const bool muted = sourceDimmed(source);
         const auto colors = theme_.colors(source);
         auto dimmed = [muted](QColor color) { if (muted) color.setAlpha(115); return color; };
-        p.setPen(QPen(floating ? QColor("#a2e5d5") : colors.border, floating ? 2 : 1));
+        const bool selected = cardSelectionActive_ && channel == selectedCardId();
+        p.setPen(QPen(floating || selected ? QColor("#a2e5d5") : colors.border, floating || selected ? 2 : 1));
         p.setBrush(colors.background); p.drawRoundedRect(card.adjusted(1, 1, -1, -1), 8, 8);
         p.setFont(QFont("Segoe UI", 9, QFont::DemiBold));
         p.setPen(dimmed(colors.label));

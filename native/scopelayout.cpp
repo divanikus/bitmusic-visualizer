@@ -135,9 +135,14 @@ void ScopeWindow::mousePressEvent(QMouseEvent *event) {
         const int card = panelAt(event->position());
         if (card >= 0) {
             // Shift reserves the whole card for Solo, including edit-mode grips/buttons.
-            cancelDrag(); setFocus(); pressedSolo_ = card; dragStart_ = event->position();
+            cancelDrag(); setFocus(); selectCard(card); pressedSolo_ = card; dragStart_ = event->position();
             event->accept(); return;
         }
+    }
+    if (event->button() == Qt::LeftButton && event->modifiers() == Qt::NoModifier) {
+        const int id = panelAt(event->position());
+        if (id >= 0) { setFocus(); selectCard(id); }
+        else clearCardSelection();
     }
     if (edit_->isChecked() && event->button() == Qt::LeftButton) {
         const int channel = panelAt(event->position());
@@ -163,6 +168,9 @@ void ScopeWindow::mousePressEvent(QMouseEvent *event) {
                 event->accept(); return;
             }
         }
+    }
+    if (event->button() == Qt::LeftButton && event->modifiers() == Qt::NoModifier && panelAt(event->position()) >= 0) {
+        event->accept(); return;
     }
     FrameWindow::mousePressEvent(event);
 }
@@ -207,7 +215,8 @@ void ScopeWindow::mouseMoveEvent(QMouseEvent *event) {
     }
     // FrameWindow's event filter already restores the ordinary cursor or its
     // outer window resize grip. Do not overwrite that edge cursor here.
-    setToolTip({}); FrameWindow::mouseMoveEvent(event);
+    setToolTip(panelAt(event->position()) >= 0 ? "Click to select a card. V: view · M: mute · S: Solo · H: hide/show · L: levels · Enter: settings. F1: all shortcuts." : QString());
+    FrameWindow::mouseMoveEvent(event);
 }
 void ScopeWindow::mouseReleaseEvent(QMouseEvent *event) {
     if (event->button() == Qt::LeftButton && pressedSolo_ >= 0) {
