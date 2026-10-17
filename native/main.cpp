@@ -1,4 +1,4 @@
-#include "window.h"
+#include "playerwindow.h"
 #include "palette.h"
 #include "diagnostics.h"
 #include "renderersettings.h"

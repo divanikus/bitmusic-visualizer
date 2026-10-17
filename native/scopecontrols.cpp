@@ -1,4 +1,4 @@
-#include "window.h"
+#include "scopewindow.h"
 #include "appsettings.h"
 #include "palette.h"
 #include <QCheckBox>

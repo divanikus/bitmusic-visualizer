@@ -1,4 +1,4 @@
-#include "window.h"
+#include "scopewindow.h"
 #include "scopecardinspector.h"
 #include "shortcuts.h"
 #include "palette.h"

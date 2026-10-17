@@ -1,4 +1,4 @@
-#include "window.h"
+#include "scopewindow.h"
 #include <QCheckBox>
 #include <QPainter>
 #include <QPushButton>

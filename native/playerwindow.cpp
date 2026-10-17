@@ -1,4 +1,4 @@
-#include "window.h"
+#include "playerwindow.h"
 #include "shortcuts.h"
 #include "appsettings.h"
 #include "playersettings.h"

@@ -1,4 +1,4 @@
-#include "window.h"
+#include "scopewindow.h"
 #include <QApplication>
 #include <QCheckBox>
 #include <QKeyEvent>

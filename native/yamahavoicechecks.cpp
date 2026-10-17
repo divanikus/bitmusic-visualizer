@@ -1,4 +1,4 @@
-#include "window.h"
+#include "playerwindow.h"
 #include "ymfm-voices/ym2203.h"
 #include <QApplication>
 #include <QCheckBox>

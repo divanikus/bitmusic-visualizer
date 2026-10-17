@@ -1,4 +1,4 @@
-#include "window.h"
+#include "playerwindow.h"
 #include <QApplication>
 #include <QComboBox>
 #include <QDir>

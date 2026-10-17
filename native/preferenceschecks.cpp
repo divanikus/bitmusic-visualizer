@@ -1,4 +1,4 @@
-#include "window.h"
+#include "playerwindow.h"
 #include "playersettings.h"
 #include "appsettings.h"
 #include <QApplication>

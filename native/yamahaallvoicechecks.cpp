@@ -1,4 +1,4 @@
-#include "window.h"
+#include "playerwindow.h"
 #include "vgm.h"
 #include "ymfm-voices/voices.h"
 #include <QApplication>

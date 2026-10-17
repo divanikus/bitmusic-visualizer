@@ -1,5 +1,5 @@
 #include "miditrack.h"
-#include "window.h"
+#include "playerwindow.h"
 #include "appsettings.h"
 #include <QApplication>
 #include <QComboBox>

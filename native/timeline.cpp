@@ -1,4 +1,4 @@
-#include "window.h"
+#include "timeline.h"
 #include <QMouseEvent>
 #include <QStyle>
 #include <QStyleOptionSlider>

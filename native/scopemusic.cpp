@@ -1,4 +1,4 @@
-#include "window.h"
+#include "scopewindow.h"
 #include <QDataStream>
 #include <QFontDatabase>
 #include <QPainter>

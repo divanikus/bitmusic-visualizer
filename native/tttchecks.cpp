@@ -1,6 +1,6 @@
 #include "ttttrack.h"
 #include "tia-replay/replay.h"
-#include "window.h"
+#include "playerwindow.h"
 #include <TIASnd.h>
 #include <QApplication>
 #include <QDir>

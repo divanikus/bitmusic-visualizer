@@ -1,5 +1,5 @@
 #include "mt32track.h"
-#include "window.h"
+#include "playerwindow.h"
 #include <QApplication>
 #include <QComboBox>
 #include <QElapsedTimer>

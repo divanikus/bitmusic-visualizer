@@ -2,7 +2,7 @@
 #include "romfiles.h"
 #include <QTemporaryDir>
 #include <QMessageBox>
-#include "window.h"
+#include "playerwindow.h"
 #include <QApplication>
 #include <QDir>
 #include <QFile>

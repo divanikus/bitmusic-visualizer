@@ -1,5 +1,5 @@
 #include "playlist.h"
-#include "window.h"
+#include "playerwindow.h"
 #include <QApplication>
 #include <QDir>
 #include <QElapsedTimer>

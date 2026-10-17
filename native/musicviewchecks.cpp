@@ -1,4 +1,4 @@
-#include "window.h"
+#include "scopewindow.h"
 #include "midisequence.h"
 #include "trackertrack.h"
 #include <QApplication>

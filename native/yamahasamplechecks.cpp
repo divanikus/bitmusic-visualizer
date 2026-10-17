@@ -1,4 +1,4 @@
-#include "window.h"
+#include "playerwindow.h"
 #include "romfiles.h"
 #include <QApplication>
 #include <QDir>

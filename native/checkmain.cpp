@@ -1,5 +1,4 @@
 // Developer-only entry point. This file and all checks stay out of the player.
-#include "window.h"
 #include "palette.h"
 #include "diagnostics.h"
 #include <QApplication>

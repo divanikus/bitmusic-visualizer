@@ -1,5 +1,10 @@
 # Native UI responsibilities
 
+The UI headers follow ownership: `playerwindow.h` includes `scopewindow.h`
+because the player owns that window; scope code has no dependency on the player
+or playlist UI. `timeline.h` contains the transport slider and time label helper.
+Implementation files include the header they use, without an umbrella window header.
+
 `ScopeWindow` coordinates transport snapshots, capture requests, layout gestures
 and CPU/GPU presentation. It does not own playback or decode music in painting.
 

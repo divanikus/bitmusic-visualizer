@@ -1,4 +1,4 @@
-#include "window.h"
+#include "playerwindow.h"
 #include "scopecardinspector.h"
 #include <QApplication>
 #include <QCheckBox>

@@ -1,4 +1,4 @@
-#include "window.h"
+#include "playerwindow.h"
 #include "shortcuts.h"
 #include <QAbstractSpinBox>
 #include <QApplication>
