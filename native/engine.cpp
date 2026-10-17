@@ -6,13 +6,10 @@
 #include "gme-taps/taps.h"
 #include "gme-taps/notes.h"
 #include <QtEndian>
-#include <QAudioSink>
 #include <QFile>
 #include <QFileInfo>
-#include <QMediaDevices>
 #include <QSemaphore>
 #include <QThreadPool>
-#include <QTimer>
 #include <zlib.h>
 #include <algorithm>
 #include <chrono>
@@ -412,165 +409,6 @@ OutputFrame NativePlayer::outputScopes() const {
     return {};
 }
 
-void NativePlayer::run() {
-    QObject context;
-    std::unique_ptr<QAudioSink> sink;
-    std::unique_ptr<MusicTrack> track;
-    std::array<short, BlockFrames * 2> buffer{};
-    quint64 active = 0;
-    bool playing = false;
-    int activeLimit = 0;
-    // Scope work owns Qt objects (including a QThreadPool). Let Qt perform
-    // thread cleanup before native TLS teardown; an adopted std::thread caused
-    // a multi-second join delay on Windows even after scopeLoop had returned.
-    std::unique_ptr<QThread> scopeThread(QThread::create([this] { scopeLoop(); }));
-    scopeThread->start(QThread::NormalPriority); // Do not inherit the audio decoder's high priority.
-    auto stopOutput = [&] {
-        enabled_ = false;
-        if (sink) { sink->reset(); sink.reset(); }
-        ring_.reset();
-        playing = false;
-    };
-    auto updateEnd = [&] {
-        qint64 end=track->info().durationMs<0?-1:qint64(track->info().durationMs)*SampleRate/1000;
-        const auto boundary=track->boundary();
-        if(boundary.frame>=0 && (end<0 || boundary.frame<end))end=boundary.frame;
-        const bool limited=end<0 && activeLimit>0;
-        if(limited)end=qint64(activeLimit)*SampleRate/1000;
-        endFrame_=end;durationLimited_=limited;
-    };
-    auto fill = [&] {
-        if (!track) return;
-        track->mute(muteMask_.load());
-        // At most ~186 ms ahead: keeps mute response bounded while covering scheduling jitter.
-        while (ring_.size() < 8192 * 2 && active == generation_ && !closing_) {
-            auto count = qint64(BlockFrames);
-            if (endFrame_ >= 0) count = std::min(count, endFrame_.load() - track->frame());
-            if (count <= 0) break;
-            const auto start=track->frame();
-            track->render(buffer.data(), static_cast<int>(count));
-            updateEnd(); // A decoder may discover a loop while producing this block.
-            if(endFrame_>=0)count=std::clamp<qint64>(endFrame_.load()-start,0,count);
-            ring_.push(buffer.data(), static_cast<size_t>(count) * 2);
-        }
-    };
-    QTimer timer;
-    timer.setTimerType(Qt::PreciseTimer);
-    timer.setInterval(3);
-    QObject::connect(&timer, &QTimer::timeout, &context, [&] {
-        if (closing_) { quit(); return; }
-        std::optional<Command> command;
-        { std::lock_guard lock(stateMutex_); command.swap(pending_); }
-        try {
-            if (command) {
-                active = command->generation;
-                stopOutput();
-                if (command->unload) {
-                    track.reset(); playedFrame_ = 0; endFrame_ = -1; durationLimited_=false;
-                    std::lock_guard lock(stateMutex_);
-                    if (active == generation_) { state_ = {}; state_.generation = active; }
-                    return;
-                }
-                if (command->load) {
-                    track = openMusicTrack(command->path, command->song);
-                    activeLimit=unknownDurationLimit_.load();
-                }
-                if (!track) throw std::runtime_error("Open a music file first.");
-                updateEnd();
-                int target = command->ms;
-                const int endMs=endFrame_<0?-1:int(std::min<qint64>((endFrame_*1000+SampleRate-1)/SampleRate,std::numeric_limits<int>::max()));
-                if(endMs>=0)target=std::min(target,endMs);
-                if (!command->load && command->playing && !state().playing &&
-                    endFrame_ >= 0 && playedFrame_ >= endFrame_ && target >= endMs)
-                    target = 0;
-                if (!track->seek(qint64(target) * SampleRate / 1000, [&] { return closing_ || active != generation_; })) return;
-                playedFrame_ = track->frame();
-                updateEnd();
-                playing = command->playing && (endFrame_ < 0 || playedFrame_ < endFrame_);
-                if (playing) {
-                    QAudioFormat format;
-                    format.setSampleRate(SampleRate);
-                    format.setChannelCount(2);
-                    format.setSampleFormat(QAudioFormat::Int16);
-                    const auto device = QMediaDevices::defaultAudioOutput();
-                    if (device.isNull() || !device.isFormatSupported(format))
-                        throw std::runtime_error("Default output does not support stereo 44100 Hz / 16-bit audio.");
-                    sink = std::make_unique<QAudioSink>(device, format);
-                    fill();
-                    if (active != generation_ || closing_) { stopOutput(); return; }
-                    enabled_ = true;
-                    sink->start([this, callbackGeneration = active](QSpan<int16_t> output) {
-                        std::fill(output.begin(), output.end(), 0);
-                        if (!enabled_.load(std::memory_order_acquire) || callbackGeneration != generation_) return;
-                        // No allocation, mutex, emulation or GUI calls on this thread.
-                        const auto copied = ring_.pop(output.data(), output.size());
-                        applyOutputGain(output.data(), copied, volume_.load(std::memory_order_relaxed),
-                                        outputMask_.load(std::memory_order_relaxed));
-                        playedFrame_.fetch_add(copied / 2);
-                        const auto captureToken = outputToken_.load(std::memory_order_relaxed);
-                        if (captureToken & 1)
-                            outputHistory_->push(output.data(), size_t(output.size()) / 2, callbackGeneration, captureToken,
-                                                 int(playedFrame_.load() * 1000 / SampleRate));
-                        if (copied < static_cast<size_t>(output.size()) &&
-                            (endFrame_ < 0 || playedFrame_ < endFrame_)) ++starvations_;
-                    });
-                    if (sink->error() != QtAudio::NoError) { ++outputErrors_; throw std::runtime_error("Cannot start audio output."); }
-                }
-                std::lock_guard lock(stateMutex_);
-                if (active == generation_) {
-                    state_.info = track->info();
-                    state_.instruments = track->instrumentNames(playedFrame_.load());
-                    state_.pattern = track->patternPosition(playedFrame_.load());
-                    state_.valid = true; state_.busy = false; state_.playing = playing;
-                }
-            }
-            if (playing && active == generation_) {
-                if (sink && sink->error() != QtAudio::NoError) { ++outputErrors_; throw std::runtime_error("Audio output device failed."); }
-                fill();
-                if (endFrame_ >= 0 && playedFrame_ >= endFrame_) {
-                    stopOutput();
-                    std::lock_guard lock(stateMutex_);
-                    if (active == generation_) {
-                        state_.playing = false;
-                        state_.finished = true;
-                        // Natural transitions happen off the GUI thread. A user's newer command wins.
-                        const bool repeat = repeat_.load();
-                        if (!pending_ && (repeat || (autoSubsong_ && track->info().song + 1 < track->info().songs))) {
-                            const auto next = ++generation_;
-                            state_.generation = next;
-                            state_.busy = true;
-                            state_.finished = false;
-                            const auto boundary=track->boundary();
-                            const int loopMs=boundary.loopFrame>=0?int(boundary.loopFrame*1000/SampleRate):track->info().loopStartMs;
-                            if (repeat) pending_ = Command{next, {}, 0, durationLimited_?0:loopMs, false, true};
-                            else pending_ = Command{next, track->info().path, track->info().song + 1, 0, true, true};
-                        }
-                    }
-                }
-            }
-            if (track && active == generation_) {
-                const auto names = track->instrumentNames(playedFrame_.load());
-                const auto pattern = track->patternPosition(playedFrame_.load());
-                std::lock_guard lock(stateMutex_);
-                if (active == generation_) { state_.instruments = names; state_.pattern = pattern; }
-            }
-        } catch (const std::exception &error) {
-            stopOutput();
-            std::lock_guard lock(stateMutex_);
-            if (active == generation_) {
-                state_.busy = state_.playing = false;
-                state_.error = QString::fromUtf8(error.what());
-                if (command && command->load) { track.reset(); state_.valid = false; }
-            }
-        }
-    });
-    timer.start();
-    if (!closing_) exec();
-    stopOutput();
-    { std::lock_guard lock(scopeWaitMutex_); closing_ = true; }
-    scopeWake_.notify_all();
-    scopeThread->wait();
-}
 
 void NativePlayer::scopeLoop() {
     struct Voice { std::unique_ptr<MusicTrack> track; QVector<float> history, left, right; };

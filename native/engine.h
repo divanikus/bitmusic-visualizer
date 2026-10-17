@@ -183,6 +183,7 @@ public:
     OutputFrame outputScopes() const;
     void shutdown();
 private:
+    class AudioWorker;
     struct Command { quint64 generation; QString path; int song, ms; bool load, playing; bool unload = false; };
     void submit(Command command);
     void run() override;

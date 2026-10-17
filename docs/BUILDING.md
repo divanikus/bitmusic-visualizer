@@ -74,6 +74,10 @@ player screenshot and runs with isolated settings and silent audio.
 `--self-test test-output --transport-only` runs the existing transport, scope
 continuity, compact-player, layout and shutdown checks without unrelated backend
 and presentation suites. The normal self-test still includes all of them.
+Both also exercise command failures and cancellation; `--engine-only` runs just
+those checks. They cover empty seeks, exact load errors and retained metadata,
+recovery, paused/clamped positions, long seeks superseded by a seek, failed load
+or unload, and shutdown cancellation with silent audio and isolated settings.
 
 For a focused frame-rate check after generating fixtures, run
 `build/native/bitmusic_checks --self-test test-output --fps-only`.

@@ -1,4 +1,13 @@
-# Native UI responsibilities
+# Native code responsibilities
+
+`NativePlayer` retains the public command mailbox, generation/state storage and
+independent scope worker. Its private `AudioWorker` in `engineplayback.cpp` is
+created inside `run()`, on the existing high-priority thread. It owns the active
+decoder, audio sink, render buffer and per-load duration limit. The 3 ms timer,
+command order and state publication guards are unchanged. Stop/reset the sink
+before resetting the PCM ring. The real-time callback captures only the player
+and its generation; it never accesses the decoder, locks or GUI. Shutdown stops
+output before joining the separate scope thread.
 
 The UI headers follow ownership: `playerwindow.h` includes `scopewindow.h`
 because the player owns that window; scope code has no dependency on the player

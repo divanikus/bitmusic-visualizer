@@ -48,6 +48,7 @@ include(cmake/Tia.cmake)
 option(BITMUSIC_BUILD_TESTS "Build the separate developer check runner" ON)
 add_library(bitmusic_core OBJECT
   native/engine.cpp
+  native/engineplayback.cpp
   native/timeline.cpp
   native/midicontrols.cpp
   native/playerchannels.cpp
@@ -106,6 +107,7 @@ set(BITMUSIC_EXECUTABLES bitmusic_visualizer)
 if(BITMUSIC_BUILD_TESTS)
   add_executable(bitmusic_checks native/checkmain.cpp
     native/checks.cpp
+    native/enginechecks.cpp
     native/tapchecks.cpp
     native/gbschecks.cpp
     native/aychecks.cpp
