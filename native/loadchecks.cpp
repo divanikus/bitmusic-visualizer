@@ -2,6 +2,7 @@
 #include <QApplication>
 #include <QDir>
 #include <QFile>
+#include <QFileInfo>
 #include <QTemporaryDir>
 #include <QTextStream>
 #include <zlib.h>
@@ -91,6 +92,19 @@ void checkMusicLoading(QApplication &, const QString &directory, QTextStream &lo
                 full.info().system == selected.info().system && full.info().loopStartMs == selected.info().loopStartMs,
                 "Selected-only GME metadata differs from full playlist metadata.");
     }
+    auto single = bytes;
+    single[6] = 1;
+    std::fill(single.begin() + 14, single.begin() + 46, '\0');
+    const auto unicode = files.filePath(QString::fromUtf8("Музыка.extra.nsf"));
+    GmeTrack filename(unicode, 0, true, false, single);
+    require(filename.info().title == QFileInfo(unicode).completeBaseName() && filename.info().durationMs == -1 &&
+            filename.info().playlist[0].title == filename.info().title, "Single-song filename/unknown-duration fallback changed.");
+    single.replace(14, 15, QByteArray("  Game title   ", 15));
+    GmeTrack game(unicode, 0, false, false, single);
+    require(game.info().title == "Game title" && game.info().playlist.isEmpty(), "Single-song trimmed game-title fallback changed.");
+    GmeTrack multi(original);
+    require(multi.info().playlist[0].title == "Track 01" && multi.info().playlist[1].title == "Track 02" &&
+            multi.info().playlist[1].durationMs == -1, "Multi-song title/unknown-duration fallback changed.");
     require(error([&] { GmeTrack bad(original, -1); }) == "Invalid subsong number." &&
             error([&] { GmeTrack bad(original, 999); }) == "Invalid subsong number.", "Invalid GME subsong error changed.");
     log << "Music loading: extension-independent routing, gzip content/first-member/errors/size bounds, raw SID precedence, "

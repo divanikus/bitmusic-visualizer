@@ -113,6 +113,8 @@ public:
     qint64 frame() const { return frame_; }
     TrackBoundary boundary() const override;
 private:
+    void readMetadata(bool readPlaylist);
+    void release();
     TrackBoundary boundary_;
     Music_Emu *emu_ = nullptr;
     BmTaps *taps_ = nullptr;

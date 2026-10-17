@@ -9,6 +9,13 @@ The 64 MiB packed/decoded limits, first-gzip-member/trailing-byte policy and exa
 errors remain intact. Raw SID retains its separate reader/limits; compressed SID
 does not acquire a new route. Backends still validate their own contents/resources.
 
+`gmetrack.cpp` owns GME decoding/capture. `readMetadata` keeps selected-only/full
+queries, title/game/filename/Track NN fallbacks, raw system text, unknown durations
+and intro/loop arithmetic together. Each libgme info allocation has a scoped
+deleter. Constructor failure and destruction share decoder/taps/notes release;
+initialization, capture-scope lifetime, mute restoration and seek order stay the
+same. Metadata never uses libgme's invented `play_length` or changes source tags.
+
 `NativePlayer` retains the public command mailbox, generation/state storage and
 independent scope worker. Its private `AudioWorker` in `engineplayback.cpp` is
 created inside `run()`, on the existing high-priority thread. It owns the active
