@@ -1,5 +1,6 @@
 #include "vgm.h"
 #include <QtEndian>
+#include <QStringConverter>
 #include <algorithm>
 #include <stdexcept>
 
@@ -53,7 +54,7 @@ QString fmVoiceName(int id, int channel) {
     }
     return label;
 }
-quint32 word(const QByteArray &data, int at) { return qFromLittleEndian<quint32>(data.constData() + at); }
+quint32 word(const QByteArray &data, qsizetype at) { return qFromLittleEndian<quint32>(data.constData() + at); }
 VgmHeader readHeaderBounds(const QByteArray &data) {
     if (data.size() < 0x40 || !data.startsWith("Vgm ")) throw std::runtime_error("Invalid VGM header.");
     VgmHeader h; h.version = word(data, 8);
@@ -142,6 +143,21 @@ void requireSupportedVgm(const VgmHeader &h) {
     if (!h.unsupported.isEmpty())
         throw std::runtime_error(("Unsupported sound chip in VGM/VGZ: " + h.unsupported.join(", ") +
             ".\nThis player cannot play this chip configuration yet.").toStdString());
+}
+
+void applyVgmTags(const QByteArray &data, QString &title, QString &system) {
+    if (data.size() < 0x40) return;
+    const quint64 gd3 = word(data, 0x14) ? 0x14ULL + word(data, 0x14) : 0;
+    if (gd3 && gd3 + 12 <= quint64(data.size()) && data.mid(qsizetype(gd3), 4) == "Gd3 ") {
+        const auto size = word(data, qsizetype(gd3 + 8));
+        if (!(size & 1) && size <= 1024 * 1024 && gd3 + 12 + size <= quint64(data.size())) {
+            QStringDecoder decode(QStringDecoder::Utf16LE);
+            const QString text = decode(QByteArrayView(data).sliced(qsizetype(gd3 + 12), size));
+            const auto fields = text.split(QChar(0));
+            if (!fields.value(0).trimmed().isEmpty()) title = fields[0].trimmed();
+            if (!fields.value(4).trimmed().isEmpty()) system = fields[4].trimmed();
+        }
+    }
 }
 
 YamahaRegisterCommand yamahaRegisterCommand(int opcode) {

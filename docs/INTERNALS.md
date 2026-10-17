@@ -7,6 +7,12 @@ remains distinct from the actual stream end: zero preserves unknown metadata.
 YamahaTrack keeps chip construction, resampling, captures and the playback cursor;
 rewind recreates cores/history and replays the same parsed stream. ROM snapshot
 resolution stays before parsing, and metadata/core initialization stays after it.
+YamahaTrack's named metadata phase builds tags, declared-duration/loop values,
+voices, fixed mix headroom, configuration and optional playlist before resetting
+the cores. It retains the previously resolved ROM snapshot in TrackInfo.
+`applyVgmTags` in `vgm.cpp` shares Yamaha/POKEY's identical optional GD3 policy:
+bounded even UTF-16LE payload, English fields 0/4, trimming and silent fallback.
+Each backend still supplies its own filename/system defaults and duration rules.
 
 `vgm.cpp` inspects header bounds, chip clocks, chip combinations and Yamaha extra
 tables in named phases, in their existing order. One private little-endian word

@@ -2,7 +2,6 @@
 #include "vgm.h"
 #include "gme-taps/pokey.h"
 #include <QFileInfo>
-#include <QStringConverter>
 #include <QtEndian>
 #include <algorithm>
 #include <limits>
@@ -99,17 +98,7 @@ PokeyTrack::PokeyTrack(const QString &path, QByteArray data, int song, bool play
     if (loopOffset) d.loopDuration = d.ticks-d.loopTick;
     info_.path = path; info_.songs = 1; info_.song = 0;
     info_.title = QFileInfo(path).completeBaseName(); info_.system = "Atari 8-bit / 5200";
-    const quint64 gd3 = word(0x14) ? 0x14ULL+word(0x14) : 0;
-    if (gd3 && gd3+12 <= quint64(data.size()) && data.mid(qsizetype(gd3),4) == "Gd3 ") {
-        const auto size = word(qsizetype(gd3+8));
-        if (!(size & 1) && size <= 1024*1024 && gd3+12+size <= quint64(data.size())) {
-            QStringDecoder decode(QStringDecoder::Utf16LE);
-            const QString text = decode(QByteArrayView(data).sliced(qsizetype(gd3+12), size));
-            const auto fields = text.split(QChar(0));
-            if (!fields.value(0).trimmed().isEmpty()) info_.title = fields[0].trimmed();
-            if (!fields.value(4).trimmed().isEmpty()) info_.system = fields[4].trimmed();
-        }
-    }
+    applyVgmTags(data, info_.title, info_.system);
     const auto total = word(0x18);
     if (total) info_.durationMs = int(quint64(total)*1000/SampleRate);
     info_.loopStartMs = int(std::min<qint64>(d.loopTick*1000/SampleRate, std::numeric_limits<int>::max()));

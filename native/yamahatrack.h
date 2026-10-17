@@ -1,7 +1,8 @@
 #pragma once
 #include "engine.h"
 
-// YM2203 hardware voices; remaining Yamaha families currently expose chip mixes.
+struct VgmHeader;
+// Supported Yamaha VGM chips expose their independent hardware voices.
 class YamahaTrack final : public MusicTrack {
 public:
     YamahaTrack(const QString &path, QByteArray data, int song, bool playlist, bool capture,
@@ -18,6 +19,7 @@ public:
     TrackBoundary boundary() const override;
     qint64 frame() const override { return frame_; }
 private:
+    void readMetadata(const QString &path, const QByteArray &data, const VgmHeader &header, bool playlist);
     struct Impl;
     std::unique_ptr<Impl> impl_;
     TrackInfo info_;

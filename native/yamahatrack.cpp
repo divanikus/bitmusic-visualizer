@@ -8,7 +8,6 @@
 #include <ymfm_opm.h>
 #include <ymfm_opl.h>
 #include <QFileInfo>
-#include <QStringConverter>
 #include <QtEndian>
 #include <algorithm>
 #include <cmath>
@@ -238,27 +237,21 @@ YamahaTrack::YamahaTrack(const QString &path, QByteArray data, int song, bool pl
     : impl_(std::make_unique<Impl>()) {
     require(song == 0, "Invalid subsong number.");
     const auto h = inspectVgm(data); requireSupportedVgm(h);
-    auto word = [&](qsizetype at) { return qFromLittleEndian<quint32>(data.constData()+at); };
-    require(4ULL+word(4) == quint64(data.size()), "Truncated or inconsistent VGM file size.");
+    require(4ULL + qFromLittleEndian<quint32>(data.constData() + 4) == quint64(data.size()), "Truncated or inconsistent VGM file size.");
     auto &d = *impl_; d.specs = h.yamaha; d.capture = capture;
     require(!d.specs.isEmpty(), "No supported Yamaha chip in VGM.");
     if (std::any_of(d.specs.begin(),d.specs.end(),[](const auto &s){return s.id == 7;}))
         info_.yamahaRoms = d.roms = roms ? std::move(roms) : loadYamahaRoms();
     d.stream = readYamahaStream(data, h);
+    readMetadata(path, data, h, playlist);
+    d.reset();
+}
+void YamahaTrack::readMetadata(const QString &path, const QByteArray &data, const VgmHeader &h, bool playlist) {
+    auto &d = *impl_;
     const auto total = d.stream.declaredTicks;
     info_.path = path; info_.songs = 1; info_.song = 0;
     info_.title = QFileInfo(path).completeBaseName(); info_.system = "Yamaha VGM";
-    const quint64 gd3 = word(0x14) ? 0x14ULL+word(0x14) : 0;
-    if (gd3 && gd3+12 <= quint64(data.size()) && data.mid(qsizetype(gd3),4) == "Gd3 ") {
-        const auto size = word(qsizetype(gd3+8));
-        if (!(size&1) && size <= 1024*1024 && gd3+12+size <= quint64(data.size())) {
-            QStringDecoder decode(QStringDecoder::Utf16LE);
-            const QString text = decode(QByteArrayView(data).sliced(qsizetype(gd3+12),size));
-            const auto fields = text.split(QChar(0));
-            if (!fields.value(0).trimmed().isEmpty()) info_.title = fields[0].trimmed();
-            if (!fields.value(4).trimmed().isEmpty()) info_.system = fields[4].trimmed();
-        }
-    }
+    applyVgmTags(data, info_.title, info_.system);
     if (total) info_.durationMs = int(quint64(total)*1000/SampleRate);
     info_.loopStartMs = int(std::min<qint64>(d.stream.loopTick*1000/SampleRate,std::numeric_limits<int>::max()));
     double weight = 0;
@@ -273,7 +266,6 @@ YamahaTrack::YamahaTrack(const QString &path, QByteArray data, int song, bool pl
     info_.configuration = vgmSoundConfiguration(data, info_.voices, h);
     require(info_.voices.size() <= VoiceMask::Capacity, "Too many Yamaha voices.");
     if (playlist) info_.playlist.push_back({info_.title,info_.durationMs,info_.loopStartMs});
-    d.reset();
 }
 YamahaTrack::~YamahaTrack() = default;
 TrackBoundary YamahaTrack::boundary() const {

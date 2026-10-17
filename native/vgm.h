@@ -23,6 +23,8 @@ struct VgmHeader {
 };
 VgmHeader inspectVgm(const QByteArray &data);
 void requireSupportedVgm(const VgmHeader &header);
+// Apply nonempty English GD3 fields; missing/malformed tags retain the caller's defaults.
+void applyVgmTags(const QByteArray &data, QString &title, QString &system);
 struct YamahaRegisterCommand { int chipId = -1, instance = 0, registerBase = 0; };
 // Register writes only; an unknown opcode has chipId -1. Waits/blocks stay in the decoder.
 YamahaRegisterCommand yamahaRegisterCommand(int opcode);
