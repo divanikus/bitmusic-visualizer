@@ -14,7 +14,13 @@ The card list uses the available height alongside its selected-card settings;
 each scrolls only when needed. **About this view** expands the explanation and
 limitations for Keyboard, Piano roll or Pattern.
 
-Click the pencil, select a card in **Cards**, then choose its **View**. The change
+Each card's pencil opens **Card settings**. The **Card** tab contains its view,
+contextual options and Levels; **Colors** edits its source's palette. Changes
+preview live. **Save** keeps them for this session; **Cancel** restores the previous
+card options and colors. Save a layout preset to reuse the arrangement, or a theme
+to reuse colors. The selected card's sidebar offers the same controls.
+
+Click the window pencil, select a card in **Cards**, then choose its **View**. The change
 is immediate. **Add card…** asks for a source and view, keeping existing cards.
 For example, keep Square 1's waveform, add Square 1 / Keyboard, then add a Full mix
 / Spectrum. Drag and resize them in the same grid. Increase Rows/Columns or hide
@@ -34,7 +40,7 @@ Changing subsongs within a file keeps the layout. Themes remain color presets.
 source to switch Solo, or the same source to restore previous mutes. This works
 with all card views, including duplicates, in normal,
 edit and fullscreen modes. Full mix is not a voice and cannot be soloed.
-Unmodified editor clicks still drag, resize, hide cards or edit colors.
+Unmodified editor clicks still drag, resize, hide cards or open Card settings.
 
 The keyboard icon in the visualizer title bar or **F1** opens the [shortcut guide](../README.md#keyboard-shortcuts).
 Digits refer to audio channel numbers, not grid slots. If several cards share
@@ -129,8 +135,10 @@ display-scaled pixels (default 1.6). It applies immediately, including while
 paused, to CPU and GPU drawing. Spectrum bars and keyboard keys keep their
 dimensions. Glow remains a separate effect.
 
-**Levels**, beside **Stereo** in the editor toolbar, enables compact peak meters
-on the left of every visible card's plot, including Keyboard and Full mix. The
+**Levels** in Card settings or the selected-card sidebar controls the meters on
+that card, including Keyboard and Full mix. Duplicate cards can differ. The
+**Levels** switch beside **Stereo** changes all cards together; a mixed mark means
+some cards differ. Meters appear on the left of the plot. The
 fixed -60 to 0 dBFS scale is independent of waveform autoscaling. Stereo sources show L/R even if
 the waveform's Stereo display is off; mono sources show one M meter. The top is
 0 dBFS and each tick represents 12 dB. Very small cards omit the meters.
@@ -139,9 +147,10 @@ Meters use the captured PCM window, without extra decoding. Voice meters share
 the waveform's capture stage (often a dry signal), so they are not measurements
 of the final audible mix. Muted voice/output lanes remain visible but dimmed;
 Full mix follows the actual final volume and mutes. Silence empties the meter.
-Meters have no glow or fading trail. Line width and Levels survive file changes
-and restarts, independently of color themes and layout presets. Restore Defaults
-in Waves resets line width but preserves Levels and the separate application frame rate.
+Meters have no glow or fading trail. Per-card Levels are saved in layout presets.
+The toolbar's last all-card choice is saved as the default for new cards/files and
+for old presets without Levels fields. Line width is saved independently. Restore
+Defaults in Waves preserves Levels and the separate application frame rate.
 
 The full-screen icon beside the pencil, or **F11** from either player window,
 expands the visualizer on its current display and hides the title bar/editor.

@@ -75,6 +75,7 @@ private:
     PlayerChannels *channels_;
     QString shownPath_;
     int shownSong_ = -1;
+    int requestedSong_ = 0; // Preserve a pending/failed MIDI subsong when changing its engine or bank.
     bool openedOnce_ = false;
     quint64 resourceWarningGeneration_ = 0;
 };

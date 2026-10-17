@@ -90,12 +90,13 @@ ScopePreset ScopeWindow::currentPreset() const {
 }
 void ScopeWindow::applyPreset(const ScopePreset &preset, const QString &file) {
     applyingPreset_ = true;
+    ++cardRevision_;
     if (colorDialog_) colorDialog_->reject();
     cancelDrag(); if (gpu_) gpu_->suspend();
     const QSignalBlocker r(rows_), c(columns_), n(numbers_), a(names_), s(stereo_);
     rows_->setValue(preset.rows); columns_->setValue(preset.columns);
     numbers_->setChecked(preset.numbers); names_->setChecked(preset.names); stereo_->setChecked(preset.stereo);
-    cards_.loadPreset(preset, {bool(state_.info.noteRoll), bool(state_.info.patterns)});
+    cards_.loadPreset(preset, {bool(state_.info.noteRoll), bool(state_.info.patterns)}, waveOptions_.meters);
     analysis_.clear();
     presetFile_ = file; savedPreset_ = file.isEmpty() ? QByteArray() : currentPreset().encode(); presetModified_ = false;
     rebuildList(); layoutChanged(); updateViewEditor();

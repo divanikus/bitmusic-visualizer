@@ -22,7 +22,7 @@ MidiControls::MidiControls(QWidget *parent) : QWidget(parent) {
     soundFont_ = new QComboBox; soundFont_->setObjectName("soundFont");
     soundFont_->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);
     soundFont_->setMinimumContentsLength(12);
-    soundFont_->setToolTip("General MIDI bank. Changing it restarts the current MIDI.");
+    soundFont_->setToolTip("General MIDI bank or SFLIST set. Changing it restarts the current MIDI.");
     row->addWidget(soundFont_, 1);
     folder_ = createPlayerIconButton(PlayerIcon::Open, "soundFontFolder", "Open SoundFonts folder"); row->addWidget(folder_);
     refresh_ = new QToolButton; refresh_->setText(QString::fromUtf8("↻"));
@@ -57,7 +57,7 @@ void MidiControls::clearSource() { midiPath_.clear(); hide(); }
 void MidiControls::refreshSoundFonts() {
     const QSignalBlocker blocked(soundFont_); soundFont_->clear();
     const auto selected = selectedSoundFont();
-    for (const auto &name : availableSoundFonts()) soundFont_->addItem(QFileInfo(name).completeBaseName(), name);
+    for (const auto &name : availableSoundFonts()) soundFont_->addItem(QFileInfo(name).completeBaseName() + (name.endsWith(".sflist", Qt::CaseInsensitive) ? " (set)" : ""), name);
     int at = soundFont_->findData(selected);
     if (at < 0) { soundFont_->insertItem(0, selected.isEmpty() ? "No SoundFonts found" : "Missing: " + selected, QString()); at = 0; }
     soundFont_->setCurrentIndex(at);

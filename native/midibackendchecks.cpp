@@ -64,10 +64,10 @@ void checkMidiSubsongErrors() {
     checkNameHistory();
     for (bool mt32 : {false,true}) {
         try {
-            if (mt32) { Mt32Track invalid("missing.mid", {}, 1, true, false); }
-            else { MidiTrack invalid("missing.mid", {}, 1, true, false); }
+            if (mt32) { Mt32Track invalid("missing.mid", {}, -1, true, false); }
+            else { MidiTrack invalid("missing.mid", {}, -1, true, false); }
         } catch (const std::exception &error) {
-            require(QByteArray(error.what()) == "MIDI contains one song; its tracks play together.",
+            require(QByteArray(error.what()) == "MIDI subsong index is out of range.",
                     "MIDI subsong error lost precedence over data/resources.");
             continue;
         }
@@ -77,10 +77,11 @@ void checkMidiSubsongErrors() {
 void checkGmMetadata(const std::shared_ptr<const MidiResources> &original, QTextStream &log) {
     require(bool(original), "GM metadata resource snapshot missing.");
     auto invalid = std::make_shared<MidiResources>(*original);
-    invalid->soundFont = QByteArray(32, '\0'); invalid->soundFontKey = "bitmusic-memory-invalid-backend-check.sf2";
+    invalid->soundFonts = {{QByteArray(32, '\0'), "bitmusic-memory-invalid-backend-check.sf2", "Invalid.sf2"}};
     checkFailedSnapshot<MidiTrack>(std::move(invalid), "Cannot load SoundFont. Use a valid uncompressed SF2 file.");
     for (bool named : {false,true}) {
         auto resources = std::make_shared<MidiResources>(*original);
+        resources->songs.clear();
         resources->sequence.title = named ? QString::fromUtf8("  Label 雪  ") : QString();
         resources->sequence.endFrame = named ? SampleRate + 7 : 1;
         resources->sequence.events.clear(); resources->sequence.noteChannels = (1u << 0) | (1u << 9) | (1u << 15);
@@ -99,6 +100,7 @@ void checkMt32Metadata(const std::shared_ptr<const Mt32Resources> &original, QTe
     checkFailedSnapshot<Mt32Track>(std::move(invalid), "MT-32 synth cannot open this Control/PCM ROM pair.");
     for (bool named : {false,true}) {
         auto resources = std::make_shared<Mt32Resources>(*original);
+        resources->songs.clear();
         resources->sequence.title = named ? QString::fromUtf8("  Label 雪  ") : QString();
         resources->sequence.endFrame = named ? SampleRate + 7 : 1;
         resources->sequence.events.clear(); resources->model = "  Original model  ";

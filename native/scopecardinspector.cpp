@@ -10,7 +10,7 @@
 #include <QVBoxLayout>
 #include <algorithm>
 
-ScopeCardInspector::ScopeCardInspector(QWidget *parent) : QScrollArea(parent) {
+ScopeCardInspector::ScopeCardInspector(QWidget *parent, bool colorsButton) : QScrollArea(parent) {
     setObjectName("cardInspector");
     setWidgetResizable(true); setFrameShape(QFrame::NoFrame);
     setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Preferred);
@@ -71,14 +71,20 @@ ScopeCardInspector::ScopeCardInspector(QWidget *parent) : QScrollArea(parent) {
     };
     connect(spectrumStyle_, &QComboBox::currentIndexChanged, this, spectrumChanged);
     connect(spectrumGrid_, &QCheckBox::toggled, this, spectrumChanged);
-    auto colors = new QPushButton("Colors..."); colors->setObjectName("scopeColors");
-    colors->setToolTip("Edit the selected channel's colors"); layout->addWidget(colors);
+    levels_ = new QCheckBox("Levels"); levels_->setObjectName("cardLevels");
+    levels_->setToolTip("Show this card's peak levels: L/R for stereo sources, M for mono.");
+    layout->addWidget(levels_);
+    connect(levels_, &QCheckBox::toggled, this, [this](bool enabled) { if (onLevelsChanged) onLevelsChanged(enabled); });
+    auto colors = new QPushButton("Card settings..."); colors->setObjectName("scopeColors");
+    colors->setToolTip("Edit this card and its source colors"); layout->addWidget(colors); colors->setVisible(colorsButton);
     connect(colors, &QPushButton::clicked, this, [this] { if (onColorsRequested) onColorsRequested(); });
     layout->addWidget(viewHelp_); layout->addWidget(keyboardHint_); layout->addStretch();
 }
 void ScopeCardInspector::setCard(const ScopeCard *card, const QString &name, ScopeViewSupport support,
                                  const QString &keyboardHint, int sources) {
     const bool valid = card != nullptr;
+    const QSignalBlocker levelsBlock(levels_);
+    levels_->setEnabled(valid); levels_->setChecked(valid && card->levels);
     selectedCard_->setText(name); selectedCard_->setToolTip(name);
     QSignalBlocker block(cardView_);
     cardView_->clear();

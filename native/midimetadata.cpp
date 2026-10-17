@@ -11,6 +11,20 @@ int midiTrackDurationMs(const MidiSequence &sequence) {
     constexpr int TailSeconds = 2;
     return int((sequence.endFrame + TailSeconds * SampleRate) * 1000 / SampleRate);
 }
+QVector<SongInfo> midiSongList(const QVector<MidiSequence> &songs, const QString &path) {
+    QVector<SongInfo> result;
+    for (int i = 0; i < songs.size(); ++i) {
+        const auto title = songs[i].title.isEmpty() && songs.size() > 1 ? QString("Pattern %1").arg(i+1) : midiTrackTitle(songs[i], path);
+        result.push_back({title, midiTrackDurationMs(songs[i]), 0});
+    }
+    return result;
+}
+void midiSongInfo(TrackInfo &info, const MidiSequence &sequence, const QVector<SongInfo> &songs, int song, bool playlist) {
+    info.song = song; info.songs = std::max(1, int(songs.size()));
+    info.title = songs.isEmpty() ? midiTrackTitle(sequence, info.path) : songs[song].title;
+    info.durationMs = midiTrackDurationMs(sequence);
+    if (playlist) info.playlist = songs.isEmpty() ? QVector<SongInfo>{{info.title, info.durationMs, 0}} : songs;
+}
 void MidiInstrumentHistory::remember(qint64 frame, const QStringList &names) {
     if (states_.empty() || names != states_.back().names) states_.push_back({frame, names});
     // Prune on unchanged labels too; retain the preceding state at the strict cutoff.

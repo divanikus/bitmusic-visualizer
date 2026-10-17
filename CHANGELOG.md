@@ -6,7 +6,21 @@ Version 0.6.0 is the first public GitHub release. Earlier entries describe
 pre-public development milestones; their dates mark implementation checkpoints,
 not published GitHub releases. Unreleased lists changes made after the latest tag.
 
-## Unreleased
+## Unreleased — 0.11.0
+
+### Added
+
+- Card settings from each card's pencil: view, its options and colors in one dialog.
+- Independent Levels for each card, saved in layout presets; the toolbar still
+  switches all cards together and shows when their settings differ.
+- MIDI format 2 playback: independent patterns appear as separate playlist tracks.
+- Basic SFLIST sets for General MIDI: load several SF2 banks together, with later
+  banks taking priority for matching instruments.
+
+### Changed
+
+- SoundFont limits now allow 2 GiB per bank and 4 GiB per set.
+- Changing a MIDI engine or SoundFont keeps the selected pattern.
 
 ## [0.10.1](https://github.com/divanikus/bitmusic-visualizer/releases/tag/v0.10.1) — 2026-10-17
 

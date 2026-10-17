@@ -90,7 +90,7 @@ PlayerWindow::PlayerWindow() {
     channels_->onAllAudibleChanged = [this](bool audible) { player_.setMuteMask(audible ? VoiceMask{} : ~VoiceMask{}); };
     tabs_->addTab(channels_, QString::fromUtf8("Channels")); root->addWidget(tabs_, 1);
     midiControls_ = new MidiControls;
-    midiControls_->onReloadRequested = [this](const QString &path) { startSource(path, 0); };
+    midiControls_->onReloadRequested = [this](const QString &path) { startSource(path, requestedSong_); };
     midiControls_->onFolderRequested = [this] {
         const auto dir = midiControls_->resourceDirectory(player_.state());
         QDir().mkpath(dir); QDesktopServices::openUrl(QUrl::fromLocalFile(dir));
@@ -140,6 +140,7 @@ void PlayerWindow::setScopesVisible(bool visible) {
     } else scopes_.hide();
 }
 void PlayerWindow::startSource(const QString &path,int song) {
+    requestedSong_ = song;
     midiControls_->prepareSource(path);
     const auto before=player_.state();
     player_.load(path, song);

@@ -181,11 +181,13 @@ ScopeWindow::ScopeWindow() {
     names_ = new QCheckBox("Names"); names_->setObjectName("channelNames"); names_->setChecked(true);
     stereo_ = new QCheckBox("Stereo"); stereo_->setObjectName("scopeStereo");
     stereo_->setToolTip("Show left and right lanes with the same time and amplitude scale");
-    auto meters = new QCheckBox("Levels"); meters->setObjectName("scopeLevels"); meters->setChecked(waveOptions_.meters);
-    meters->setToolTip("Peak levels on a fixed -60 to 0 dBFS scale, independent of wave height. Stereo sources show L/R; mono shows M. Muted lanes are dimmed.");
+    auto meters = levels_ = new QCheckBox("Levels"); meters->setObjectName("scopeLevels"); meters->setChecked(waveOptions_.meters);
+    meters->setToolTip("Switch Levels on all cards. A mixed mark means individual cards differ. This choice is also the default for new cards.");
     labels->addWidget(stereo_); labels->addWidget(meters);
-    connect(meters, &QCheckBox::toggled, this, [this](bool enabled) {
-        waveOptions_.meters = enabled; rememberWaves(); layoutChanged(); update();
+    connect(meters, &QCheckBox::checkStateChanged, this, [this](Qt::CheckState checked) {
+        if (checked == Qt::PartiallyChecked) return;
+        const bool enabled = checked == Qt::Checked;
+        waveOptions_.meters = enabled; cards_.setAllLevels(enabled); rememberWaves(); layoutChanged(); updateViewEditor(); update();
     });
     settings_->addWidget(labelControls_, 0, 0); settings_->addWidget(windowTools_, 0, 1); settings_->addWidget(editorActions_, 0, 2);
     summary_ = new QLabel; summary_->setObjectName("editorHint");
@@ -231,6 +233,9 @@ ScopeWindow::ScopeWindow() {
             card.keyboardSize = options.keyboardSize; card.firstChannel = options.firstChannel;
             musicImages_.clear(); presetEdited(); update();
         }
+    };
+    cardInspector_->onLevelsChanged = [this](bool enabled) {
+        if (const int id = selectedCardId(); id >= 0) { cards_[id].levels = enabled; layoutChanged(); }
     };
     cardInspector_->onColorsRequested = [this] { editColors(); };
     connect(channelList_, &QListWidget::currentRowChanged, this, [this] { updateViewEditor(); });
@@ -321,6 +326,8 @@ ScopeWindow::ScopeWindow() {
 }
 
 void ScopeWindow::beginFile() {
+    ++cardRevision_;
+    if (colorDialog_) colorDialog_->reject();
     if (gpu_) gpu_->suspend();
     newFile_ = true; frame_ = {}; output_ = {}; analysis_.clear(); cancelDrag();
     musicImages_.clear();
@@ -378,8 +385,9 @@ void ScopeWindow::resetGrid() {
     rows_->setValue(std::clamp((count + columns - 1) / columns, 1, count > 32 ? 8 : 16));
 }
 void ScopeWindow::resetChannels(bool grid) {
+    ++cardRevision_;
     if (colorDialog_) colorDialog_->reject();
-    cards_.reset(int(state_.info.voices.size()), waveOptions_.output, state_.info.emptyVoices);
+    cards_.reset(int(state_.info.voices.size()), waveOptions_.output, state_.info.emptyVoices, waveOptions_.meters);
     analysis_.clear();
     cancelDrag();
     if (grid) resetGrid();
@@ -395,7 +403,7 @@ QVector<int> ScopeWindow::visibleChannels() const {
     return result;
 }
 ScopeCaptureRequest ScopeWindow::captureRequest() const {
-    return state_.valid && !newFile_ ? cards_.captureRequest(gridLayout_, waveOptions_.meters) : ScopeCaptureRequest{};
+    return state_.valid && !newFile_ ? cards_.captureRequest(gridLayout_) : ScopeCaptureRequest{};
 }
 QString ScopeWindow::channelName(int channel) const {
     const int source = sourceFor(channel);
@@ -432,6 +440,7 @@ bool ScopeWindow::laneDimmed(int source, bool stereo, int side) const {
     return sourceDimmed(source) || (stereo && !(state_.outputMask & (1u << side)));
 }
 void ScopeWindow::layoutChanged() {
+    updateLevelsControl();
     cancelDrag();
     cards_.clampSpans(rows_->value(), columns_->value());
     gridLayout_ = state_.valid ? cards_.pack(rows_->value(), columns_->value()) : ScopeGrid();
@@ -582,7 +591,7 @@ QByteArray ScopeWindow::chromeKey(bool dynamic) const {
     for (int ch : displayedChannels()) {
         const int source = sourceFor(ch);
         const auto &c = theme_.colors(source);
-        s << source << int(viewFor(ch)) << cards_[ch].spectrumBars << cards_[ch].spectrumGrid;
+        s << source << int(viewFor(ch)) << cards_[ch].spectrumBars << cards_[ch].spectrumGrid << cards_[ch].levels;
         if (dynamic && viewFor(ch) == ViewKind::Keyboard) {
             const auto pitches = keyboardPitches(ch);
             s << pitches.size();

@@ -24,6 +24,7 @@ struct ScopeCard {
     int keyboardSize = 25;
     bool hidden = false;
     QSize span{1, 1};
+    bool levels = false;
 };
 
 struct ScopeCaptureRequest {
@@ -45,7 +46,9 @@ public:
     const ScopeCard &operator[](int id) const { return cards_[id]; }
     int sourceFor(int id) const { return id >= 0 && id < size() ? cards_[id].source : id; }
     ScopeView viewFor(int id) const { return id >= 0 && id < size() ? cards_[id].kind : ScopeView::Waveform; }
-    void reset(int sources, bool output, VoiceMask empty);
+    void reset(int sources, bool output, VoiceMask empty, bool levels = false);
+    void setAllLevels(bool enabled);
+    Qt::CheckState levelsState(bool fallback) const;
     int add(const ScopeCard &card, int after);
     void remove(int id);
     void showAll();
@@ -53,12 +56,12 @@ public:
     void toggleSourceVisibility(int source);
     bool cycleSourceView(int source, ScopeViewSupport support);
     void setAllViews(ScopeView view);
-    ScopeCaptureRequest captureRequest(const ScopeGrid &displayed, bool meters) const;
+    ScopeCaptureRequest captureRequest(const ScopeGrid &displayed) const;
     void clampSpans(int rows, int columns);
     ScopeGrid pack(int rows, int columns) const;
     ScopeGrid pack(int rows, int columns, const QVector<int> &order, int resized = -1, QSize span = {}) const;
     QVector<PresetCard> presetCards(const SoundConfiguration &configuration) const;
-    void loadPreset(const ScopePreset &preset, ScopeViewSupport support);
+    void loadPreset(const ScopePreset &preset, ScopeViewSupport support, bool legacyLevels = false);
 private:
     void initialize(bool hidden);
     QVector<ScopeCard> cards_;

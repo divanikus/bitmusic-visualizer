@@ -345,3 +345,9 @@ See [TIATracker support and limits](TIATRACKER.md).
 
 The Windows CI checks artifact includes the matching developer runner, separately
 from the release ZIP, for testing the downloaded package on a real desktop.
+
+The 0.11 MIDI checks include independent SMF 2 tempo/port/engine routing, subsong
+snapshots and SFLIST ordering/fallback/validation. `--soundfont` accepts a local
+SF2 or SFLIST read only; optional `--midi` tests each independent subsong. Layout
+checks cover the Card/Colors dialog, live preview, Save/Cancel and mixed Levels;
+preset checks cover explicit per-card fields and legacy inheritance.

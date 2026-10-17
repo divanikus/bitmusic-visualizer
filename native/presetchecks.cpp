@@ -78,11 +78,14 @@ void checkPresets(QApplication &app, const QString &directory, QTextStream &log)
     preset.numbers = false; preset.stereo = true;
     preset.cards = {{"nes.apu:2", 2, {2,1}}, {"nes.apu:0", 1, {1,2}, true, true, false},
         {"nes.apu:0", 0, {1,1}, false}, {"mix", 1, {3,1}}, {"nes.apu:4", 0, {1,1}, false}};
+    for (auto &card : preset.cards) card.levels = false;
+    preset.cards[0].levels = true;
     const auto presetsDir = playerPresetsDirectory(); require(QDir().mkpath(presetsDir), "Cannot create presets directory.");
     const auto baseFile = QDir(presetsDir).filePath("NES studio.ini"); QString error;
     require(preset.save(baseFile, error), "Preset write failed.");
     ScopePreset loaded; require(loaded.load(baseFile, error) && loaded.encode() == preset.encode(), "Preset INI roundtrip lost layout state.");
     auto imported = loaded.adapted(vrc6.configuration);
+    for (auto &card : imported.cards) if (!card.levels) card.levels = false;
     require(imported.cards.size() == preset.cards.size()+3 && imported.cards[1].source == "nes.apu:0" &&
         imported.cards[5].source == "nes.vrc6:0" && imported.cards[5].view == 0 && imported.cards[5].visible,
         "Adaptation lost shared cards or failed to append new hardware.");

@@ -12,6 +12,7 @@
 #include <QMap>
 #include <QPainter>
 #include <QPushButton>
+#include <QSignalBlocker>
 #include <QVBoxLayout>
 #include <cmath>
 #include <algorithm>
@@ -47,6 +48,12 @@ int ScopeWindow::selectedCardId() const {
     const auto item = channelList_->currentItem();
     const int id = item ? item->data(Qt::UserRole).toInt() : -1;
     return id >= 0 && id < cards_.size() ? id : -1;
+}
+void ScopeWindow::updateLevelsControl() {
+    const QSignalBlocker block(levels_);
+    const auto state = cards_.levelsState(waveOptions_.meters);
+    levels_->setTristate(state == Qt::PartiallyChecked);
+    levels_->setCheckState(state);
 }
 void ScopeWindow::updateViewEditor() {
     const int id = selectedCardId();
@@ -90,6 +97,7 @@ void ScopeWindow::addCard() {
     if (dialog.exec() != QDialog::Accepted || state_.info.path != path || newFile_) return;
     const int id = cards_.add({source->currentData().toInt(), ViewKind(kind->currentData().toInt())}, selectedId);
     if (id < 0) return;
+    cards_[id].levels = waveOptions_.meters;
     rebuildList(); channelList_->setCurrentRow(cards_.order().indexOf(id)); layoutChanged(); updateViewEditor();
 }
 void ScopeWindow::paintSpectrumAxes(QPainter &p, int card, const QRectF &plot, bool stereo) {

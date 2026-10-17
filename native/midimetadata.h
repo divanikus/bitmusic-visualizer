@@ -1,8 +1,11 @@
 #pragma once
 #include "midisequence.h"
+#include "engine.h"
 #include <QStringList>
 #include <deque>
 
+QVector<SongInfo> midiSongList(const QVector<MidiSequence> &songs, const QString &path);
+void midiSongInfo(TrackInfo &info, const MidiSequence &sequence, const QVector<SongInfo> &songs, int song, bool playlist);
 QString midiTrackTitle(const MidiSequence &sequence, const QString &path);
 int midiTrackDurationMs(const MidiSequence &sequence);
 

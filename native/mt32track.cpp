@@ -24,8 +24,11 @@ struct Rom {
     ~Rom() { if(image) MT32Emu::ROMImage::freeROMImage(image); }
     Rom(const Rom&)=delete;
 };
-std::shared_ptr<const Mt32Resources> loadResources(const QByteArray &data) {
-    auto r=std::make_shared<Mt32Resources>(); r->sequence=MidiSequence::parse(data,SampleRate);
+std::shared_ptr<const Mt32Resources> loadResources(const QByteArray &data, const QString &path, int song) {
+    auto r=std::make_shared<Mt32Resources>();
+    auto songs=MidiSequence::parseSongs(data,SampleRate);
+    require(song>=0 && song<songs.size(),"MIDI subsong index is out of range.");
+    r->songs=midiSongList(songs,path); r->song=song; r->sequence=std::move(songs[song]);
     const QDir folder(playerMt32Directory());
     const auto read=[&](const QString &name) {
         QFile f(folder.filePath(name));
@@ -76,7 +79,7 @@ void selectMidiEngine(const QString &engine) {
 }
 std::unique_ptr<MusicTrack> openMidiTrack(const QString &path,QByteArray data,int song,bool playlist,bool capture) {
     const auto choice=selectedMidiEngine();
-    const bool mt32=choice=="mt32" || (choice=="auto" && MidiSequence::parse(data,SampleRate).mt32);
+    const bool mt32=choice=="mt32" || (choice=="auto" && MidiSequence::parse(data,SampleRate,song).mt32);
     if(mt32) return std::make_unique<Mt32Track>(path,std::move(data),song,playlist,capture);
     return std::make_unique<MidiTrack>(path,std::move(data),song,playlist,capture);
 }
@@ -233,16 +236,15 @@ struct Mt32Track::Impl : MT32Emu::ReportHandler {
     }
 };
 Mt32Track::Mt32Track(const QString &path,QByteArray data,int song,bool playlist,bool capture,std::shared_ptr<const Mt32Resources> resources):impl_(std::make_unique<Impl>()) {
-    require(song==0,"MIDI contains one song; its tracks play together.");
-    auto &d=*impl_; d.resources=resources?std::move(resources):loadResources(data); d.capture=capture;
-    info_.mt32Resources=d.resources; info_.path=path; info_.songs=1; info_.system=d.resources->model;
-    info_.title=midiTrackTitle(d.resources->sequence,path);
-    info_.durationMs=midiTrackDurationMs(d.resources->sequence);
+    require(song>=0,"MIDI subsong index is out of range.");
+    require(!resources || song==resources->song,"MIDI snapshot belongs to another subsong.");
+    auto &d=*impl_; d.resources=resources?std::move(resources):loadResources(data,path,song); d.capture=capture;
+    info_.mt32Resources=d.resources; info_.path=path; info_.system=d.resources->model;
+    midiSongInfo(info_,d.resources->sequence,d.resources->songs,song,playlist);
     info_.stereoOutput=true; info_.tonalMask=VoiceMask(255);
     auto &c=info_.configuration; c.family="midi-mt32"; c.name="LA32";
     for(int i=0;i<9;++i) { info_.voices<< (i==8?"Rhythm":QString("Part %1").arg(i+1)); c.sources<<QString("mt32.part:%1").arg(i); }
     c.id=QString::fromLatin1(QCryptographicHash::hash("midi-mt32|9-part-v1",QCryptographicHash::Sha256).toHex());
-    if(playlist) info_.playlist.push_back({info_.title,info_.durationMs,0});
     d.reset();
     info_.emptyVoices=d.emptyParts(info_.noteRoll);
 }

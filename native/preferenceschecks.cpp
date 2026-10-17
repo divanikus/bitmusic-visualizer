@@ -48,14 +48,14 @@ void checkResourceMessages(QTextStream &log) {
             "Resource error text or warning title changed.");
     }
     for(const auto &error:QStringList{"", " C64 ROM required:", "c64 ROM required:", "Load failed: C64 ROM required:",
-            "Invalid SoundFont size (maximum 1 GiB).", "Invalid MT-32 ROM size.", "Not an SF2 SoundFont."})
+            "Invalid SoundFont size (maximum 2 GiB per bank).", "Invalid MT-32 ROM size.", "Not an SF2 SoundFont."})
         require(resourceWarningTitle(error).isEmpty(),"An ordinary/invalid resource error acquired a required-resource warning.");
     log<<"Resource messages: exact prefixes/titles, Unicode detail and ordinary validation-error exclusion PASS\n";log.flush();
 }
 void checkResourceWarnings(QApplication &app, const QDir &dir, QTextStream &log) {
     PlayerWindow window; window.player().setVolume(0); window.show();
     const auto midi=dir.filePath("demo.mid");
-    const QString soundFontError="SoundFont required: place a .sf2 file in:\n"+
+    const QString soundFontError="SoundFont required: place an .sf2 bank or .sflist in:\n"+
         QDir::toNativeSeparators(playerSoundFontsDirectory())+"\nThen select it in the player's SoundFont list and reopen the MIDI.";
     const QString mt32Error="MT-32 ROM required: place MT32_CONTROL.ROM and MT32_PCM.ROM in:\n"+
         QDir::toNativeSeparators(playerMt32Directory());
@@ -76,7 +76,7 @@ void checkResourceWarnings(QApplication &app, const QDir &dir, QTextStream &log)
     selectMidiEngine("mt32"); window.loadFile(midi); expectWarning("ROM required",mt32Error); selectMidiEngine("auto");
     const auto invalidBank=QDir(playerSoundFontsDirectory()).filePath("Invalid.sf2"); write(invalidBank,{});
     window.loadFile(midi); spin(app,[&]{return !window.player().state().busy && !window.player().state().error.isEmpty();},"Invalid bank load did not settle."); window.refresh();
-    require(window.player().state().error=="Invalid SoundFont size (maximum 1 GiB)." && !window.findChild<QMessageBox *>("romWarning"),
+    require(window.player().state().error=="Invalid SoundFont size (maximum 2 GiB per bank)." && !window.findChild<QMessageBox *>("romWarning"),
         "Invalid bank validation error changed or opened a required-resource warning.");
     require(QFile::remove(invalidBank),"Invalid-bank fixture cleanup failed.");
     window.loadFile(dir.filePath("demo.nsf")); spin(app,[&]{return !window.player().state().busy && window.player().state().valid;},"Playback did not recover from missing resources."); window.refresh();
@@ -98,7 +98,7 @@ QByteArray fixture(bool pokey,bool loop) {
 void checkResourceInspection(const QDir &scratch, QTextStream &log) {
     auto rows = inspectPlayerResources();
     const QStringList names{"MT32_CONTROL.ROM", "MT32_PCM.ROM", "kernal.rom", "basic.rom",
-                            "chargen.rom", "ym2608_adpcm_rom.bin", "SoundFonts (*.sf2)"};
+                            "chargen.rom", "ym2608_adpcm_rom.bin", "SoundFonts (*.sf2, *.sflist)"};
     require(rows.size() == names.size(), "Resource inspection changed the catalog size.");
     for (int i = 0; i < rows.size(); ++i)
         require(rows[i].file == names[i] && rows[i].status == "Missing" && !rows[i].found && rows[i].directory == (i == 6),

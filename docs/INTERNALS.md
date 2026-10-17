@@ -13,7 +13,7 @@ immutable resource snapshots, keeping the same bytes available for capture and
 cold seeks after files or resource preferences change. GME release destroys the
 emulator before tap/note handles, including construction failure. GM declaration
 order destroys the synth before settings/resources; the synth owns its loader,
-and each open SoundFont cursor retains a shared snapshot until close. MT-32
+and each open SoundFont cursor retains shared bank bytes until close. MT-32
 destroys the synth before ROM wrappers; a wrapper frees its ROM image before its
 borrowed-byte `ArrayFile`, while the resource snapshot still exists.
 
@@ -277,7 +277,7 @@ analysis, while keeping independent display options. Full mix has a reserved ID
 outside the voice mask; extra card IDs start above it. Resize previews pack a
 temporary span without changing committed state. Capture policy unions the
 sources of packed cards and requests Full mix separately. Piano roll/Pattern
-request PCM only when Levels is enabled. The window applies this single request
+request PCM only when their own Levels option is enabled. The window applies this single request
 to the existing capture callbacks after committing a layout.
 
 `ScopeCardInspector` owns selected-card controls, contextual help, adaptive
@@ -285,7 +285,11 @@ scroll sizing and signal suppression during selection updates. It receives card
 options, supported views and display hints, without access to playback, source
 PCM, presets or renderer state. Its callbacks report user edits; `ScopeWindow`
 applies only the relevant option group and invalidates layout/analysis images
-as needed. The inspector never retains a pointer into the model.
+as needed. The inspector never retains a pointer into the model. Card settings reuses it for
+live edits with Save/Cancel rollback; a card revision invalidates rollback after a
+file or preset replacement. Levels belongs to each card; the old global key is
+retained as the default for newly created cards and legacy presets. Optional
+Levels fields keep version-1 preset compatibility.
 
 Preset card conversion belongs to `ScopeCards`; `ScopePreset` retains the
 versioned INI format, validation and hardware compatibility/adaptation. The window

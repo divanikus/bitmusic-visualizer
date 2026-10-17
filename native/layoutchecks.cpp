@@ -3,6 +3,8 @@
 #include <QApplication>
 #include <QCheckBox>
 #include <QDir>
+#include <QDialog>
+#include <QDialogButtonBox>
 #include <QEventLoop>
 #include <QKeyEvent>
 #include <QListWidget>
@@ -55,17 +57,18 @@ void checkCardCapture() {
     const int duplicate = cards.add({0, ScopeView::Waveform}, 0);
     // Only packed cards request signals; the high voice exercises multiword masks.
     ScopeGrid displayed{{0, {}}, {1, {}}, {duplicate, {}}, {69, {}}, {ScopeCards::FullMix, {}}};
-    auto request = cards.captureRequest(displayed, false);
+    auto request = cards.captureRequest(displayed);
     require(request.channels == (VoiceMask::bit(0) | VoiceMask::bit(69)) && request.output,
             "Capture request lost duplicate/high sources or included event-only/overflow cards.");
     cards[duplicate].kind = ScopeView::Pattern; cards[ScopeCards::FullMix].kind = ScopeView::PianoRoll;
-    request = cards.captureRequest(displayed, false);
+    request = cards.captureRequest(displayed);
     require(request.channels == VoiceMask::bit(69) && !request.output, "Event-only cards requested audio without Levels.");
-    request = cards.captureRequest(displayed, true);
+    cards.setAllLevels(true);
+    request = cards.captureRequest(displayed);
     require(request.channels == (VoiceMask::bit(0) | VoiceMask::bit(1) | VoiceMask::bit(69)) && request.output,
             "Levels failed to request PCM for event cards or Full mix.");
     displayed.remove(ScopeCards::FullMix);
-    require(!cards.captureRequest(displayed, true).output, "Overflow Full mix kept output capture enabled.");
+    require(!cards.captureRequest(displayed).output, "Overflow Full mix kept output capture enabled.");
     require(!cards.cycleSourceView(100, {}), "Cycling a source without cards must remain a no-op.");
     cards.cycleSourceView(0, {});
     require(cards.viewFor(0) == ScopeView::Waveform && cards.viewFor(duplicate) == ScopeView::Waveform,
@@ -100,11 +103,15 @@ void checkCardState() {
     preset.rows = 3; preset.columns = 3;
     preset.cards = {{"voice:2", 4, {2, 2}, true, true, false, true, true, 2, 60},
                     {"mix", 3, {1, 2}, false}, {"voice:2", 1, {1, 1}, false}, {"voice:0", 2}};
+    for (auto &card : preset.cards) card.levels = false;
+    preset.cards[0].levels = true;
     cards.loadPreset(preset, {true, true});
     ScopePreset roundtrip = preset; roundtrip.cards = cards.presetCards(preset.configuration);
     require(roundtrip.encode() == preset.encode(), "Card model changed preset fields or ordering.");
     require(cards.order()[0] == 2 && cards.order()[1] == ScopeCards::FullMix && cards.order()[2] > ScopeCards::FullMix,
             "Preset duplicates alias their original card or Full mix.");
+    require(cards[2].levels && !cards[ScopeCards::FullMix].levels && cards.levelsState(false) == Qt::PartiallyChecked,
+            "Per-card levels did not survive the preset or produce a mixed state.");
     const auto before = cards.pack(3, 3);
     const auto preview = cards.pack(3, 3, cards.order(), 2, {3, 3});
     require(preview.value(2).size() == QSize(3, 3) && cards.pack(3, 3) == before && cards[2].span == QSize(2, 2),
@@ -114,6 +121,9 @@ void checkCardState() {
             "Unavailable event views did not fall back to waveforms.");
     cards.clampSpans(1, 1);
     require(cards[2].span == QSize(1, 1), "Grid resize failed to clamp card spans.");
+    for (auto &card : preset.cards) card.levels.reset();
+    cards.loadPreset(preset, {}, true);
+    for (int id : cards.order()) require(cards[id].levels, "Legacy preset ignored the saved Levels preference.");
     cards.reset(1, true, {});
     while (cards.order().size() < ScopeCards::Maximum) require(cards.add({0}, 0) >= 0, "Card capacity shrank.");
     require(cards.add({0}, 0) == -1 && cards.order().size() == ScopeCards::Maximum, "Card capacity is not bounded.");
@@ -162,6 +172,41 @@ void checkLayoutSpans(QApplication &app, const QString &directory, QTextStream &
     rows->setValue(3); columns->setValue(3);
     auto list = scope.findChild<QListWidget *>("scopeChannelList"); list->item(8)->setCheckState(Qt::Checked);
     scope.present(state, frame, output); pump(app);
+    auto allLevels = scope.findChild<QCheckBox *>("scopeLevels"); allLevels->setChecked(false);
+    list->setCurrentRow(0);
+    auto cardLevels = scope.findChild<QCheckBox *>("cardLevels");
+    cardLevels->setChecked(true);
+    require(allLevels->checkState() == Qt::PartiallyChecked, "Individual levels did not produce a mixed toolbar state.");
+    list->setCurrentRow(1); require(!cardLevels->isChecked(), "Per-card levels leaked to another source.");
+    allLevels->setChecked(true); require(cardLevels->isChecked(), "All-card Levels did not update the inspector.");
+    allLevels->setChecked(false);
+    for (bool accept : {false, true}) {
+        std::exception_ptr failure;
+        QTimer::singleShot(20, &scope, [&] {
+            auto dialog = scope.findChild<QDialog *>("scopeColorsDialog");
+            try {
+                require(dialog && dialog->windowTitle() == "Card settings", "Card settings did not open.");
+                auto pages = dialog->findChild<QTabWidget *>("cardSettingsTabs");
+                require(pages && pages->count() == 2 && pages->tabText(0) == "Card" && pages->tabText(1) == "Colors", "Card settings tabs missing.");
+                auto type = dialog->findChild<QComboBox *>("cardView");
+                type->setCurrentIndex(type->findData(int(ScopeView::Spectrum)));
+                require(dialog->findChild<QComboBox *>("spectrumStyle")->isVisible(), "View options did not follow dialog type.");
+                dialog->findChild<QCheckBox *>("cardLevels")->setChecked(true);
+                require(allLevels->checkState() == Qt::PartiallyChecked, "Dialog Levels preview was not applied.");
+                if (accept) {
+                    pump(app, 30); dialog->grab().save(QDir(directory).filePath("card-settings-card.png"));
+                    pages->setCurrentIndex(1); pump(app, 30); dialog->grab().save(QDir(directory).filePath("card-settings-colors.png"));
+                    dialog->accept();
+                } else dialog->reject();
+            } catch (...) { failure = std::current_exception(); if (dialog) dialog->reject(); }
+        });
+        scope.findChild<QPushButton *>("scopeColors")->click();
+        if (failure) std::rethrow_exception(failure);
+        require(cardLevels->isChecked() == accept && scope.findChild<QComboBox *>("cardView")->currentData().toInt() ==
+                int(accept ? ScopeView::Spectrum : ScopeView::Waveform), "Dialog Save/Cancel lost view or levels state.");
+    }
+    scope.findChild<QComboBox *>("cardView")->setCurrentIndex(0); allLevels->setChecked(false); pump(app);
+    log << "Card dialog: contextual options, per-card Levels, live preview, Save/Cancel and mixed all-card toggle PASS\n";
     auto tabs = scope.findChild<QTabWidget *>("scopeChannels");
     require(tabs && tabs->count() == 3 && tabs->tabText(0) == "Cards" && tabs->tabText(1) == "Layout" && tabs->tabText(2) == "Display",
             "Editor settings groups are missing.");

@@ -2,6 +2,7 @@
 #include "soundconfig.h"
 #include <QSize>
 #include <QVector>
+#include <optional>
 
 struct PresetCard {
     QString source;
@@ -11,6 +12,7 @@ struct PresetCard {
     bool horizontal = false, commands = false;
     int firstChannel = 0;
     int keyboardSize = 25;
+    std::optional<bool> levels = std::nullopt; // Absent in old presets: inherit the saved all-card preference.
 };
 struct ScopePreset {
     static constexpr int MaximumCards = 512;

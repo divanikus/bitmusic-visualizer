@@ -1,4 +1,5 @@
 #include "miditrack.h"
+#include "mt32track.h"
 #include "playerwindow.h"
 #include "appsettings.h"
 #include <QApplication>
@@ -55,7 +56,7 @@ int runMidiChecks(QApplication &app,const QStringList &args) {
         require(sequence.endFrame==66150 && sequence.title=="MIDI test song","MIDI tempo/title parsing failed.");
         auto rejects=[&](QByteArray b) { try { MidiSequence::parse(b,SampleRate); return false; } catch(const std::exception &) { return true; } };
         require(rejects(bytes.left(bytes.size()-1)),"Truncated MIDI accepted.");
-        auto bad=bytes; bad[9]=2; require(rejects(bad),"Format 2 MIDI accepted.");
+        auto bad=bytes; bad[9]=3; require(rejects(bad),"Unknown MIDI format accepted.");
         bad=bytes; bad[12]=0; bad[13]=0; require(rejects(bad),"Zero MIDI division accepted.");
         const auto smf=[](const QByteArray &events,int division=480) {
             QByteArray b=QByteArray::fromHex("4d546864000000060000000100004d54726b00000000");
@@ -88,6 +89,66 @@ int runMidiChecks(QApplication &app,const QStringList &args) {
         require(missing,"Missing SoundFont did not produce an actionable error.");
         write(resources.filePath("Test.sf2"),read(QDir(directory).filePath("fixture-gm.sf2")));
         selectSoundFont("Test.sf2"); require(selectedSoundFont()=="Test.sf2","SoundFont selection did not persist.");
+        // SMF 2 patterns have independent tempo, ports, titles, notes and engine hints.
+        auto patterns = smf(QByteArray::fromHex("00ff03014100ff51030f424000ff21010000903c648360803c0000ff2f00"));
+        patterns[9]=2; patterns[11]=2;
+        patterns += smf(QByteArray::fromHex("00ff03014200ff21010100914364836081430000ff2f00")).mid(14);
+        const auto parsed = MidiSequence::parseSongs(patterns,SampleRate);
+        require(parsed.size()==2 && parsed[0].endFrame==SampleRate && parsed[1].endFrame==SampleRate/2 &&
+                parsed[0].title=="A" && parsed[1].title=="B" && parsed[0].noteChannels==1 && parsed[1].noteChannels==2,
+                "Format 2 patterns shared tempo, ports, titles or notes.");
+        require(rejects(patterns.left(patterns.size()-1)),"Malformed unselected MIDI pattern accepted.");
+        const auto patternPath=resources.filePath("patterns.mid"); write(patternPath,patterns);
+        auto second=openMusicTrack(patternPath,1,true,true);
+        require(second->info().song==1 && second->info().songs==2 && second->info().playlist.size()==2 &&
+                second->info().title=="B" && second->info().durationMs==2500 && second->info().playlist[0].durationMs==3000 &&
+                second->info().emptyVoices==(VoiceMask::first(16)&~VoiceMask::bit(1)),"Format 2 subsong metadata is incorrect.");
+        advance(*second,SampleRate/4);
+        require(second->notePitches(0).isEmpty() && second->notePitches(1).size()==1,"Another pattern leaked into MIDI synthesis.");
+        auto patternSnapshot=openMusicTrack("missing.mid",1,false,true,{}, {},second->info().midiResources);
+        advance(*patternSnapshot,SampleRate/4);
+        require(patternSnapshot->info().song==1 && pcm(*patternSnapshot,1024)==pcm(*second,1024),"Format 2 capture lost its selected pattern.");
+        second->seek(0); advance(*second,SampleRate/4);
+        require(second->notePitches(1).size()==1,"Format 2 backward seek lost selected notes.");
+        bool badSong=false; try { openMusicTrack(patternPath,2); } catch(const std::exception &e) { badSong=QByteArray(e.what()).contains("subsong"); }
+        require(badSong,"Out-of-range MIDI pattern accepted.");
+        auto mixed=smf(QByteArray::fromHex("00903c648360803c0000ff2f00")); mixed[9]=2; mixed[11]=2;
+        mixed+=mt.mid(14);
+        selectMidiEngine("auto");
+        require(bool(openMidiTrack("mixed.mid",mixed,0,true,false)->info().midiResources),"MT-32 hint leaked across independent patterns.");
+        bool wantsRom=false; try { openMidiTrack("mixed.mid",mixed,1,true,false); }
+        catch(const std::exception &e) { wantsRom=QByteArray(e.what()).startsWith("MT-32 ROM required:"); }
+        require(wantsRom,"Selected MT-32 pattern was not routed to Munt.");
+        log << "SMF 2: independent tempo/ports/notes, subsong metadata, capture, seek, bounds and per-pattern engine selection PASS\n";
+        // The later bank overrides matching programs, with fallback to earlier banks.
+        const auto bank=read(resources.filePath("Test.sf2")); auto overlay=bank;
+        const auto phdr=overlay.indexOf("phdr")+8; require(phdr>=8,"Fixture has no preset headers.");
+        overlay.replace(phdr,20,QByteArray("Override").leftJustified(20,'\0'));
+        qToLittleEndian(quint16(81),overlay.data()+phdr+38+20);
+        qToLittleEndian(quint16(1),overlay.data()+phdr+76+20);
+        write(resources.filePath("Base.sf2"),bank); write(resources.filePath("Overlay.sf2"),overlay);
+        write(resources.filePath("Set.sflist"),QByteArray::fromHex("efbbbf")+"# Banks\r\nBase.sf2\r\n\"Overlay.sf2\"\r\n");
+        selectSoundFont("Set.sflist"); require(selectedSoundFont()=="Set.sflist","SFLIST selection did not persist.");
+        const auto layeredPath=resources.filePath("layered.mid");
+        write(layeredPath,smf(QByteArray::fromHex("00c15000903c6400914364009924648360803c00008143000089240000ff2f00")));
+        auto layered=openMusicTrack(layeredPath,0,true,true); advance(*layered,SampleRate/5);
+        require(layered->info().midiResources->soundFonts.size()==2 && layered->instrumentNames(layered->frame()).value(0)=="Override" &&
+                layered->instrumentNames(layered->frame()).value(1)=="Lead" && layered->instrumentNames(layered->frame()).value(9)=="Drums",
+                "SFLIST precedence or fallback across melodic/percussion banks failed.");
+        QFile::remove(resources.filePath("Base.sf2")); QFile::remove(resources.filePath("Overlay.sf2"));
+        const auto layeredPcm=pcm(*layered,1024);
+        layered->seek(0); advance(*layered,SampleRate/5);
+        require(pcm(*layered,1024)==layeredPcm,"SFLIST rewind reread deleted bank files.");
+        auto layeredCopy=openMusicTrack("missing.mid",0,false,true,{}, {},layered->info().midiResources);
+        advance(*layeredCopy,SampleRate/5); require(pcm(*layeredCopy,1024)==layeredPcm,"SFLIST capture did not share immutable bank snapshots.");
+        for (const QByteArray &list : {QByteArray(), QByteArray("Missing.sf2"), QByteArray("Test.sf2\nTest.sf2"),
+                QByteArray("Other.sflist"), QByteArray("0,0|Test.sf2"), QByteArray::fromHex("fffe")}) {
+            write(resources.filePath("Invalid.sflist"),list); bool rejected=false;
+            try { loadSoundFontBanks("Invalid.sflist"); } catch(const std::exception &) { rejected=true; }
+            require(rejected,"Invalid or unsupported SoundFont list accepted.");
+        }
+        selectSoundFont("Test.sf2");
+        log << "SFLIST: UTF-8/BOM/relative paths, layered program priority, fallback, saved choice, snapshot seeks and validation PASS\n";
         const auto sparsePath=resources.filePath("sparse.mid"),emptyPath=resources.filePath("empty.mid");
         write(sparsePath,sparse); write(emptyPath,empty);
         auto sparseTrack=openMusicTrack(sparsePath);
@@ -162,14 +223,18 @@ int runMidiChecks(QApplication &app,const QStringList &args) {
                 longTrack->instrumentNames(5*SampleRate).value(0)=="Lead","Instrument read-ahead leaked into past labels.");
         const int real=args.indexOf("--soundfont");
         if(real>=0&&real+1<args.size()) {
-            require(QFile::copy(args[real+1],resources.filePath("Real.sf2")),"Cannot prepare requested SoundFont check.");
-            selectSoundFont("Real.sf2");
+            const auto source=QFileInfo(args[real+1]).absoluteFilePath();
+            const auto savedDirectory=app.property("soundFontsDirectoryForTests");
+            app.setProperty("soundFontsDirectoryForTests",QFileInfo(source).absolutePath());
+            selectSoundFont(QFileInfo(source).fileName());
             auto actual=openMusicTrack(midi); speed.restart();
             require(pcm(*actual,SampleRate/2)!=QByteArray(SampleRate*2,0),"User SoundFont rendered silence.");
             advance(*actual,10*SampleRate); log<<"User SoundFont: 10s audio render "<<speed.elapsed()<<" ms PASS\n"; log.flush();
             const int tune=args.indexOf("--midi");
             if(tune>=0&&tune+1<args.size()) {
-                speed.restart(); auto tuneTrack=openMusicTrack(args[tune+1]);
+                const auto songCount=openMusicTrack(args[tune+1])->info().songs;
+                for(int song=0;song<songCount;++song) {
+                speed.restart(); auto tuneTrack=openMusicTrack(args[tune+1],song);
                 log<<"Local MIDI load: "<<speed.elapsed()<<" ms; duration "<<tuneTrack->info().durationMs<<" ms\n"; log.flush();
                 QStringList used;
                 for(int i=0;i<tuneTrack->info().voices.size();++i) if(!tuneTrack->info().emptyVoices.test(i)) used<<QString::number(i+1);
@@ -180,7 +245,9 @@ int runMidiChecks(QApplication &app,const QStringList &args) {
                     require(tuneTrack->frame()==target,"Local MIDI seek landed at wrong time.");
                     log<<"Local MIDI seek "<<percent<<"%: "<<speed.elapsed()<<" ms\n"; log.flush();
                 }
+                }
             }
+            app.setProperty("soundFontsDirectoryForTests",savedDirectory);
             selectSoundFont("Test.sf2");
         }
         if(!args.contains("--decoder-only")) {
@@ -291,6 +358,27 @@ int runMidiChecks(QApplication &app,const QStringList &args) {
             scope.findChild<QPushButton*>("showAllScopes")->click();
             require(list->item(1)->checkState()==Qt::Checked,"Show all did not restore empty MIDI cards.");
             log<<"MIDI empty cards: whole-file detection, late notes, stable IDs, manual restore, transport, Reset, Keep grid and presets PASS\n";
+            window.setPlaylistRepeat(PlaylistRepeat::Off);
+            window.loadFile(patternPath,1);
+            // Changing resources while the first load is pending must keep pattern 2 as well.
+            auto pendingBank=window.findChild<QComboBox *>("soundFont");
+            pendingBank->setCurrentIndex(pendingBank->findData(pendingBank->currentData()=="Test.sf2" ? "Other.sf2" : "Test.sf2"));
+            QMetaObject::invokeMethod(pendingBank,"activated",Qt::DirectConnection,Q_ARG(int,pendingBank->currentIndex()));
+            spin(app,[&]{return !player.state().busy && player.state().info.path==patternPath && window.playlist().entries.size()==2;});
+            require(player.state().info.song==1 && window.playlist().currentRow()==1,"MIDI pattern selection did not expand the playlist correctly.");
+            auto bankChoice=window.findChild<QComboBox *>("soundFont");
+            const auto oldGeneration=player.state().generation;
+            const auto otherBank=bankChoice->currentData()=="Test.sf2" ? "Other.sf2" : "Test.sf2";
+            bankChoice->setCurrentIndex(bankChoice->findData(otherBank));
+            QMetaObject::invokeMethod(bankChoice,"activated",Qt::DirectConnection,Q_ARG(int,bankChoice->currentIndex()));
+            spin(app,[&]{return !player.state().busy && player.state().generation>oldGeneration;});
+            require(player.state().info.song==1,"Changing SoundFont jumped to the first MIDI pattern.");
+            window.findChild<QPushButton *>("previous")->click();
+            spin(app,[&]{return !player.state().busy && player.state().info.song==0;});
+            window.findChild<QPushButton *>("next")->click();
+            spin(app,[&]{return !player.state().busy && player.state().info.song==1;});
+            require(player.state().error.isEmpty() && player.state().scopeError.isEmpty(),"MIDI pattern navigation failed.");
+            log << "SMF 2 live: playlist expansion, Previous/Next and SoundFont reload keep the selected subsong PASS\n";
             window.close(); log<<"MIDI live: controls, paused seek, Solo, repeat, hide/resume, zero audio errors PASS\n";
         }
         return 0;

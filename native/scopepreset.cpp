@@ -21,6 +21,7 @@ QByteArray ScopePreset::encode() const {
         num("Visible", card.visible); num("Bars", card.bars); num("Grid", card.grid);
         num("Horizontal",card.horizontal); num("Commands",card.commands); num("FirstChannel",card.firstChannel);
         num("KeyboardSize",card.keyboardSize);
+        if (card.levels) num("Levels", *card.levels);
     }
     return data;
 }
@@ -61,6 +62,7 @@ bool ScopePreset::load(const QString &path, QString &error) {
         if(ini.contains(group+"Commands")) card.commands=integer(group+"Commands",0,1);
         if(ini.contains(group+"FirstChannel")) card.firstChannel=integer(group+"FirstChannel",0,VoiceMask::Capacity-1);
         if(ini.contains(group+"KeyboardSize")) card.keyboardSize=integer(group+"KeyboardSize",5,80);
+        if (ini.contains(group+"Levels")) card.levels = bool(integer(group+"Levels",0,1));
         candidate.cards.push_back(card);
     }
     if (!valid || ini.status() != QSettings::NoError) { error = "Invalid or unsupported layout preset."; return false; }

@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.24)
-project(BitMusicVisualizer VERSION 0.10.1 LANGUAGES C CXX)
+project(BitMusicVisualizer VERSION 0.11.0 LANGUAGES C CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 find_package(Qt6 6.11 REQUIRED COMPONENTS Widgets Multimedia QuickWidgets)
@@ -89,6 +89,7 @@ add_library(bitmusic_core OBJECT
   native/mt32track.cpp
   native/midisequence.cpp
   native/miditrack.cpp
+  native/soundfontbank.cpp
   native/midimetadata.cpp
   native/musicevents.cpp
   native/midiroll.cpp

@@ -13,7 +13,8 @@ struct MidiSequence {
     qint64 endFrame = 0;
     quint16 noteChannels = 0; // Positive-velocity Note On anywhere in the file.
     bool mt32 = false;
-    static MidiSequence parse(const QByteArray &bytes, int sampleRate);
+    static MidiSequence parse(const QByteArray &bytes, int sampleRate, int song = 0);
+    static QVector<MidiSequence> parseSongs(const QByteArray &bytes, int sampleRate);
 };
 // Key-down durations, not acoustic envelopes. Optional routing is resolved by
 // the backend at each event (MT-32 SysEx can reassign MIDI channels to parts).

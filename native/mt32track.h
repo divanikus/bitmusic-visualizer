@@ -5,6 +5,8 @@
 // A single immutable snapshot is shared by audio, scopes and cold seeks.
 struct Mt32Resources {
     MidiSequence sequence;
+    QVector<SongInfo> songs;
+    int song = 0;
     QByteArray control, pcm;
     QString model;
 };

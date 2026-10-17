@@ -95,6 +95,7 @@ private:
     QHash<int, MusicImage> musicImages_;
     int selectedCardId() const;
     void updateViewEditor();
+    void updateLevelsControl();
     void updateKeyboardNotes();
     QVector<float> keyboardPitches(int card) const;
     void addCard();
@@ -185,7 +186,7 @@ private:
     QGridLayout *settings_;
     int editorRows_ = 0;
     QSpinBox *rows_, *columns_;
-    QCheckBox *keepGrid_, *numbers_, *names_, *stereo_;
+    QCheckBox *keepGrid_, *numbers_, *names_, *stereo_, *levels_;
     QListWidget *channelList_;
     QLabel *summary_;
     ScopeGrid gridLayout_, previewLayout_;
@@ -193,7 +194,7 @@ private:
     QComboBox *themes_;
     QString themePath_;
     QDialog *colorDialog_ = nullptr;
-    quint64 colorRevision_ = 0;
+    quint64 colorRevision_ = 0, cardRevision_ = 0;
     bool newFile_ = true, dragging_ = false;
     int pressedChannel_ = -1, dropSlot_ = -1;
     int pressedSolo_ = -1;

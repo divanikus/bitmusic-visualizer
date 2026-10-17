@@ -55,8 +55,8 @@ notarized. See [platform requirements](docs/BUILDING.md).
 | Atari 400/800 / 5200 | VGM, VGZ | Four voices from one POKEY |
 | Atari 2600 | TTT (TIATracker) | Two mono TIA voices; no ROM needed |
 | Yamaha FM/sample systems | VGM, VGZ | FM, PSG and sample voices; supported dual/mixed Yamaha configurations |
-| General MIDI | MID, MIDI (SMF 0/1) + SF2 | Sixteen MIDI channels; unused cards start hidden |
-| Roland MT-32 / CM-32L | MID, MIDI (SMF 0/1) + ROMs | Eight melodic parts and rhythm; unused cards start hidden |
+| General MIDI | MID, MIDI (SMF 0/1/2) + SF2 | Sixteen MIDI channels; unused cards start hidden |
+| Roland MT-32 / CM-32L | MID, MIDI (SMF 0/1/2) + ROMs | Eight melodic parts and rhythm; unused cards start hidden |
 | Amiga trackers | MOD (15/31 samples), MED / OctaMED, DBM | Individual tracker channels, current sample names and stereo |
 | PC trackers | XM, S3M, IT, multichannel MOD | Individual tracker channels; background voices stay with their parent channel |
 
@@ -69,7 +69,7 @@ as `mod.song` work too. [Tracker details and limits](docs/TRACKERS.md).
 Voice cards show signals before shared processing; **Full mix** includes effects,
 volume and mutes. Tracks with no known end play until stopped, unless you enable
 a limit in **Settings → Playback**. MIDI tracks
-within one file play together as one song. [Format details and limits](#documentation).
+in formats 0/1 play together; format 2 lists independent patterns as subsongs. [Format details and limits](#documentation).
 
 ## Settings
 
@@ -133,7 +133,7 @@ Check a file with `Get-FileHash <file> -Algorithm SHA1` (PowerShell),
 
 ### General MIDI SoundFonts
 
-Put an **SF2** bank in `soundfonts/` under the data directory, then select it in
+Put an **SF2** bank or a basic **SFLIST** set in `soundfonts/` under the data directory, then select it in
 the player's MIDI row. The folder button opens the resource directory;
 **Refresh** updates the bank list. The selected bank is remembered.
 Any supported SF2 bank can be used, so there is no single recommended checksum.
@@ -146,7 +146,8 @@ SF3 and DLS are not supported. [MIDI setup and limits](docs/MIDI.md).
 | Arrange cards | Pencil → drag cards; drag their edges/corners to resize |
 | Change or add a view | **Cards → View** or **Add card…**; MIDI also offers **Piano roll**, trackers offer **Pattern** |
 | Show the output mix | Enable **Full mix** in Cards; hidden by default |
-| Show stereo or level meters | **Stereo** / **Levels** in the editor toolbar |
+| Show stereo or level meters | **Stereo** in the toolbar; **Levels** per card or for all cards |
+| Edit a card | Card pencil → **Card settings**: view, options and colors |
 | Adjust waves and effects | **Display → Waves… / Effects…** |
 | Set renderer or FPS | Main player gear → **Settings → Rendering** |
 | Save colors | **Display → Color theme / Save theme…** |

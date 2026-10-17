@@ -19,19 +19,43 @@ struct Reader {
     QByteArray take(qint64 n) { need(n); auto b = data.mid(pos,n); pos += n; return b; }
 };
 struct TickEvent { quint64 tick; int tempo; QByteArray message; };
+MidiSequence finishSequence(QVector<TickEvent> events, MidiSequence result, quint64 endTick, quint32 division, int rate) {
+    std::stable_sort(events.begin(),events.end(),[](const auto &a,const auto &b){ return a.tick<b.tick; });
+    double secondsPerTick = 0;
+    if (division & 0x8000) {
+        const int fps=-int(qint8(division>>8)), ticks=division&255;
+        require(ticks && (fps==24 || fps==25 || fps==29 || fps==30),"Invalid MIDI SMPTE division.");
+        secondsPerTick=1.0/((fps==29 ? 30000.0/1001.0 : fps)*ticks);
+    }
+    long double seconds=0; quint64 last=0; int tempo=500000;
+    const auto advance=[&](quint64 tick) {
+        seconds+=(tick-last)*(secondsPerTick ? secondsPerTick : tempo/(1000000.0L*division)); last=tick;
+        require(seconds <= 3600,"MIDI duration exceeds one hour.");
+        return qint64(std::llround(seconds*rate));
+    };
+    for (const auto &event : events) {
+        const auto frame=advance(event.tick);
+        if (event.tempo) tempo=event.tempo;
+        else result.events.push_back({frame,event.message});
+    }
+    result.endFrame=advance(endTick);
+    return result;
 }
-MidiSequence MidiSequence::parse(const QByteArray &bytes, int rate) {
+}
+QVector<MidiSequence> MidiSequence::parseSongs(const QByteArray &bytes, int rate) {
     require(rate > 0 && bytes.size() <= 64*1024*1024, "MIDI exceeds the 64 MiB limit.");
     Reader r{bytes,0,bytes.size()};
     require(r.take(4) == "MThd", "Not a Standard MIDI file.");
     const auto header = r.word(4);
     require(header >= 6 && header <= quint64(r.end-r.pos), "Invalid MIDI header.");
     const auto format = r.word(2), tracks = r.word(2), division = r.word(2);
-    require(format <= 1, "MIDI format 2 is not supported. Use a format 0 or 1 file.");
+    require(format <= 2, "Unsupported MIDI format.");
     require(tracks && tracks <= 1024 && (format != 0 || tracks == 1), "Invalid MIDI track count.");
     require(division != 0, "Invalid MIDI time division.");
     r.take(header-6);
     QVector<TickEvent> events;
+    QVector<MidiSequence> songs;
+    qsizetype eventCount = 0;
     MidiSequence result;
     quint64 endTick = 0;
     int outputPort=-1;
@@ -47,7 +71,7 @@ MidiSequence MidiSequence::parse(const QByteArray &bytes, int rate) {
         quint64 tick = 0; int running = 0, port = -1, sysexPort = -1; bool ended = false; QByteArray sysex;
         while (t.pos < t.end) {
             tick += t.vlq();
-            require(events.size() < 2000000, "MIDI has too many events.");
+            require(++eventCount <= 2000000, "MIDI has too many events.");
             int status = t.byte();
             if (status < 128) { require(running != 0, "Invalid MIDI running status."); --t.pos; status = running; }
             if (status < 0xf0) {
@@ -87,26 +111,17 @@ MidiSequence MidiSequence::parse(const QByteArray &bytes, int rate) {
             } else throw std::runtime_error("Unsupported system event in MIDI file.");
         }
         require(ended,"MIDI track has no end-of-track event."); endTick=std::max(endTick,tick);
+        if (format == 2) {
+            songs.push_back(finishSequence(std::move(events), std::move(result), endTick, division, rate));
+            events.clear(); result = {}; endTick = 0; outputPort = -1;
+        }
     }
     require(r.pos==r.end,"Unexpected data after MIDI tracks.");
-    std::stable_sort(events.begin(),events.end(),[](const auto &a,const auto &b){ return a.tick<b.tick; });
-    double secondsPerTick = 0;
-    if (division & 0x8000) {
-        const int fps=-int(qint8(division>>8)), ticks=division&255;
-        require(ticks && (fps==24 || fps==25 || fps==29 || fps==30),"Invalid MIDI SMPTE division.");
-        secondsPerTick=1.0/((fps==29 ? 30000.0/1001.0 : fps)*ticks);
-    }
-    long double seconds=0; quint64 last=0; int tempo=500000;
-    const auto advance=[&](quint64 tick) {
-        seconds+=(tick-last)*(secondsPerTick ? secondsPerTick : tempo/(1000000.0L*division)); last=tick;
-        require(seconds <= 3600,"MIDI duration exceeds one hour.");
-        return qint64(std::llround(seconds*rate));
-    };
-    for (const auto &event : events) {
-        const auto frame=advance(event.tick);
-        if (event.tempo) tempo=event.tempo;
-        else result.events.push_back({frame,event.message});
-    }
-    result.endFrame=advance(endTick);
-    return result;
+    if (format != 2) songs.push_back(finishSequence(std::move(events), std::move(result), endTick, division, rate));
+    return songs;
+}
+MidiSequence MidiSequence::parse(const QByteArray &bytes, int rate, int song) {
+    auto songs = parseSongs(bytes, rate);
+    require(song >= 0 && song < songs.size(), "MIDI subsong index is out of range.");
+    return std::move(songs[song]);
 }

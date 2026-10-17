@@ -1,10 +1,6 @@
 #include "miditrack.h"
 #include "midimetadata.h"
-#include "appsettings.h"
-#include "resourceerror.h"
 #include <fluidsynth.h>
-#include <QFile>
-#include <QFileInfo>
 #include <QCryptographicHash>
 #include <algorithm>
 #include <cmath>
@@ -15,66 +11,36 @@ namespace {
 void require(bool ok,const char *s) { if (!ok) throw std::runtime_error(s); }
 constexpr int Polyphony=256, Chunk=64;
 constexpr qint64 SeekPreroll=2*SampleRate;
-thread_local std::shared_ptr<const MidiResources> loading;
-struct Cursor { std::shared_ptr<const MidiResources> resource; qint64 pos=0; };
+thread_local const SoundFontBank *loading = nullptr;
+struct Cursor { QByteArray bytes; qint64 pos=0; };
 void *sfOpen(const char *name) {
-    if (!loading || loading->soundFontKey != name) return nullptr;
-    return new Cursor{loading};
+    if (!loading || loading->key != name) return nullptr;
+    return new Cursor{loading->bytes};
 }
 int sfRead(void *out,fluid_long_long_t count,void *handle) {
-    auto &c=*static_cast<Cursor *>(handle); const auto &b=c.resource->soundFont;
+    auto &c=*static_cast<Cursor *>(handle); const auto &b=c.bytes;
     if (count<0 || count>b.size()-c.pos) return FLUID_FAILED;
     std::memcpy(out,b.constData()+c.pos,size_t(count)); c.pos+=count; return FLUID_OK;
 }
 int sfSeek(void *handle,fluid_long_long_t offset,int origin) {
-    auto &c=*static_cast<Cursor *>(handle); const auto size=c.resource->soundFont.size();
+    auto &c=*static_cast<Cursor *>(handle); const auto size=c.bytes.size();
     const qint64 base=origin==SEEK_SET?0:origin==SEEK_CUR?c.pos:origin==SEEK_END?size:-1;
     if (base<0 || offset < -base || offset>size-base) return FLUID_FAILED;
     c.pos=base+offset; return FLUID_OK;
 }
 fluid_long_long_t sfTell(void *handle) { return static_cast<Cursor *>(handle)->pos; }
 int sfClose(void *handle) { delete static_cast<Cursor *>(handle); return FLUID_OK; }
-std::shared_ptr<const MidiResources> loadResources(const QByteArray &data) {
-    auto r=std::make_shared<MidiResources>(); r->sequence=MidiSequence::parse(data,SampleRate);
+std::shared_ptr<const MidiResources> loadResources(const QByteArray &data, const QString &path, int song) {
+    auto r=std::make_shared<MidiResources>();
+    auto songs=MidiSequence::parseSongs(data,SampleRate);
+    require(song>=0 && song<songs.size(),"MIDI subsong index is out of range.");
+    r->songs=midiSongList(songs,path); r->song=song; r->sequence=std::move(songs[song]);
     r->noteRoll=midiNoteRoll(r->sequence);
     require(!r->sequence.mt32,"This file contains Roland MT-32 SysEx. Select Auto or MT-32; General MIDI cannot reproduce these patches.");
     r->soundFontName=selectedSoundFont();
-    QFile file(QDir(playerSoundFontsDirectory()).filePath(r->soundFontName));
-    if (r->soundFontName.isEmpty() || !file.open(QIODevice::ReadOnly))
-        throw std::runtime_error(resourceRequiredMessage(RequiredResource::SoundFont, "place a .sf2 file in:\n" +
-            QDir::toNativeSeparators(playerSoundFontsDirectory())+"\nThen select it in the player's SoundFont list and reopen the MIDI.").toStdString());
-    require(file.size()>12 && file.size()<=1024LL*1024*1024,"Invalid SoundFont size (maximum 1 GiB).");
-    r->soundFont=file.readAll();
-    require(file.error()==QFile::NoError && r->soundFont.size()==file.size(),"Cannot read SoundFont.");
-    require(r->soundFont.startsWith("RIFF") && r->soundFont.mid(8,4)=="sfbk","Not an SF2 SoundFont.");
-    r->soundFontKey="bitmusic-memory-"+QCryptographicHash::hash(r->soundFont,QCryptographicHash::Sha256).toHex()+".sf2";
+    r->soundFonts=loadSoundFontBanks(r->soundFontName);
     return r;
 }
-}
-QString playerSoundFontsDirectory() {
-    const auto test=QCoreApplication::instance()->property("soundFontsDirectoryForTests").toString();
-    if (!test.isEmpty()) return test;
-    return QDir::cleanPath(QDir(playerThemesDirectory()).absoluteFilePath("../soundfonts"));
-}
-QStringList availableSoundFonts() {
-    QStringList names;
-    for (const auto &name:QDir(playerSoundFontsDirectory()).entryList(QDir::Files,QDir::Name))
-        if (name.endsWith(".sf2",Qt::CaseInsensitive)) names<<name;
-    return names;
-}
-QString selectedSoundFont() {
-    QSettings s(playerSettingsPath(),playerSettingsFormat()); s.setFallbacksEnabled(false);
-    const auto name=s.value("MIDI/SoundFont").toString();
-    const auto names=availableSoundFonts();
-    // A selected missing bank must not silently switch the arrangement's sound.
-    if (!name.isEmpty() && QFileInfo(name).fileName()==name && !name.contains('/') && !name.contains('\\')) return name;
-    return names.value(0);
-}
-void selectSoundFont(const QString &name) {
-    require(availableSoundFonts().contains(name),"Selected SoundFont is not available.");
-    QSettings s(playerSettingsPath(),playerSettingsFormat()); s.setFallbacksEnabled(false);
-    s.setValue("MIDI/SoundFont",name); s.sync();
-    require(s.status()==QSettings::NoError,"Could not save the selected SoundFont.");
 }
 struct MidiTrack::Impl {
     // Reverse declaration order releases synth before settings and the resource snapshot.
@@ -119,10 +85,14 @@ struct MidiTrack::Impl {
         fluid_sfloader_set_callbacks(loader,sfOpen,sfRead,sfSeek,sfTell,sfClose);
         fluid_synth_add_sfloader(synth.get(),loader); // Synth owns the registered loader.
         // Bind memory callbacks only during FluidSynth's synchronous load.
-        loading=resources;
-        const int id=fluid_synth_sfload(synth.get(),resources->soundFontKey.constData(),1);
-        loading.reset();
-        require(id>=0,"Cannot load SoundFont. Use a valid uncompressed SF2 file.");
+        for (const auto &bank : resources->soundFonts) {
+            loading=&bank;
+            const int id=fluid_synth_sfload(synth.get(),bank.key.constData(),0);
+            loading=nullptr;
+            require(id>=0,"Cannot load SoundFont. Use a valid uncompressed SF2 file.");
+        }
+        require(!resources->soundFonts.isEmpty(),"Cannot load SoundFont. Use a valid uncompressed SF2 file.");
+        fluid_synth_program_reset(synth.get());
     }
     void reset() {
         createSynth();
@@ -253,13 +223,13 @@ struct MidiTrack::Impl {
 };
 MidiTrack::MidiTrack(const QString &path,QByteArray data,int song,bool playlist,bool capture,
                      std::shared_ptr<const MidiResources> resources):impl_(std::make_unique<Impl>()) {
-    require(song==0,"MIDI contains one song; its tracks play together.");
+    require(song>=0,"MIDI subsong index is out of range.");
+    require(!resources || song==resources->song,"MIDI snapshot belongs to another subsong.");
     const bool fresh=!resources;
-    auto &d=*impl_; d.resources=resources?std::move(resources):loadResources(data); d.capture=capture;
-    info_.midiResources=d.resources; info_.path=path; info_.songs=1; info_.system="General MIDI";
+    auto &d=*impl_; d.resources=resources?std::move(resources):loadResources(data,path,song); d.capture=capture;
+    info_.midiResources=d.resources; info_.path=path; info_.system="General MIDI";
     info_.noteRoll=d.resources->noteRoll;
-    info_.title=midiTrackTitle(d.resources->sequence,path);
-    info_.durationMs=midiTrackDurationMs(d.resources->sequence);
+    midiSongInfo(info_,d.resources->sequence,d.resources->songs,song,playlist);
     info_.stereoOutput=true; info_.tonalMask=VoiceMask(0xffffu & ~(1u<<9));
     info_.emptyVoices=VoiceMask::first(16) & ~VoiceMask(d.resources->sequence.noteChannels);
     auto &c=info_.configuration; c.family="midi-gm"; c.name="FluidSynth";
@@ -268,7 +238,6 @@ MidiTrack::MidiTrack(const QString &path,QByteArray data,int song,bool playlist,
         c.sources<<QString("midi.channel:%1").arg(i);
     }
     c.id=QString::fromLatin1(QCryptographicHash::hash("midi-gm|16-channel-v1",QCryptographicHash::Sha256).toHex());
-    if(playlist) info_.playlist.push_back({info_.title,info_.durationMs,0});
     d.reset();
     if(fresh) selectSoundFont(d.resources->soundFontName);
 }

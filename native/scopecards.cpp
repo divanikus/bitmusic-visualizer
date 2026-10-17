@@ -23,11 +23,12 @@ void ScopeCards::initialize(bool hidden) {
         cards_.push_back(card);
     }
 }
-void ScopeCards::reset(int sources, bool output, VoiceMask empty) {
+void ScopeCards::reset(int sources, bool output, VoiceMask empty, bool levels) {
     initialize(false);
     for (int source = 0; source < sources; ++source) order_.push_back(source);
     order_.push_back(FullMix); cards_[FullMix].hidden = !output;
     hideEmpty(empty);
+    setAllLevels(levels);
 }
 int ScopeCards::add(const ScopeCard &card, int after) {
     if (order_.size() >= Maximum) return -1;
@@ -69,11 +70,20 @@ bool ScopeCards::cycleSourceView(int source, ScopeViewSupport support) {
 void ScopeCards::setAllViews(ScopeView view) {
     for (int id : order_) cards_[id].kind = view;
 }
-ScopeCaptureRequest ScopeCards::captureRequest(const ScopeGrid &displayed, bool meters) const {
+void ScopeCards::setAllLevels(bool enabled) {
+    for (auto &card : cards_) card.levels = enabled;
+}
+Qt::CheckState ScopeCards::levelsState(bool fallback) const {
+    if (order_.isEmpty()) return fallback ? Qt::Checked : Qt::Unchecked;
+    const bool first = cards_[order_.front()].levels;
+    for (int id : order_) if (cards_[id].levels != first) return Qt::PartiallyChecked;
+    return first ? Qt::Checked : Qt::Unchecked;
+}
+ScopeCaptureRequest ScopeCards::captureRequest(const ScopeGrid &displayed) const {
     ScopeCaptureRequest request;
     for (int id : order_) {
         const auto &card = cards_[id];
-        if (!displayed.contains(id) || (!meters && !scopeViewNeedsPcm(card.kind))) continue;
+        if (!displayed.contains(id) || (!card.levels && !scopeViewNeedsPcm(card.kind))) continue;
         if (card.source == FullMix) request.output = true;
         else request.channels |= VoiceMask::bit(card.source);
     }
@@ -96,11 +106,11 @@ QVector<PresetCard> ScopeCards::presetCards(const SoundConfiguration &configurat
         const auto &card = cards_[id];
         result.push_back({card.source == FullMix ? "mix" : configuration.sources.value(card.source),
             int(card.kind), card.span, !card.hidden, card.spectrumBars, card.spectrumGrid,
-            card.horizontal, card.commands, card.firstChannel, card.keyboardSize});
+            card.horizontal, card.commands, card.firstChannel, card.keyboardSize, card.levels});
     }
     return result;
 }
-void ScopeCards::loadPreset(const ScopePreset &preset, ScopeViewSupport support) {
+void ScopeCards::loadPreset(const ScopePreset &preset, ScopeViewSupport support, bool legacyLevels) {
     initialize(true);
     for (const auto &saved : preset.cards) {
         const int source = saved.source == "mix" ? FullMix : int(preset.configuration.sources.indexOf(saved.source));
@@ -111,7 +121,7 @@ void ScopeCards::loadPreset(const ScopePreset &preset, ScopeViewSupport support)
         card = {source, support.supports(ScopeView(saved.view)) ? ScopeView(saved.view) : ScopeView::Waveform,
             saved.bars, saved.grid, saved.horizontal, saved.commands,
             std::clamp(saved.firstChannel, 0, int(preset.configuration.sources.size()) - 1), saved.keyboardSize,
-            !saved.visible, saved.span};
+            !saved.visible, saved.span, saved.levels.value_or(legacyLevels)};
         order_.push_back(id);
     }
 }

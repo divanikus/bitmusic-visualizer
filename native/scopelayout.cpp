@@ -199,7 +199,7 @@ void ScopeWindow::mouseMoveEvent(QMouseEvent *event) {
     }
     if (hoveredColor_ != hovered) { hoveredColor_ = hovered; update(); }
     if (hovered >= 0) {
-        setToolTip("Edit colors for "+channelName(hovered)); setCursor(Qt::PointingHandCursor); return;
+        setToolTip("Edit settings for "+channelName(hovered)); setCursor(Qt::PointingHandCursor); return;
     }
     if (edges) {
         setCursor(edges == 3 ? Qt::SizeFDiagCursor : edges == 1 ? Qt::SizeHorCursor : Qt::SizeVerCursor);

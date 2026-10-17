@@ -1,4 +1,6 @@
 #include "scopewindow.h"
+#include "scopecardinspector.h"
+#include <QTabWidget>
 #include "palette.h"
 #include "appsettings.h"
 #include <QCoreApplication>
@@ -21,12 +23,17 @@
 
 void ScopeWindow::editColors(int selectedChannel) {
     if (colorDialog_) return;
-    if (selectedChannel >= 0) selectedChannel = sourceFor(selectedChannel);
+    const int cardId = selectedChannel >= 0 ? selectedChannel : selectedCardId();
+    const bool hasCard = cardId >= 0 && cards_.order().contains(cardId);
+    const ScopeCard originalCard = hasCard ? cards_[cardId] : ScopeCard{};
+    const auto cardRevision = cardRevision_;
+    if (hasCard) selectedChannel = sourceFor(cardId);
+    bool colorsChanged = false;
     const auto original = theme_;
     const auto revision = colorRevision_;
     QDialog dialog(this);
     colorDialog_ = &dialog;
-    dialog.setObjectName("scopeColorsDialog"); dialog.setWindowTitle("Scope colors");
+    dialog.setObjectName("scopeColorsDialog"); dialog.setWindowTitle(hasCard ? "Card settings" : "Scope colors");
     dialog.setMinimumWidth(380);
     const auto palette = playerPalette();
     dialog.setPalette(palette);
@@ -37,6 +44,30 @@ void ScopeWindow::editColors(int selectedChannel) {
         QPushButton:disabled { color: #71848d; }
     )");
     auto layout = new QVBoxLayout(&dialog); layout->setContentsMargins(18, 16, 18, 16); layout->setSpacing(14);
+    auto tabs = new QTabWidget; tabs->setObjectName("cardSettingsTabs"); layout->addWidget(tabs);
+    ScopeCardInspector *inspector = nullptr;
+    if (hasCard) {
+        inspector = new ScopeCardInspector(nullptr, false); tabs->addTab(inspector, "Card");
+        auto refresh = [&, this] {
+            inspector->setCard(&cards_[cardId], channelName(cardId),
+                {bool(state_.info.noteRoll), bool(state_.info.patterns)},
+                state_.info.tonalMask.test(sourceFor(cardId)) ? "Notes from chip or MIDI data." :
+                    "Estimated from audio: one pitch. Chords, noise and drums may be inaccurate.", int(state_.info.voices.size()));
+        };
+        auto changed = [&, this] { musicImages_.clear(); layoutChanged(); updateViewEditor(); update(); };
+        inspector->onViewChanged = [&, refresh, changed](ScopeView view) { cards_[cardId].kind = view; refresh(); changed(); };
+        inspector->onSpectrumChanged = [&, changed](bool bars, bool grid) {
+            cards_[cardId].spectrumBars = bars; cards_[cardId].spectrumGrid = grid; changed();
+        };
+        inspector->onMusicChanged = [&, changed](const ScopeCard &options) {
+            auto &card = cards_[cardId]; card.horizontal = options.horizontal; card.commands = options.commands;
+            card.keyboardSize = options.keyboardSize; card.firstChannel = options.firstChannel; changed();
+        };
+        inspector->onLevelsChanged = [&, changed](bool enabled) { cards_[cardId].levels = enabled; changed(); };
+        refresh();
+    }
+    auto colorsPage = new QWidget; tabs->addTab(colorsPage, "Colors");
+    auto colorsLayout = new QVBoxLayout(colorsPage);
     auto channel = new QComboBox; channel->setObjectName("colorChannel"); channel->setAccessibleName("Channel");
     styleCombo(channel);
     for (int id = 0; id < std::max(32, int(state_.info.voices.size())); ++id)
@@ -44,9 +75,9 @@ void ScopeWindow::editColors(int selectedChannel) {
     channel->addItem("Full mix", ScopeTheme::FullMix);
     if (selectedChannel >= 0 && selectedChannel <= ScopeTheme::FullMix) channel->setCurrentIndex(selectedChannel == ScopeTheme::FullMix ? channel->count()-1 : selectedChannel);
     else if (channelList_->currentItem()) channel->setCurrentIndex(channel->findData(sourceFor(channelList_->currentItem()->data(Qt::UserRole).toInt())));
-    layout->addWidget(channel);
+    colorsLayout->addWidget(channel);
     auto fields = new QGridLayout; fields->setHorizontalSpacing(10); fields->setVerticalSpacing(10);
-    layout->addLayout(fields);
+    colorsLayout->addLayout(fields);
     const std::array<QString, 5> labels = {"Waveform", "Label", "Axis", "Border", "Card background"};
     const std::array<QString, 5> keys = {"waveform", "label", "axis", "border", "background"};
     const std::array<QColor ScopeColors::*, 5> members = {&ScopeColors::waveform, &ScopeColors::label, &ScopeColors::axis, &ScopeColors::border, &ScopeColors::background};
@@ -66,7 +97,7 @@ void ScopeWindow::editColors(int selectedChannel) {
     auto tools = new QHBoxLayout;
     auto reset = new QPushButton("Reset channel"); reset->setObjectName("resetChannelColors"); tools->addWidget(reset);
     auto all = new QPushButton("Apply to all"); all->setObjectName("applyColorsToAll"); tools->addWidget(all);
-    layout->addLayout(tools);
+    colorsLayout->addLayout(tools);
     auto buttons = new QDialogButtonBox(QDialogButtonBox::Save | QDialogButtonBox::Cancel);
     layout->addWidget(buttons);
     auto valid = [&] {
@@ -92,7 +123,7 @@ void ScopeWindow::editColors(int selectedChannel) {
             if (!hex[i]->hasAcceptableInput()) return;
             if (!text.startsWith('#')) text.prepend('#');
             const QColor color(text);
-            colorAt(i) = color;
+            colorAt(i) = color; colorsChanged = true;
             swatches[i]->setStyleSheet(QString("QPushButton { background: %1; border: 1px solid #81969f; border-radius: 5px; padding: 0; }").arg(color.name()));
             update();
         });
@@ -106,15 +137,19 @@ void ScopeWindow::editColors(int selectedChannel) {
         });
     }
     connect(channel, &QComboBox::currentIndexChanged, &dialog, load);
-    connect(reset, &QPushButton::clicked, &dialog, [&] { theme_.colors(channel->currentData().toInt()) = ScopeColors::defaults(channel->currentData().toInt()); load(); update(); });
-    connect(all, &QPushButton::clicked, &dialog, [&] { const auto selected = theme_.colors(channel->currentData().toInt()); theme_.tiles.fill(selected); theme_.fullMix = selected; update(); });
+    connect(reset, &QPushButton::clicked, &dialog, [&] { colorsChanged = true; theme_.colors(channel->currentData().toInt()) = ScopeColors::defaults(channel->currentData().toInt()); load(); update(); });
+    connect(all, &QPushButton::clicked, &dialog, [&] { colorsChanged = true; const auto selected = theme_.colors(channel->currentData().toInt()); theme_.tiles.fill(selected); theme_.fullMix = selected; update(); });
     connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
     connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
     load();
     const int result = dialog.exec();
     colorDialog_ = nullptr;
     if (result != QDialog::Accepted && revision == colorRevision_) theme_ = original;
-    else if (result == QDialog::Accepted) markThemeEdited();
+    else if (result == QDialog::Accepted && colorsChanged) markThemeEdited();
+    if (hasCard && cardRevision == cardRevision_) {
+        if (result != QDialog::Accepted) cards_[cardId] = originalCard;
+        musicImages_.clear(); layoutChanged(); updateViewEditor();
+    }
     update();
 }
 

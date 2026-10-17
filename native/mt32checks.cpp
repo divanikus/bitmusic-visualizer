@@ -143,6 +143,15 @@ int runMt32Checks(QApplication &app,const QStringList &args) {
         for(const auto *name:{"MT32_CONTROL.ROM","MT32_PCM.ROM"})
             write(QDir(playerMt32Directory()).filePath(name),read(QDir(args[rom+1]).filePath(name)));
         write(midi,fixture()); selectMidiEngine("auto");
+        auto patterns=fixture(0); patterns[9]=2; patterns[11]=2; patterns+=fixture(1).mid(14);
+        auto patternTrack=openMidiTrack("patterns.mid",patterns,1,true,true);
+        require(patternTrack->info().song==1 && patternTrack->info().songs==2 && patternTrack->info().playlist.size()==2 &&
+                patternTrack->info().emptyVoices==(VoiceMask::first(9)&~VoiceMask::bit(1)), "MT-32 independent pattern metadata/routing failed.");
+        auto patternCopy=openMusicTrack("missing.mid",1,false,true,{}, {},{},patternTrack->info().mt32Resources);
+        require(render(*patternTrack,SampleRate/2)==render(*patternCopy,SampleRate/2), "MT-32 pattern capture snapshot changed synthesis.");
+        patternTrack->seek(0); render(*patternTrack,SampleRate/2);
+        require(patternTrack->notePitches(0).isEmpty() && !patternTrack->notePitches(1).isEmpty(), "MT-32 pattern rewind leaked notes from another pattern.");
+        log << "MT-32 SMF 2: subsongs, independent part routing, shared capture snapshot and rewind PASS\n";
         auto audio=openMusicTrack(midi);
         const auto resources=audio->info().mt32Resources;
         checkMt32Metadata(resources,log);

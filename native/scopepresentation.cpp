@@ -82,7 +82,7 @@ QRectF ScopeWindow::contentRect(int card) const {
 bool ScopeWindow::meterStereo(int) const { return state_.info.stereoOutput; }
 QRectF ScopeWindow::meterRect(int card, int side) const {
     const auto content = contentRect(card);
-    if (!waveOptions_.meters || content.width() < 100 || content.height() < 44) return {};
+    if (!cards_[card].levels || content.width() < 100 || content.height() < 44) return {};
     const bool stereo = meterStereo(card);
     if (side && !stereo) return {};
     return {content.left()+side*11, content.top()+2, 6, content.height()-16};
@@ -113,7 +113,7 @@ void ScopeWindow::paintMeterTracks(QPainter &p, int card) {
 }
 QVector<ScopeMeter> ScopeWindow::meterFills() const {
     QVector<ScopeMeter> fills;
-    if (!waveOptions_.meters || state_.busy) return fills;
+    if (state_.busy) return fills;
     std::array<std::array<float, 2>, VoiceMask::Capacity+1> levels;
     levels.fill({-1, -1});
     for (int card : displayedChannels()) {

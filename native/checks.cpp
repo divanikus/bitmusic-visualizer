@@ -285,6 +285,7 @@ void checkScopeColors(QApplication &app, const QString &directory) {
             try {
                 require(dialog && dialog->isVisible() && dialog->isModal(), "Modal color settings did not open.");
                 if (panel >= 0) require(dialog->findChild<QComboBox *>("colorChannel")->currentIndex() == panel, "Pipette selected the wrong backend channel.");
+                if (auto tabs = dialog->findChild<QTabWidget *>("cardSettingsTabs")) tabs->setCurrentIndex(tabs->count()-1);
                 action(dialog);
             }
             catch (...) { error = std::current_exception(); if (dialog) dialog->reject(); }
