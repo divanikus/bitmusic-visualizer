@@ -23,6 +23,7 @@
 #include <stdexcept>
 
 void checkMidiSubsongErrors();
+void checkMidiPatternSetup(const QString &directory,QTextStream &log);
 void checkGmMetadata(const std::shared_ptr<const MidiResources> &resources, QTextStream &log);
 void checkSoundFontBankCache(const QString &directory,const QByteArray &fixture,QTextStream &log);
 
@@ -91,6 +92,7 @@ int runMidiChecks(QApplication &app,const QStringList &args) {
         write(resources.filePath("Test.sf2"),read(QDir(directory).filePath("fixture-gm.sf2")));
         checkSoundFontBankCache(resources.path(),read(resources.filePath("Test.sf2")),log);
         selectSoundFont("Test.sf2"); require(selectedSoundFont()=="Test.sf2","SoundFont selection did not persist.");
+        checkMidiPatternSetup(directory,log);
         // SMF 2 patterns have independent tempo, ports, titles, notes and engine hints.
         auto patterns = smf(QByteArray::fromHex("00ff03014100ff51030f424000ff21010000903c648360803c0000ff2f00"));
         patterns[9]=2; patterns[11]=2;
@@ -115,7 +117,7 @@ int runMidiChecks(QApplication &app,const QStringList &args) {
         bool badSong=false; try { openMusicTrack(patternPath,2); } catch(const std::exception &e) { badSong=QByteArray(e.what()).contains("subsong"); }
         require(badSong,"Out-of-range MIDI pattern accepted.");
         auto mixed=smf(QByteArray::fromHex("00903c648360803c0000ff2f00")); mixed[9]=2; mixed[11]=2;
-        mixed+=mt.mid(14);
+        mixed+=smf(QByteArray::fromHex("00f00541101612f700913c648360813c0000ff2f00")).mid(14);
         selectMidiEngine("auto");
         require(bool(openMidiTrack("mixed.mid",mixed,0,true,false)->info().midiResources),"MT-32 hint leaked across independent patterns.");
         bool wantsRom=false; try { openMidiTrack("mixed.mid",mixed,1,true,false); }
@@ -397,16 +399,18 @@ int runMidiChecks(QApplication &app,const QStringList &args) {
             spin(app,[&]{return !player.state().busy && player.state().info.song==1;});
             require(player.state().error.isEmpty() && player.state().scopeError.isEmpty(),"MIDI pattern navigation failed.");
             log << "SMF 2 live: playlist expansion, Previous/Next and SoundFont reload keep the selected subsong PASS\n";
-            // A genuine silent pattern (nonzero duration), followed by three used channels.
-            auto intro = smf(QByteArray::fromHex("8360ff2f00")); intro[9]=2; intro[11]=2;
+            // Hidden setup followed by two musical patterns with different used channels.
+            auto intro = smf(QByteArray::fromHex("00ff51030f424000ff2f00")); intro[9]=2; intro[11]=3;
+            intro += smf(QByteArray::fromHex("00933c648360833c0000ff2f00")).mid(14);
             intro += sparse.mid(14);
             const auto introPath=resources.filePath("silent-intro.mid"); write(introPath,intro);
             scope.resetLayout(); window.loadFile(introPath);
             spin(app,[&]{return !player.state().busy && player.state().info.path==introPath;});
             window.refresh();
-            require(scope.visibleChannels().isEmpty() && rows->value()==1 && columns->value()==1,
-                    "Silent first pattern did not hide its empty channels.");
-            player.seek(2400,true);
+            require(scope.visibleChannels()==QVector<int>({3}) && rows->value()==1 && columns->value()==1 &&
+                    player.state().info.songs==2 && window.playlist().entries.size()==2 && player.state().info.durationMs==3000,
+                    "Hidden setup appeared in the playlist or changed the first musical pattern.");
+            player.seek(2900,true);
             spin(app,[&]{return !player.state().busy && player.state().info.song==1 && player.scopes().mask==sparseUsed;});
             window.refresh(); checkSparse();
             require(scope.visibleChannels()==QVector<int>({0,9,15}) && rows->value()==3 && columns->value()==1 && !player.state().muteMask,
@@ -415,7 +419,7 @@ int runMidiChecks(QApplication &app,const QStringList &args) {
             list->item(0)->setCheckState(Qt::Unchecked); scope.cycleSourceView(9);
             window.findChild<QPushButton *>("previous")->click();
             spin(app,[&]{return !player.state().busy && player.state().info.song==0;}); window.refresh();
-            require(scope.visibleChannels().isEmpty(),"Silent pattern retained sounding cards.");
+            require(scope.visibleChannels()==QVector<int>({3}),"First musical pattern retained another pattern's cards.");
             window.findChild<QPushButton *>("next")->click();
             spin(app,[&]{return !player.state().busy && player.state().info.song==1;}); window.refresh();
             require(scope.visibleChannels()==QVector<int>({9,15}) && rows->value()==3 && columns->value()==2,
@@ -426,7 +430,7 @@ int runMidiChecks(QApplication &app,const QStringList &args) {
             list->item(1)->setCheckState(Qt::Checked); player.seek(0,false);
             spin(app,[&]{return !player.state().busy && !player.state().playing;}); window.refresh();
             require(list->item(1)->checkState()==Qt::Checked,"Same-pattern seek hid a manually enabled empty card.");
-            log << "SMF 2 visibility: empty first pattern, automatic advance, capture, automatic/manual grids, manual hides and seek PASS\n";
+            log << "SMF 2 visibility: hidden setup, automatic advance, capture, automatic/manual grids, manual hides and seek PASS\n";
             window.close(); log<<"MIDI live: controls, paused seek, Solo, repeat, hide/resume, zero audio errors PASS\n";
         }
         return 0;

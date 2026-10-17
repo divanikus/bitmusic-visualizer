@@ -273,6 +273,10 @@ extra audio drivers. GCEM is separately pinned for compile-time tables. SF2 is
 enabled; libsndfile/SF3 and DLS are not. Run `--midi-checks <fixtures>` (or add
 `--decoder-only`) after generating fixtures for MIDI timing, stereo channel
 capture, sustain/chords, SoundFont snapshots, mutes, seeking and live controls.
+Format-2 setup checks cover hidden playlist entries, inherited tempo and ordered
+controls, local overrides, ports, direct subsong selection and capture/seek state.
+Authored fixtures include an equivalent format-0 reference for PCM comparison;
+the ROM-enabled MT-32 suite also compares inherited SysEx with explicit setup.
 It also checks long seeks in audio/scopes, instrument names, pedal reconstruction
 and restarting after a natural endpoint between sample frames. Optional
 `--soundfont <path> --midi <path>` measures read-only local-file load/seek timings.

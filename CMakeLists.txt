@@ -142,6 +142,7 @@ if(BITMUSIC_BUILD_TESTS)
     native/mt32checks.cpp
     native/midichecks.cpp
     native/midibackendchecks.cpp
+    native/midisetupchecks.cpp
     native/soundfontchecks.cpp
     native/musicviewchecks.cpp
     native/presetchecks.cpp

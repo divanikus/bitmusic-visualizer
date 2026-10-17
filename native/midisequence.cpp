@@ -18,7 +18,40 @@ struct Reader {
     }
     QByteArray take(qint64 n) { need(n); auto b = data.mid(pos,n); pos += n; return b; }
 };
-struct TickEvent { quint64 tick; int tempo; QByteArray message; };
+constexpr qsizetype MaxEvents = 2000000;
+struct TickEvent { quint64 tick; int tempo; QByteArray message; int port = -1; };
+void usePort(int &output, int port) {
+    if (port < 0) return; // Unaddressed conductor SysEx follows the selected output.
+    require(output < 0 || output == port, "Multiple MIDI ports are not supported yet.");
+    output = port;
+}
+// Note-free SMF 2 tracks supply initial setup to subsequent musical patterns.
+// Preserve message order (bank/program, RPN/NRPN and SysEx can be stateful), but
+// use their final tempo and omit their silent duration and note releases.
+struct PatternSetup {
+    QVector<TickEvent> messages;
+    int tempo = 0;
+    bool mt32 = false;
+    void append(const QVector<TickEvent> &events, bool hasMt32) {
+        for (const auto &event : events) {
+            if (event.tempo) { tempo = event.tempo; continue; }
+            const int kind = quint8(event.message[0]) & 0xf0;
+            if (kind != 0x80 && kind != 0x90)
+                messages.push_back({0, 0, event.message, event.port});
+        }
+        mt32 |= hasMt32;
+    }
+    QVector<TickEvent> prepend(QVector<TickEvent> events, int outputPort) const {
+        if (messages.isEmpty() && !tempo) return events;
+        for (const auto &event : messages) usePort(outputPort, event.port);
+        QVector<TickEvent> combined;
+        combined.reserve(messages.size() + events.size() + bool(tempo));
+        if (tempo) combined.push_back({0, tempo, {}});
+        combined += messages;
+        combined += events; // Pattern events at tick zero override initial setup.
+        return combined;
+    }
+};
 MidiSequence finishSequence(QVector<TickEvent> events, MidiSequence result, quint64 endTick, quint32 division, int rate) {
     std::stable_sort(events.begin(),events.end(),[](const auto &a,const auto &b){ return a.tick<b.tick; });
     double secondsPerTick = 0;
@@ -56,14 +89,11 @@ QVector<MidiSequence> MidiSequence::parseSongs(const QByteArray &bytes, int rate
     QVector<TickEvent> events;
     QVector<MidiSequence> songs;
     qsizetype eventCount = 0;
+    qsizetype preparedEvents = 0;
+    PatternSetup setup;
     MidiSequence result;
     quint64 endTick = 0;
     int outputPort=-1;
-    const auto usePort=[&](int port) {
-        if(port<0) return; // Unaddressed conductor SysEx follows the selected output.
-        require(outputPort<0 || outputPort==port,"Multiple MIDI ports are not supported yet.");
-        outputPort=port;
-    };
     for (quint32 track = 0; track < tracks; ++track) {
         require(r.take(4) == "MTrk", "Expected MIDI track chunk.");
         const auto size = r.word(4); r.need(size);
@@ -71,7 +101,7 @@ QVector<MidiSequence> MidiSequence::parseSongs(const QByteArray &bytes, int rate
         quint64 tick = 0; int running = 0, port = -1, sysexPort = -1; bool ended = false; QByteArray sysex;
         while (t.pos < t.end) {
             tick += t.vlq();
-            require(++eventCount <= 2000000, "MIDI has too many events.");
+            require(++eventCount <= MaxEvents, "MIDI has too many events.");
             int status = t.byte();
             if (status < 128) { require(running != 0, "Invalid MIDI running status."); --t.pos; status = running; }
             if (status < 0xf0) {
@@ -81,7 +111,7 @@ QVector<MidiSequence> MidiSequence::parseSongs(const QByteArray &bytes, int rate
                 const int count = (status & 0xe0) == 0xc0 ? 1 : 2;
                 for (int i=0;i<count;++i) { int b=t.byte(); require(b<128,"Invalid MIDI event data."); msg += char(b); }
                 if ((status & 0xf0) == 0x90 && quint8(msg[2])) result.noteChannels |= quint16(1u << (status & 15));
-                usePort(port<0?0:port); events.push_back({tick,0,msg});
+                usePort(outputPort,port<0?0:port); events.push_back({tick,0,msg,port<0?0:port});
             } else if (status == 0xff) {
                 running = 0;
                 const int type=t.byte(); const auto data=t.take(t.vlq());
@@ -106,18 +136,29 @@ QVector<MidiSequence> MidiSequence::parseSongs(const QByteArray &bytes, int rate
                 if (sysex.endsWith(char(0xf7))) {
                     for (qsizetype i=1;i<sysex.size()-1;++i) require(quint8(sysex[i])<128,"Invalid MIDI SysEx data.");
                     result.mt32 |= sysex.size()>=5 && quint8(sysex[1])==0x41 && quint8(sysex[3])==0x16;
-                    usePort(sysexPort); events.push_back({tick,0,sysex}); sysex.clear();
+                    usePort(outputPort,sysexPort); events.push_back({tick,0,sysex,sysexPort}); sysex.clear();
                 }
             } else throw std::runtime_error("Unsupported system event in MIDI file.");
         }
         require(ended,"MIDI track has no end-of-track event."); endTick=std::max(endTick,tick);
         if (format == 2) {
-            songs.push_back(finishSequence(std::move(events), std::move(result), endTick, division, rate));
+            if (result.noteChannels) {
+                preparedEvents += events.size() + setup.messages.size() + bool(setup.tempo);
+                require(preparedEvents <= MaxEvents, "MIDI setup expansion has too many events.");
+                result.mt32 |= setup.mt32;
+                songs.push_back(finishSequence(setup.prepend(std::move(events), outputPort),
+                    std::move(result), endTick, division, rate));
+            } else {
+                setup.append(events, result.mt32);
+                // Still validate timing and every byte in hidden/trailing setup.
+                finishSequence(std::move(events), std::move(result), endTick, division, rate);
+            }
             events.clear(); result = {}; endTick = 0; outputPort = -1;
         }
     }
     require(r.pos==r.end,"Unexpected data after MIDI tracks.");
     if (format != 2) songs.push_back(finishSequence(std::move(events), std::move(result), endTick, division, rate));
+    require(!songs.isEmpty(), "MIDI format 2 file contains no notes.");
     return songs;
 }
 MidiSequence MidiSequence::parse(const QByteArray &bytes, int rate, int song) {

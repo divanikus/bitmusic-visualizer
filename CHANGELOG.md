@@ -13,7 +13,8 @@ not published GitHub releases. Unreleased lists changes made after the latest ta
 - Card settings from each card's pencil: view, its options and colors in one dialog.
 - Independent Levels for each card, saved in layout presets; the toolbar still
   switches all cards together and shows when their settings differ.
-- MIDI format 2 playback: independent patterns appear as separate playlist tracks.
+- MIDI format 2 playback: musical patterns appear as separate playlist tracks;
+  note-free setup tracks supply tempo and settings without extra playlist entries.
 - Basic SFLIST sets for General MIDI: load several SF2 banks together, with later
   banks taking priority for matching instruments. Unchanged banks are reused
   between tracks to avoid repeated long loads.

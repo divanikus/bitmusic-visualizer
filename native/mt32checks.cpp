@@ -152,6 +152,28 @@ int runMt32Checks(QApplication &app,const QStringList &args) {
         patternTrack->seek(0); render(*patternTrack,SampleRate/2);
         require(patternTrack->notePitches(0).isEmpty() && !patternTrack->notePitches(1).isEmpty(), "MT-32 pattern rewind leaked notes from another pattern.");
         log << "MT-32 SMF 2: subsongs, independent part routing, shared capture snapshot and rewind PASS\n";
+        const auto musicOnly = fixture(0,false);
+        const auto setupEvents = QByteArray::fromHex("00f00a411016127f00000100f700ff51030f4240");
+        const auto withEvents = [&](const QByteArray &events) {
+            auto header = musicOnly.left(22);
+            qToBigEndian(quint32(events.size()),header.data()+18);
+            return header+events;
+        };
+        auto setupPatterns = musicOnly; setupPatterns[9]=2; setupPatterns[11]=3;
+        setupPatterns += withEvents(setupEvents+QByteArray::fromHex("00ff2f00")).mid(14);
+        setupPatterns += musicOnly.mid(14);
+        auto initialized = openMidiTrack("setup.mid",setupPatterns,1,true,true);
+        auto explicitSetup = openMidiTrack("reference.mid",withEvents(setupEvents+musicOnly.mid(22)),0,false,true);
+        require(initialized->info().songs==2 && initialized->info().durationMs==10000 && initialized->info().mt32Resources,
+                "Hidden MT-32 setup lost tempo, routing or compact subsong indices.");
+        const auto initializedPcm=render(*initialized,SampleRate/2);
+        require(initializedPcm==render(*explicitSetup,SampleRate/2) &&
+                initializedPcm!=QByteArray(initializedPcm.size(),0),"Hidden MT-32 SysEx changed synthesis.");
+        auto initializedCopy=openMusicTrack("missing.mid",1,false,true,{}, {},{},initialized->info().mt32Resources);
+        require(render(*initializedCopy,SampleRate/2)==initializedPcm,"MT-32 setup capture lost initialization.");
+        require(initialized->seek(3*SampleRate) && !initialized->notePitches(0).isEmpty(),"MT-32 setup cold seek lost notes.");
+        require(initialized->seek(0) && render(*initialized,SampleRate/2)==initializedPcm,"MT-32 setup rewind lost initialization.");
+        log << "MT-32 hidden setup: Auto selection, tempo, direct subsong, synthesis, capture, cold seek and rewind PASS\n";
         auto audio=openMusicTrack(midi);
         const auto resources=audio->info().mt32Resources;
         checkMt32Metadata(resources,log);

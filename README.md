@@ -69,7 +69,8 @@ as `mod.song` work too. [Tracker details and limits](docs/TRACKERS.md).
 Voice cards show signals before shared processing; **Full mix** includes effects,
 volume and mutes. Tracks with no known end play until stopped, unless you enable
 a limit in **Settings → Playback**. MIDI tracks
-in formats 0/1 play together; format 2 lists independent patterns as subsongs. [Format details and limits](#documentation).
+in formats 0/1 play together; format 2 lists musical patterns as subsongs and
+uses note-free tracks as setup. [Format details and limits](#documentation).
 
 ## Settings
 

@@ -8,6 +8,7 @@ def make_fixtures(directory):
     directory = Path(directory)
     directory.mkdir(parents=True, exist_ok=True)
     make_midi_fixtures(directory)
+    make_midi_setup_fixtures(directory)
     make_tracker_fixtures(directory)
     make_ttt_fixtures(directory)
     # A small NES initialization routine enables pulse 1, triangle and noise.
@@ -99,6 +100,61 @@ def make_fixtures(directory):
         dsp[address] = value
     (directory / 'demo.spc').write_bytes(spc)
     return [directory / ('demo.' + extension) for extension in ('nsf', 'vgm', 'spc')]
+
+
+def make_midi_setup_fixtures(directory):
+    """Original SMF 2 setup/pattern cases and an equivalent single-song reference."""
+    directory = Path(directory)
+    def vlq(value):
+        data = [value & 127]
+        while value >> 7:
+            value >>= 7
+            data.insert(0, (value & 127) | 128)
+        return bytes(data)
+    def track(events):
+        data = b''
+        previous = 0
+        for tick, message in events:
+            data += vlq(tick - previous) + message
+            previous = tick
+        return b'MTrk' + struct.pack('>I', len(data)) + data
+    def save(name, tracks, fmt=2, division=480):
+        header = b'MThd' + struct.pack('>IHHH', 6, fmt, len(tracks), division)
+        (directory / name).write_bytes(header + b''.join(track(t) for t in tracks))
+    def tempo(value):
+        return b'\xff\x51\x03' + value.to_bytes(3, 'big')
+    def title(value):
+        return b'\xff\x03' + vlq(len(value)) + value.encode('ascii')
+    end = b'\xff\x2f\0'
+    setup = [(0, title('Hidden setup')), (0, tempo(750000)),
+             (0, b'\xb0\0\0'), (0, b'\xb0\x20\0'), (0, b'\xc0\x50'),
+             (0, b'\xb0\x0a\0'), (0, b'\xe0\0\x50'),
+             (120, b'\x80\x3c\0'), (120, b'\x90\x3c\0'),
+             (240, tempo(1000000)), (480, end)]
+    a = [(0, title('A')), (0, b'\xc0\0'), (0, b'\xb0\x0a\x7f'),
+         (0, b'\x90\x45\x64'), (240, tempo(500000)),
+         (480, b'\x80\x45\0'), (480, end)]
+    b = [(0, title('B')), (0, b'\x90\x48\x64'),
+         (1920, b'\x80\x48\0'), (1920, end)]
+    update = [(120, tempo(250000)), (120, b'\xc0\0'), (120, end)]
+    c = [(0, title('C')), (0, b'\x90\0\x64'), (480, b'\x80\0\0'), (480, end)]
+    save('setup-patterns.mid', [setup, a, b, update, c, [(0, tempo(2000000)), (0, end)]])
+    save('setup-only.mid', [setup])
+    # Explicit reference: final setup at time zero, followed by B. No SMF 2 path.
+    initial = [(0, tempo(1000000))] + [(0, msg) for _, msg in setup
+        if msg[0] in (0xb0, 0xc0, 0xe0)]
+    save('setup-reference.mid', [initial + b], fmt=0)
+    reset = bytes.fromhex('f00a411016127f00000100f7')
+    mt_setup = [(0, reset), (0, tempo(1000000)), (0, b'\xc1\x08'), (0, end)]
+    mt_notes = [(0, b'\x91\x3c\x64'), (1920, b'\x81\x3c\0'), (1920, end)]
+    save('setup-mt32.mid', [a, mt_setup, mt_notes])
+    save('setup-port-conflict.mid', [[(0, b'\xff\x21\x01\x01'),
+         (0, b'\xc0\0'), (0, end)], a])
+    save('setup-unaddressed.mid', [[(0, reset), (0, end)],
+         [(0, b'\xff\x21\x01\x01')] + mt_notes])
+    save('setup-smpte.mid', [[(0, tempo(1000000)), (0, end)], c], division=0xe728)
+    save('setup-late-notes.mid', [[(0, tempo(1000000)), (0, end)],
+         [(960, b'\x90\0\x01'), (1440, b'\x80\0\0'), (1440, end)]])
 
 
 def make_midi_fixtures(directory):

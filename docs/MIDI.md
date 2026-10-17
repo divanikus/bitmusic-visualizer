@@ -13,11 +13,23 @@ See [platform locations](../packaging/SOUNDFONTS.txt). No bank is downloaded or
 included at runtime. With no saved choice, the first available SF2 or SFLIST alphabetically
 is selected; a missing saved bank produces an error on MIDI load.
 
-Formats 0/1 play their tracks together as one song. Format 2 contains independent
-patterns: each appears as a separate subsong, with its own title, tempo, channel
-usage and GM/MT-32 detection. Missing titles use Pattern 1, Pattern 2, etc. Empty
-patterns stay in the list. Tempo is never borrowed from a different pattern;
-without a tempo event, a pattern uses the standard 120 BPM. Sixteen stable cards represent MIDI channels; channel 10 is percussion.
+Formats 0/1 play their tracks together as one song. Format 2 lists musical
+patterns as separate subsongs, with their own titles and channel usage. Missing
+titles use Pattern 1, Pattern 2, etc. Tracks without positive-velocity Note On
+events are treated as setup: they stay out of the playlist, while their final
+tempo, controllers, bank/program choices, pitch/pressure and SysEx initialize
+following musical patterns. Later setup tracks update that initialization;
+musical patterns can override it with their own events. Setup messages retain
+their order but run at time zero, without the setup track's silent duration.
+Note releases and setup titles are not inherited. A file containing only setup
+reports that it has no notes.
+
+This is a compatibility policy for setup-plus-pattern files, not simultaneous
+track merging or a claim that SMF 2 requires shared state. Changes inside a
+musical pattern stay local to that pattern. Without an own or setup tempo,
+120 BPM applies; SMPTE timing remains fixed. Direct subsong selection and seeking
+restore the same setup, including GM/MT-32 detection from inherited SysEx.
+Sixteen stable cards represent MIDI channels; channel 10 is percussion.
 On file load, channels with no positive-velocity Note On anywhere in the song
 start unchecked in the card editor. Late entrances remain visible; controllers,
 program changes and note releases alone do not count. Cards and their original
@@ -116,9 +128,8 @@ bank snapshot; backward seeking does not reread the files.
   explicit output ports are rejected.
 - Split SysEx packets are joined at their completion time; unsupported system
   escape events and malformed tracks are reported, not repaired.
-- SMF format 2 stores independent patterns, rather than simultaneous parts.
-  These are not silently merged as format 1, including when a file puts tempo
-  in one pattern and notes in another. A `.mid` extension alone does not identify
+- SMF format 2 musical patterns remain separate; note-free setup is handled as
+  described above. A `.mid` extension alone does not identify
   a Standard MIDI file; unrelated data with that extension remains unsupported.
 - GM-compatible arrangements are the target. FluidSynth handles its supported
   SysEx subset; full Roland GS/Yamaha XG device behavior is not promised.
