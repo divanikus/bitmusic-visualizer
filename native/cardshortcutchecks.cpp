@@ -44,6 +44,100 @@ void mouse(QWidget &scope, QEvent::Type type, QPointF point) {
         type == QEvent::MouseButtonRelease ? Qt::NoButton : Qt::LeftButton,Qt::NoModifier);
     QApplication::sendEvent(&scope,&event);
 }
+void checkCardMovement(QApplication &app, PlayerWindow &window, QTextStream &log) {
+    auto &scope=window.scopeWindow(); auto &player=window.player();
+    const auto state=player.state();
+    scope.show(); scope.resize(1250,850); scope.activateWindow(); pump(app);
+    auto edit=scope.findChild<QPushButton *>("editLayout");
+    auto rows=scope.findChild<QSpinBox *>("gridRows"), columns=scope.findChild<QSpinBox *>("gridColumns");
+    auto list=scope.findChild<QListWidget *>("scopeChannelList");
+    const auto order=[&] {
+        QVector<int> ids;
+        for (int i=0;i<list->count();++i) ids.push_back(list->item(i)->data(Qt::UserRole).toInt());
+        return ids;
+    };
+    const auto select=[&](int id) { list->setCurrentRow(order().indexOf(id)); scope.setFocus(); };
+    const auto selected=[&] { return list->currentItem()->data(Qt::UserRole).toInt(); };
+    const auto rect=[&](int id) { pump(app,180); return scope.panelRect(id); };
+    const auto move=[&](int keyCode, bool repeat=false) { key(scope,keyCode,Qt::AltModifier,repeat); };
+    scope.resetLayout(); rows->setValue(3); columns->setValue(3); edit->setChecked(false); scope.setFocus();
+    const auto original=order();
+    move(Qt::Key_Right); require(order()==original,"Alt+arrow moved without selection.");
+    select(4); move(Qt::Key_Left); require(order().indexOf(4)==3 && selected()==4,"Move Left lost card identity.");
+    move(Qt::Key_Right); move(Qt::Key_Up); require(order().indexOf(4)==1,"Move Up did not follow grid columns.");
+    move(Qt::Key_Down); require(order()==original,"Directional moves failed to restore the simple grid.");
+    move(Qt::Key_Right); const auto edge=order(); move(Qt::Key_Right,true);
+    require(order()==edge,"Move wrapped at the right grid edge.");
+    move(Qt::Key_Down); const auto bottom=order(); move(Qt::Key_Down);
+    require(order()==bottom && selected()==4,"Move crossed the bottom grid edge.");
+    select(0); move(Qt::Key_Right); move(Qt::Key_Right,true);
+    require(order().indexOf(0)==2,"Held movement did not repeat.");
+    // No action on override events, conflicting modifiers, fields or another window.
+    const auto protectedOrder=order();
+    QKeyEvent claim(QEvent::ShortcutOverride,Qt::Key_Left,Qt::AltModifier); claim.setAccepted(false);
+    QApplication::sendEvent(&scope,&claim);
+    require(claim.isAccepted() && order()==protectedOrder,"Move shortcut override executed an action.");
+    key(scope,Qt::Key_Left,Qt::AltModifier|Qt::ShiftModifier);
+    key(window,Qt::Key_Left,Qt::AltModifier);
+    edit->setChecked(true); rows->findChild<QLineEdit *>()->setFocus(); move(Qt::Key_Left);
+    require(order()==protectedOrder,"Movement escaped modifiers, window or input focus guards.");
+    // A large overflow card may refill the grid after reordering; never lose the selected card.
+    scope.resetLayout(); rows->setValue(3); columns->setValue(3); select(2); key(scope,Qt::Key_H);
+    key(scope,Qt::Key_Right,Qt::ShiftModifier);
+    for (int i=0;i<2;++i) key(scope,Qt::Key_Down,Qt::ShiftModifier);
+    key(scope,Qt::Key_H); select(0); const auto beforeOverflow=order(); move(Qt::Key_Down);
+    require(order()==beforeOverflow && scope.visibleChannels().contains(0),"Move lost the selected card to overflow.");
+    // Compact packing cannot always honor a direction for differently sized cards.
+    scope.resetLayout(); rows->setValue(3); columns->setValue(3);
+    for (int i=3;i<16;++i) list->item(i)->setCheckState(Qt::Unchecked);
+    select(1); key(scope,Qt::Key_Right,Qt::ShiftModifier); key(scope,Qt::Key_Down,Qt::ShiftModifier);
+    select(2); key(scope,Qt::Key_Right,Qt::ShiftModifier);
+    select(0); const auto beforeWrongDirection=order(); move(Qt::Key_Down);
+    require(order()==beforeWrongDirection,"Repacking moved the selected card against the requested direction.");
+    // Hidden/overflow entries move one list position until they have a grid position.
+    scope.resetLayout(); rows->setValue(2); columns->setValue(2);
+    select(1); key(scope,Qt::Key_H); list->setFocus();
+    key(*list,Qt::Key_Up,Qt::AltModifier);
+    require(order().front()==1 && list->currentItem()->checkState()==Qt::Unchecked,"Moving a hidden card changed visibility.");
+    key(*list,Qt::Key_Down,Qt::AltModifier); require(order()==original,"Hidden card list movement lost order.");
+    key(*list,Qt::Key_H); select(15); list->setFocus();
+    for (int i=0;i<12;++i) key(*list,Qt::Key_Up,Qt::AltModifier);
+    require(order().indexOf(15)==3 && scope.visibleChannels().contains(15),"Overflow card could not move into the grid.");
+    // A large card and its duplicate keep independent display options when moved.
+    scope.resetLayout(); rows->setValue(6); columns->setValue(4); select(0);
+    key(scope,Qt::Key_Right,Qt::ShiftModifier); key(scope,Qt::Key_Down,Qt::ShiftModifier);
+    const auto start=rect(0); move(Qt::Key_Right); const auto right=rect(0);
+    require(right.left()>start.left() && right.size()==start.size(),"Moving a spanning card resized it or used the wrong direction.");
+    move(Qt::Key_Left); require(rect(0)==start,"Spanning card failed to move back.");
+    QTimer::singleShot(0,&scope,[&] {
+        if (auto d=qobject_cast<QDialog *>(QApplication::activeModalWidget())) {
+            auto source=d->findChild<QComboBox *>("newCardSource"); source->setCurrentIndex(source->findData(0));
+            auto kind=d->findChild<QComboBox *>("newCardView"); kind->setCurrentIndex(kind->findData(1)); d->accept();
+        }
+    });
+    scope.findChild<QPushButton *>("addScopeCard")->click();
+    const int duplicate=selected(); scope.setFocus(); const auto duplicateStart=rect(duplicate);
+    move(Qt::Key_Right);
+    require(rect(duplicate).left()>duplicateStart.left() && selected()==duplicate && rect(0)==start &&
+        scope.findChild<QComboBox *>("cardView")->currentData().toInt()==1,"Moving a duplicate changed its original/options/selection.");
+    move(Qt::Key_Left);
+    scope.toggleSourceVisibility(ScopeTheme::FullMix); select(ScopeTheme::FullMix);
+    const auto mixStart=rect(ScopeTheme::FullMix); move(Qt::Key_Up);
+    require(rect(ScopeTheme::FullMix).top()<mixStart.top() && selected()==ScopeTheme::FullMix,"Full mix could not move up.");
+    // Fullscreen and active gestures retain the same admission rules.
+    scope.toggleFullscreen(); scope.setFocus(); select(duplicate); const auto fullStart=rect(duplicate);
+    move(Qt::Key_Right); require(rect(duplicate).left()>fullStart.left(),"Fullscreen card move failed.");
+    scope.toggleFullscreen(); edit->setChecked(true); scope.setFocus();
+    const auto dragStart=scope.panelRect(duplicate).topLeft()+QPointF(36,15);
+    mouse(scope,QEvent::MouseButtonPress,dragStart); const auto duringGesture=order(); move(Qt::Key_Left);
+    require(order()==duringGesture,"Keyboard move interfered with a mouse gesture.");
+    key(scope,Qt::Key_Escape);
+    require(player.state().generation==state.generation && player.state().muteMask==state.muteMask &&
+        player.state().outputMask==state.outputMask,"Card movement changed audio or transport.");
+    scope.resetLayout(); edit->setChecked(false);
+    log << "Card movement: four directions, repeats, edges, span/fit/direction guards, hidden/overflow list entries, duplicates, Full mix, fullscreen and input/gesture guards PASS\n";
+    log.flush();
+}
 }
 void checkSelectedCardShortcuts(QApplication &app, const QString &directory, QTextStream &log) {
     QTemporaryDir temp(QDir(directory).filePath("card-keys-XXXXXX")); require(temp.isValid(), "Cannot isolate card shortcut checks.");
@@ -63,6 +157,7 @@ void checkSelectedCardShortcuts(QApplication &app, const QString &directory, QTe
     until(app,[&] { return player.state().valid && !player.state().busy; }); window.refresh();
     player.seek(200,false); until(app,[&] { return !player.state().busy; }); window.refresh();
     log << "Selected-card checks: 16-channel MIDI ready\n"; log.flush();
+    checkCardMovement(app, window, log);
     scope.show(); scope.resize(1250,850); scope.activateWindow(); scope.setFocus(); pump(app);
     auto edit = scope.findChild<QPushButton *>("editLayout");
     edit->setChecked(true);

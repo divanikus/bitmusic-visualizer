@@ -96,6 +96,11 @@ void ScopeWindow::applyCardSize(int id, QSize span) {
     cards_[id].span = span;
     layoutChanged(); animateLayout(from);
 }
+void ScopeWindow::applyCardOrder(const QVector<int> &order) {
+    const auto from = panelPositions();
+    cards_.setOrder(order); rebuildList();
+    layoutChanged(); animateLayout(from);
+}
 void ScopeWindow::cancelDrag() {
     pressedSolo_ = -1; soloMoved_ = false;
     motion_->stop(); animationFrom_.clear(); animationTo_.clear();
@@ -225,7 +230,7 @@ void ScopeWindow::mouseMoveEvent(QMouseEvent *event) {
     }
     // FrameWindow's event filter already restores the ordinary cursor or its
     // outer window resize grip. Do not overwrite that edge cursor here.
-    setToolTip(panelAt(event->position()) >= 0 ? "Click to select a card. Shift + arrows: resize · V: view · M: mute · S: Solo · H: hide/show · L: levels · Enter: settings. F1: all shortcuts." : QString());
+    setToolTip(panelAt(event->position()) >= 0 ? "Click to select a card. Alt + arrows: move · Shift + arrows: resize · V: view · M: mute · S: Solo · H: hide/show · L: levels · Enter: settings. F1: all shortcuts." : QString());
     FrameWindow::mouseMoveEvent(event);
 }
 void ScopeWindow::mouseReleaseEvent(QMouseEvent *event) {
@@ -255,9 +260,11 @@ void ScopeWindow::mouseReleaseEvent(QMouseEvent *event) {
     }
     if (event->button() == Qt::LeftButton && pressedChannel_ >= 0) {
         if (dragging_) previewGesture(event->position());
-        const bool animate = dragging_; const auto from = panelPositions();
-        if (dragging_ && previewValid_) { cards_.setOrder(dropOrder()); rebuildList(); }
-        layoutChanged(); if (animate) animateLayout(from);
+        if (dragging_ && previewValid_) applyCardOrder(dropOrder());
+        else {
+            const bool animate = dragging_; const auto from = panelPositions();
+            layoutChanged(); if (animate) animateLayout(from);
+        }
         event->accept(); return;
     }
     FrameWindow::mouseReleaseEvent(event);

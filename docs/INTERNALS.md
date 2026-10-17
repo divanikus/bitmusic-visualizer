@@ -298,12 +298,16 @@ guards; selected-card commands additionally require canvas/list focus. Source
 mute/Solo use callbacks into the player, while view/visibility/Levels update only
 one card. Selection changes refresh chrome without invalidating the GPU trace
 history key or touching audio/capture. Reset, presets and new files clear selection.
+Keyboard movement shares directional neighbor lookup with selection and commits
+order through the same layout/animation path as a mouse drop. It preserves card
+identity and rejects proposals that lose the visible card or move it against the
+requested direction; hidden/overflow entries can move vertically in list order.
 
 `handleCardShortcut` admits canvas/list input and preserves native list navigation,
 gesture/fullscreen Escape priority, override claiming and repeat policy before
 dispatching. `decodeCardShortcut` maps keys/modifiers to private actions without
-reading UI state; `executeCardAction` applies admitted commands. Only navigation
-and resizing repeat. `cardGestureActive` is shared with Escape cancellation.
+reading UI state; `executeCardAction` applies admitted commands. Only navigation,
+moving and resizing repeat. `cardGestureActive` is shared with Escape cancellation.
 Card settings entry points, inspector callbacks and hit regions use settings
 names; the shared appearance-dialog guard also covers the background picker.
 Existing widget object names and saved settings/preset fields are unchanged.

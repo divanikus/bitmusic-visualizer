@@ -97,13 +97,15 @@ private:
     struct MusicImage { QByteArray key; QImage image; };
     QHash<int, MusicImage> musicImages_;
     int selectedCardId() const;
-    enum class CardAction { None, Navigate, Resize, ClearSelection, CycleView, Mute, Solo, Visibility, Levels, Settings };
+    enum class CardAction { None, Navigate, Resize, Move, ClearSelection, CycleView, Mute, Solo, Visibility, Levels, Settings };
     static CardAction decodeCardShortcut(const QKeyEvent &event);
     void executeCardAction(CardAction action, int key);
     void selectCard(int id);
     void clearCardSelection();
     void updateCardSelection();
     void moveCardSelection(int key);
+    int cardInDirection(int current, int key) const;
+    void moveSelectedCard(int key);
     bool cardSelectionActive_ = false;
     QLabel *cardSelectionHint_ = nullptr;
     void updateViewEditor();
@@ -163,6 +165,7 @@ private:
     QHash<int, QRectF> panelPositions() const;
     void animateLayout(const QHash<int, QRectF> &from);
     void applyCardSize(int id, QSize span);
+    void applyCardOrder(const QVector<int> &order);
     void cancelDrag();
     bool cardGestureActive() const;
     void editCardSettings(int card = -1);

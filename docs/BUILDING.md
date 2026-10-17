@@ -142,10 +142,12 @@ the visualizer help button and F1 guide in both windows, saving screenshots with
 preferences and silent playback. It is included in the complete native suite.
 Channel-control checks additionally cover high source IDs, snapshot feedback
 suppression and instrument-label changes without rebuilding buttons.
-Selected-card checks use an authored 16-channel MIDI: spatial navigation and
-keyboard resizing through reordered/spanning cards, independent duplicate
+Selected-card checks use an authored 16-channel MIDI: spatial navigation, keyboard
+movement/resizing through reordered/spanning cards, independent duplicate
 views/Levels, source mute/Solo,
 hidden-card restoration, Card settings, focus guards and reset/file lifecycle.
+Movement checks include four directions, held keys, grid edges, hidden/overflow
+list entries, stable selection and preserved source audio/transport.
 Run with and without `--software-scopes` to exercise CPU and GPU selection chrome.
 Override events claim commands without executing them; modified V must not act as
 plain V. The dedicated `--gpu-checks` suite also retains accumulated trail history

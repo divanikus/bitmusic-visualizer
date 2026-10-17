@@ -53,6 +53,11 @@ it can also select hidden or overflowing cards.
 - **H:** hide/show only this card; a hidden-selection hint explains how to restore it.
 - **L:** toggle only this card's Levels.
 - **Enter:** open Card settings, including view-specific options and colors.
+- **Alt + arrows:** move this card toward a neighboring visible card, using the
+  same order-based packing and animation as mouse dragging. Selection follows the
+  moved card; its size and options stay intact. A move that would hide it or send
+  it in the opposite direction is ignored. Hidden/overflow cards use Alt + Up/Down
+  to move one list position. The grid does not wrap at its edges. Hold to repeat.
 - **Shift + arrows:** resize by one grid cell; Right/Down grow, Left/Up shrink.
   Hold to repeat. The grid stays fixed; a visible card cannot grow beyond the
   available space. Neighboring cards reflow as with mouse resizing. Hidden/overflow
@@ -61,7 +66,7 @@ it can also select hidden or overflowing cards.
 
 These commands work only on the canvas or in the Cards list. Fields, dropdowns,
 buttons and dialogs keep their normal keys. View/mute/Solo/visibility/Levels keys
-ignore auto-repeat; arrows continue navigation or resizing. Selection is temporary:
+ignore auto-repeat; arrows continue navigation, moving or resizing. Selection is temporary:
 reset, preset application and a new file clear it. Card edits retain the normal
 preset behavior. Duplicate cards keep independent view/visibility/Levels/size
 settings, while mute/Solo still affects their shared source.

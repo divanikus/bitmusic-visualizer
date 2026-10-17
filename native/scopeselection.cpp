@@ -42,19 +42,16 @@ void ScopeWindow::updateCardSelection() {
     }
     update();
 }
-void ScopeWindow::moveCardSelection(int key) {
+int ScopeWindow::cardInDirection(int current, int key) const {
     auto ids = visibleChannels();
-    if (ids.isEmpty()) return;
+    if (ids.isEmpty()) return -1;
     // Grid position, not source number or list index; large cards can leave holes.
     std::sort(ids.begin(), ids.end(), [this](int a, int b) {
         const auto ar = gridLayout_.value(a), br = gridLayout_.value(b);
         return std::make_pair(ar.top(), ar.left()) < std::make_pair(br.top(), br.left());
     });
-    const int current = selectedCardId();
-    if (!cardSelectionActive_ || !gridLayout_.contains(current)) {
-        selectCard(key == Qt::Key_Up || key == Qt::Key_Left ? ids.back() : ids.front());
-        return;
-    }
+    if (!gridLayout_.contains(current))
+        return key == Qt::Key_Up || key == Qt::Key_Left ? ids.back() : ids.front();
     const auto from = gridLayout_.value(current);
     const bool horizontal = key == Qt::Key_Left || key == Qt::Key_Right;
     int best = -1;
@@ -70,13 +67,46 @@ void ScopeWindow::moveCardSelection(int key) {
         const auto candidate = std::make_tuple(cross > 0 ? 1 : 0, forward, std::max(0, cross));
         if (candidate < score) { best = id; score = candidate; }
     }
-    if (best >= 0) selectCard(best);
+    return best;
+}
+void ScopeWindow::moveCardSelection(int key) {
+    const int next = cardInDirection(cardSelectionActive_ ? selectedCardId() : -1, key);
+    if (next >= 0) selectCard(next);
+}
+void ScopeWindow::moveSelectedCard(int key) {
+    const int id = selectedCardId();
+    auto order = cards_.order();
+    const int from = order.indexOf(id);
+    if (from < 0) return;
+    const bool visible = gridLayout_.contains(id);
+    int to = from;
+    if (visible) {
+        const int neighbor = cardInDirection(id, key);
+        if (neighbor < 0) return;
+        to = order.indexOf(neighbor);
+    } else if (key == Qt::Key_Up || key == Qt::Key_Down) {
+        // Cards without a grid position can still move through the list.
+        to = std::clamp(from+(key == Qt::Key_Up ? -1 : 1), 0, int(order.size())-1);
+    }
+    if (to == from) return;
+    order.move(from, to);
+    if (visible) {
+        const auto packed = cards_.pack(rows_->value(), columns_->value(), order);
+        if (!packed.contains(id)) return;
+        const auto before = gridLayout_.value(id), after = packed.value(id);
+        // Packing mixed spans may leave this card in place or send it the other way.
+        const int progress = key == Qt::Key_Right ? after.left()-before.left() : key == Qt::Key_Left ? before.left()-after.left() :
+            key == Qt::Key_Down ? after.top()-before.top() : before.top()-after.top();
+        if (progress <= 0) return;
+    }
+    applyCardOrder(order);
 }
 ScopeWindow::CardAction ScopeWindow::decodeCardShortcut(const QKeyEvent &event) {
     const int key = event.key();
     const bool arrow = key == Qt::Key_Left || key == Qt::Key_Right || key == Qt::Key_Up || key == Qt::Key_Down;
     const auto modifiers = event.modifiers() & ~Qt::KeypadModifier;
     if (arrow && modifiers == Qt::ShiftModifier) return CardAction::Resize;
+    if (arrow && modifiers == Qt::AltModifier) return CardAction::Move;
     if (modifiers != Qt::NoModifier) return CardAction::None;
     if (arrow) return CardAction::Navigate;
     switch (key) {
@@ -96,7 +126,7 @@ bool ScopeWindow::handleCardShortcut(QKeyEvent *event, QWidget *target) {
     if ((target != this && !inList(target)) || (focus && focus != this && !inList(focus))) return false;
     const auto action = decodeCardShortcut(*event);
     if (action == CardAction::None) return false;
-    if (action == CardAction::Resize && !cardSelectionActive_) return false;
+    if ((action == CardAction::Resize || action == CardAction::Move) && !cardSelectionActive_) return false;
     if (action == CardAction::Navigate && inList(focus)) {
         // Native list navigation/scrolling, even at an edge where the row stays the same.
         if (event->type() == QEvent::KeyPress && state_.valid && !state_.busy && !newFile_) selectCard(selectedCardId());
@@ -104,7 +134,7 @@ bool ScopeWindow::handleCardShortcut(QKeyEvent *event, QWidget *target) {
     }
     if (action == CardAction::ClearSelection && (!cardSelectionActive_ || presentationFullscreen())) return false;
     if (cardGestureActive()) return false;
-    const bool repeatable = action == CardAction::Navigate || action == CardAction::Resize;
+    const bool repeatable = action == CardAction::Navigate || action == CardAction::Resize || action == CardAction::Move;
     if (!repeatable && !cardSelectionActive_) return false;
     event->accept();
     if (event->type() == QEvent::ShortcutOverride || (event->isAutoRepeat() && !repeatable)) return true;
@@ -117,6 +147,7 @@ void ScopeWindow::executeCardAction(CardAction action, int key) {
     if (action == CardAction::Navigate) { moveCardSelection(key); return; }
     const int id = selectedCardId();
     if (id < 0 || !cards_.order().contains(id)) return;
+    if (action == CardAction::Move) { moveSelectedCard(key); return; }
     if (action == CardAction::Resize) {
         auto span = cards_[id].span;
         if (key == Qt::Key_Left || key == Qt::Key_Right)
