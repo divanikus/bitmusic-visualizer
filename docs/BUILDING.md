@@ -42,7 +42,7 @@ The shared standard-library license collector avoids Windows Server tar stalls.
 ./launch.cmd
 ./package-native.ps1
 python -c "from fixtures import make_fixtures; make_fixtures('test-output')"
-./test-portable.ps1 -Archive dist/BitMusicVisualizer-0.11.0-windows-x64.zip
+./test-portable.ps1 -Archive dist/BitMusicVisualizer-0.11.1-windows-x64.zip
 ```
 
 Portable tests use a real output device at zero volume, isolate preferences and

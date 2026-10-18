@@ -6,7 +6,7 @@ Version 0.6.0 is the first public GitHub release. Earlier entries describe
 pre-public development milestones; their dates mark implementation checkpoints,
 not published GitHub releases. Unreleased lists changes made after the latest tag.
 
-## Unreleased
+## [0.11.1](https://github.com/divanikus/bitmusic-visualizer/releases/tag/v0.11.1) — 2026-10-18
 
 ### Added
 
