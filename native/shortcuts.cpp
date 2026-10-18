@@ -108,6 +108,7 @@ void showShortcutsHelp(QWidget *owner) {
       <tr><td><b>Shift+click</b></td><td>Solo a visualization card or a button in Channels; repeat to restore</td></tr>
       <tr><td><b>0 / %4</b></td><td>Full mix: cycle view / hide or show</td></tr>
       <tr><td><b>F2 / F3 / F4</b></td><td>All cards: Waveform / Spectrum / Keyboard</td></tr>
+      <tr><td><b>Shift+S</b></td><td>Toggle Stereo / Mono display for all cards; audio is unchanged</td></tr>
       <tr><td><b>%3</b></td><td>Reset channels and layout</td></tr>
       </table>
       <h3>Playback</h3>
@@ -119,7 +120,8 @@ void showShortcutsHelp(QWidget *owner) {
       <tr><td><b>F1</b></td><td>This guide</td></tr>
       <tr><td><b>F11 / Esc</b></td><td>Toggle full-screen visualizer / leave full screen</td></tr>
       </table>
-      <p>Number and playback shortcuts work in either player window. Use the number row or the numpad with
+      <p>Shift+S works in either window without selecting a card; mono sources stay mono.
+      Number and playback shortcuts work in either player window. Use the number row or the numpad with
       Num Lock on. Numbers refer to the original channel numbers, even after
       reordering. Multiple cards of one channel change together.</p>
       <p>Solo temporarily plays only one voice. Shift-click another channel to
@@ -169,10 +171,11 @@ bool PlayerWindow::eventFilter(QObject *object, QEvent *event) {
         (modifiers == Qt::NoModifier || modifiers == Qt::ControlModifier || modifiers == Qt::AltModifier);
     const bool mix = key == Qt::Key_0 && (modifiers == Qt::NoModifier || modifiers == Qt::AltModifier);
     const bool output = modifiers == Qt::ControlModifier && (key == Qt::Key_Left || key == Qt::Key_Right);
+    const bool stereo = key == Qt::Key_S && modifiers == Qt::ShiftModifier;
     const bool reset = key == Qt::Key_R && modifiers == (Qt::ControlModifier | Qt::ShiftModifier);
     const bool function = modifiers == Qt::NoModifier &&
         ((key >= Qt::Key_F2 && key <= Qt::Key_F5) || key == Qt::Key_F7 || key == Qt::Key_F8);
-    if (!help && !fullscreen && !digit && !mix && !output && !reset && !function) return FrameWindow::eventFilter(object, event);
+    if (!help && !fullscreen && !digit && !mix && !output && !stereo && !reset && !function) return FrameWindow::eventFilter(object, event);
     event->accept();
     if (event->type() == QEvent::ShortcutOverride || keyEvent->isAutoRepeat()) return true;
     if (help) { showShortcutsHelp(widget->window()); return true; }
@@ -188,6 +191,8 @@ bool PlayerWindow::eventFilter(QObject *object, QEvent *event) {
         else scopes_.cycleSourceView(source);
     } else if (output) {
         player_.setOutputMask(state.outputMask ^ (key == Qt::Key_Left ? 1u : 2u));
+    } else if (stereo) {
+        scopes_.toggleStereo();
     } else if (reset) {
         player_.setMuteMask(0); player_.setOutputMask(3); scopes_.resetLayout();
     } else if (key >= Qt::Key_F2 && key <= Qt::Key_F4) {

@@ -337,7 +337,10 @@ Noise, percussion and changing timbres may keep moving with any trigger.
 These controls change the display, not the sound.
 
 **Stereo** draws separate L/R lanes only for sources that provide stereo.
-Mono remains one trace. Speaker mutes dim the corresponding lane. Individual
+**Shift+S** in either window toggles the same option, without selecting a card
+or changing audio. Mono sources keep one trace and retain the stereo preference.
+Fields, dropdowns and dialogs keep their normal keys; holding Shift+S does not repeat.
+Speaker mutes dim the corresponding lane. Individual
 voice mutes dim their cards while keeping the unmuted voice signal available.
 
 **Full mix** instead captures the actual PCM sent to the audio device after

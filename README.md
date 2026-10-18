@@ -206,11 +206,13 @@ per press.
 | 0 / Alt+0 | Full mix: cycle view / hide or show |
 | Ctrl+← / Ctrl+→ | Toggle left / right audio output |
 | F2 / F3 / F4 | Set all cards to Waveform / Spectrum / Keyboard |
+| Shift+S | Toggle Stereo / Mono display for all cards; audio is unchanged |
 | F5 | Play from the beginning |
 | F7 / F8 | Resume / pause |
 | F11 / Esc | Toggle fullscreen / exit fullscreen after clearing card selection |
 | Ctrl+Shift+R | Reset cards/layout and enable all voices and L/R outputs |
 
+Shift+S needs no card selection; mono sources stay mono.
 Digits use original channel numbers and also work on the numpad with Num Lock.
 On macOS, use **Command** for Ctrl and **Option**
 for Alt. Text fields, dropdowns and dialogs keep their normal keys.

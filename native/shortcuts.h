@@ -19,3 +19,7 @@ inline QString fullMixShortcutHint() {
     return QString("0: cycle view; %1: show/hide.\nF1: all shortcuts.")
         .arg(shortcutLabel(Qt::AltModifier, Qt::Key_0));
 }
+inline QString stereoShortcutHint() {
+    return QString("Stereo (%1)\nShow left and right lanes with the same time and amplitude scale")
+        .arg(shortcutLabel(Qt::ShiftModifier, Qt::Key_S));
+}

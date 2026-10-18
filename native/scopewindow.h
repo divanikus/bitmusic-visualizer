@@ -30,6 +30,7 @@ public:
     void cycleSourceView(int source);
     void toggleSourceVisibility(int source);
     void setAllViews(ViewKind kind);
+    void toggleStereo();
     void resetLayout();
     // Called by the player's window-local shortcut filter after focus/dialog guards.
     bool handleCardShortcut(QKeyEvent *event, QWidget *target);

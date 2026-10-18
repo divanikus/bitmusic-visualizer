@@ -41,7 +41,7 @@ void key(QWidget &target, int code, Qt::KeyboardModifiers modifiers = {}, bool r
     QApplication::sendEvent(&target, &release);
 }
 void focus(QApplication &app, QWidget &widget) {
-    widget.window()->activateWindow(); widget.setFocus(); pump(app);
+    widget.window()->activateWindow(); pump(app); widget.setFocus(); pump(app);
 }
 void click(QWidget &target, Qt::KeyboardModifiers modifiers = {}) {
     const QPointF point = target.rect().center(), global = target.mapToGlobal(point.toPoint());
@@ -154,6 +154,68 @@ void checkCardSolo(QApplication &app, PlayerWindow &window, QTextStream &log) {
         player.state().generation == before.generation, "Card Solo did not restore original audio state.");
     log << "Card Solo: all views, normal/edit/fullscreen, moved duplicates, switch/restore, Full mix and gesture cancellation PASS\n";
 }
+void checkStereoShortcut(QApplication &app, PlayerWindow &window, const QString &directory, QTextStream &log) {
+    auto &player = window.player(); auto &scope = window.scopeWindow();
+    auto stereo = scope.findChild<QCheckBox *>("scopeStereo");
+    const bool emptyPreference = stereo->isChecked();
+    key(window, Qt::Key_S, Qt::ShiftModifier);
+    require(stereo->isChecked() == emptyPreference, "Stereo shortcut changed the empty player.");
+    window.loadFile(QDir(directory).filePath("demo.spc"));
+    until(app, [&] { return player.state().valid && !player.state().busy; }); window.refresh();
+    require(stereo->isEnabled() && stereo->toolTip().contains("Stereo ("), "Stereo shortcut hint or capability missing.");
+    stereo->setChecked(false); scope.hide(); focus(app, window);
+    const auto initial = player.state();
+    key(window, Qt::Key_S, Qt::ShiftModifier);
+    require(stereo->isChecked() && !scope.isVisible(), "Stereo shortcut failed from the player or opened hidden scopes.");
+    QKeyEvent claim(QEvent::ShortcutOverride, Qt::Key_S, Qt::ShiftModifier);
+    claim.setAccepted(false); QApplication::sendEvent(&window, &claim);
+    key(window, Qt::Key_S, Qt::ShiftModifier, true);
+    key(window, Qt::Key_S, Qt::ControlModifier | Qt::ShiftModifier);
+    require(claim.isAccepted() && stereo->isChecked(), "Override, repeat or extra modifiers toggled Stereo.");
+    scope.show(); focus(app, scope); key(scope, Qt::Key_S, Qt::ShiftModifier);
+    require(!stereo->isChecked(), "Stereo shortcut failed on the canvas without a selection.");
+    key(scope, Qt::Key_Right); key(scope, Qt::Key_S);
+    const auto solo = player.state().soloChannel;
+    require(solo >= 0 && !stereo->isChecked(), "Plain S did not retain selected-card Solo.");
+    key(scope, Qt::Key_S, Qt::ShiftModifier);
+    require(stereo->isChecked() && player.state().soloChannel == solo, "Shift+S interfered with Solo.");
+    key(scope, Qt::Key_S);
+    scope.findChild<QPushButton *>("editLayout")->setChecked(true);
+    auto list = scope.findChild<QListWidget *>("scopeChannelList"); focus(app, *list);
+    key(*list, Qt::Key_S, Qt::ShiftModifier);
+    require(!stereo->isChecked(), "Stereo shortcut failed in the Cards list.");
+    auto input = scope.findChild<QSpinBox *>("gridRows")->findChild<QLineEdit *>();
+    focus(app, *input); key(*input, Qt::Key_S, Qt::ShiftModifier); key(scope, Qt::Key_S, Qt::ShiftModifier);
+    require(!stereo->isChecked(), "Stereo shortcut escaped a focused field.");
+    auto combo = scope.findChild<QComboBox *>("cardView"); focus(app, *combo);
+    key(*combo, Qt::Key_S, Qt::ShiftModifier); combo->showPopup(); pump(app);
+    key(scope, Qt::Key_S, Qt::ShiftModifier);
+    require(!stereo->isChecked(), "Stereo shortcut escaped a dropdown or popup."); combo->hidePopup(); pump(app, 250);
+    // Synthetic popup activation can leave Qt's private container visible.
+    if (auto popup = QApplication::activePopupWidget()) popup->hide();
+    until(app, [] { return !QApplication::activePopupWidget(); });
+    QDialog modal(&scope); modal.setModal(true); modal.show(); pump(app);
+    key(scope, Qt::Key_S, Qt::ShiftModifier);
+    require(!stereo->isChecked(), "Stereo shortcut escaped a modal dialog."); modal.reject();
+    focus(app, scope);
+    require(QApplication::focusWidget() == &scope && !QApplication::activeModalWidget() && !QApplication::activePopupWidget(),
+        "Stereo check did not restore canvas focus after closing dialogs.");
+    key(scope, Qt::Key_F11); pump(app);
+    require(scope.presentationFullscreen(), "Stereo check did not enter fullscreen.");
+    focus(app, scope); key(scope, Qt::Key_S, Qt::ShiftModifier);
+    require(stereo->isChecked(), "Fullscreen Stereo shortcut failed.");
+    key(scope, Qt::Key_F11);
+    require(player.state().generation == initial.generation && player.state().muteMask == initial.muteMask &&
+        player.state().soloChannel == initial.soloChannel && player.state().outputMask == initial.outputMask,
+        "Stereo display changes affected playback, Solo or output controls.");
+    player.seek(200, false); key(scope, Qt::Key_S, Qt::ShiftModifier);
+    require(stereo->isChecked(), "Stereo shortcut changed a pending seek.");
+    until(app, [&] { return !player.state().busy; }); window.refresh();
+    key(scope, Qt::Key_S, Qt::ShiftModifier);
+    require(!stereo->isChecked() && !player.state().playing, "Paused Stereo shortcut failed or resumed audio.");
+    scope.findChild<QPushButton *>("editLayout")->setChecked(false);
+    log << "Shift+S: both windows, hidden/fullscreen/paused display, Solo independence and input/repeat/busy guards PASS\n"; log.flush();
+}
 void checkSolo(QApplication &app, PlayerWindow &window, const QString &directory, QTextStream &log) {
     auto &player = window.player(); auto &scope = window.scopeWindow();
     window.findChild<QTabWidget *>("tabs")->setCurrentIndex(1);
@@ -254,8 +316,13 @@ void checkShortcuts(QApplication &app, const QString &directory, QTextStream &lo
     key(window, Qt::Key_1, Qt::ControlModifier | Qt::ShiftModifier);
     key(window, Qt::Key_0); key(window, Qt::Key_Left, Qt::ControlModifier);
     require(!player.state().valid && !player.state().busy, "Empty-player shortcuts started transport.");
+    checkStereoShortcut(app, window, directory, log);
     window.loadFile(QDir(directory).filePath("demo.nsf"), 1);
     until(app, [&] { return !player.state().busy && player.state().positionMs > 200; }); window.refresh();
+    auto stereo = scope.findChild<QCheckBox *>("scopeStereo"); stereo->setChecked(true);
+    key(window, Qt::Key_S, Qt::ShiftModifier);
+    require(!stereo->isEnabled() && stereo->isChecked() && !player.state().info.stereoOutput,
+        "Mono source changed its stored stereo preference."); stereo->setChecked(false);
     scope.show(); pump(app); focus(app, window);
     const auto beforeFullscreen = player.state(); const auto windowRect = scope.geometry();
     key(window, Qt::Key_F11); pump(app);
@@ -416,7 +483,8 @@ void checkShortcuts(QApplication &app, const QString &directory, QTextStream &lo
         guideValid &= guide && guide->toPlainText().contains("F8") && guide->toPlainText().contains("Reset channels and layout") &&
             guide->toPlainText().contains("Full mix: cycle view") && guide->toPlainText().contains("Toggle left / right audio output") &&
             guide->toPlainText().contains("Solo channel / restore previous channels") && guide->toPlainText().contains("Shift+click") &&
-            guide->toPlainText().contains("visualization card");
+            guide->toPlainText().contains("visualization card") && guide->toPlainText().contains("Shift+S") &&
+            guide->toPlainText().contains("Toggle Stereo / Mono display");
         ++dialogs; dialog->grab().save(QDir(directory).filePath("native-shortcuts-help.png")); dialog->accept();
     };
     for (QWidget *target : {static_cast<QWidget *>(&window), static_cast<QWidget *>(&scope)}) {

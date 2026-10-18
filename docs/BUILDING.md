@@ -135,7 +135,8 @@ so restricted system temporary folders do not trigger modal write warnings.
 
 `--self-test test-output --shortcuts-only` exercises keyboard events in both
 windows, number-row/numpad mapping, duplicate/reordered/hidden cards, independent
-mute and visibility, Full mix on 0/Alt+0, L/R output toggles, input/dialog
+mute and visibility, Full mix on 0/Alt+0, L/R output toggles, Shift+S Stereo display
+(including mono-source, Solo, hidden/fullscreen/paused and repeat guards), input/dialog
 protection, transport and reset. Solo checks cover Shift-click, Ctrl+Shift+1–9,
 switching/restoring mutes, manual overrides and transport/file changes. It also checks
 the visualizer help button and F1 guide in both windows, saving screenshots with isolated

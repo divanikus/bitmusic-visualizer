@@ -184,7 +184,7 @@ ScopeWindow::ScopeWindow() {
     numbers_ = new QCheckBox("Numbers"); numbers_->setObjectName("channelNumbers"); numbers_->setChecked(true);
     names_ = new QCheckBox("Names"); names_->setObjectName("channelNames"); names_->setChecked(true);
     stereo_ = new QCheckBox("Stereo"); stereo_->setObjectName("scopeStereo");
-    stereo_->setToolTip("Show left and right lanes with the same time and amplitude scale");
+    stereo_->setToolTip(stereoShortcutHint());
     auto meters = levels_ = new QCheckBox("Levels"); meters->setObjectName("scopeLevels"); meters->setChecked(waveOptions_.meters);
     meters->setToolTip("Switch Levels on all cards. A mixed mark means individual cards differ. This choice is also the default for new cards.");
     labels->addWidget(stereo_); labels->addWidget(meters);
@@ -396,8 +396,12 @@ void ScopeWindow::present(const PlayerState &state, const ScopeFrame &frame, con
     titleBar_->setTitle(state.valid ? state.info.title : QString());
     stereo_->setEnabled(state.valid && state.info.stereoOutput);
     stereo_->setToolTip(state.valid && !state.info.stereoOutput ? "Mono source: one waveform per card; stereo preference is kept"
-        : "Show left and right lanes with the same time and amplitude scale");
+        : stereoShortcutHint());
     if (renderingVisible()) update();
+}
+void ScopeWindow::toggleStereo() {
+    // Use the same checkbox path, including mono-source and preset behavior.
+    if (stereo_->isEnabled()) stereo_->toggle();
 }
 void ScopeWindow::resetLayout() {
     presetFile_.clear(); savedPreset_.clear(); presetModified_ = false;
